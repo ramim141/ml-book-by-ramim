@@ -1,0 +1,147 @@
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { GraduationCap, Sparkles, BookOpen, FlaskConical, Target, Layers, Heart, Compass, Zap, CheckCircle, XCircle, ChevronRight } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+
+import supervisedData from './SupervisedLearning.json';
+import SimulationLab from './SimulationLab';
+import StoryDialogue from '../../UI/StoryDialogue';
+import ComparisonTable from '../../UI/ComparisonTable';
+import LogbookContainer from '../../UI/LogbookContainer';
+import LogbookItem from '../../UI/LogbookItem';
+import WordNavigation from '../../UI/WordNavigation';
+
+export default function SupervisedDetailsPage() {
+    const { bookSlug: urlBookSlug } = useParams();
+    const [activeTab, setActiveTab] = useState('reading');
+    const [pollSelected, setPollSelected] = useState(null);
+
+    const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08 } } };
+    const itemVariants = { hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0, transition: { duration: 0.4 } } };
+
+    return (
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-12 lg:px-16 py-4 md:py-8 space-y-6 md:space-y-8 text-slate-300 bg-[#070b12]">
+
+            {/* --- Tab Switcher Header --- */}
+            <div className="flex flex-col gap-3 pb-3 border-b sm:flex-row sm:items-center sm:justify-between border-white/10 md:pb-2">
+                <div className="flex w-full gap-2 sm:gap-4 sm:w-auto">
+                    <button onClick={() => setActiveTab('reading')} className={`flex-1 sm:flex-none relative flex items-center justify-center sm:justify-start gap-2 pb-2 font-bold text-xs sm:text-sm transition-colors ${activeTab === 'reading' ? 'text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}>
+                        <BookOpen size={16} className="shrink-0" /> <span className="whitespace-nowrap">📖 পাঠ্যক্রম (Lesson)</span>
+                        {activeTab === 'reading' && <motion.div layoutId="activeTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-500" />}
+                    </button>
+                    <button onClick={() => setActiveTab('lab')} className={`flex-1 sm:flex-none relative flex items-center justify-center sm:justify-start gap-2 pb-2 font-bold text-xs sm:text-sm transition-colors ${activeTab === 'lab' ? 'text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}>
+                        <FlaskConical size={16} className="shrink-0" /> <span className="whitespace-nowrap">🔬 ল্যাব সিমুলেটর</span>
+                        {activeTab === 'lab' && <motion.div layoutId="activeTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-500" />}
+                    </button>
+                </div>
+                <div className="hidden sm:block text-[10px] md:text-xs font-mono tracking-widest text-slate-500 uppercase">
+                    ML WORD BY WORD • WORD 16
+                </div>
+            </div>
+
+            <AnimatePresence mode="wait">
+                {activeTab === 'reading' ? (
+                    <motion.div key="reading" variants={containerVariants} initial="hidden" animate="visible" exit={{ opacity: 0, y: -10 }} className="space-y-10 md:space-y-12 font-sans text-base sm:text-lg md:text-xl lg:text-[21px] leading-relaxed text-slate-300">
+
+                        {/* --- Header --- */}
+                        <motion.div variants={itemVariants} className="pb-3 space-y-1 font-sans border-b md:pb-4 md:space-y-2 border-white/5">
+                            <div className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs font-bold text-slate-500 tracking-wide uppercase">
+                                <span>{supervisedData.part}</span>
+                            </div>
+                            <h1 className="flex flex-col items-start gap-2 text-2xl font-extrabold sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 sm:text-3xl text-slate-100">
+                                <GraduationCap className="w-6 h-6 text-[#00daf3] md:w-7 md:h-7 shrink-0" />
+                                <span className="flex flex-wrap items-center gap-2 leading-tight">
+                                    {supervisedData.word_bn} <span className="font-sans text-sm font-normal sm:text-lg text-slate-500">({supervisedData.word_en})</span>
+                                </span>
+                            </h1>
+                        </motion.div>
+
+                        {/* --- Real World Flash --- */}
+                        <motion.div variants={itemVariants} className="grid grid-cols-1 gap-6 md:gap-8 lg:grid-cols-12">
+                            <div className="space-y-3 lg:col-span-12 md:space-y-4">
+                                <div className="flex items-center gap-2 font-sans text-slate-400">
+                                    <Sparkles size={16} className="text-[#00daf3] shrink-0" />
+                                    <span className="text-sm font-bold leading-snug tracking-wider text-white uppercase sm:text-base md:text-lg">{supervisedData.real_world_flash.title}</span>
+                                </div>
+                                {supervisedData.real_world_flash.paragraphs.map((p, i) => <p key={i} className="text-justify indent-6">{p}</p>)}
+                            </div>
+                        </motion.div>
+
+                        <StoryDialogue title={supervisedData.story_prose.title} dialogues={supervisedData.story_prose.paragraphs.map(p => ({ text: p }))} itemVariants={itemVariants} />
+                        <ComparisonTable tableData={supervisedData.comparison_table} itemVariants={itemVariants} />
+
+                        <LogbookContainer title={supervisedData.word_bn} subtitle={supervisedData.word_en} date={supervisedData.engineering_logbook.date} itemVariants={itemVariants}>
+                            {supervisedData.engineering_logbook.points.map((pt, i) => (
+                                <LogbookItem key={i} number={pt.id} title={pt.title} icon={i === 3 ? Heart : i === 2 ? Zap : i === 0 ? Target : Layers} isHighlight={i === 3}>
+                                    <p className={i === 3 ? 'font-serif leading-relaxed text-slate-300' : 'text-justify'}>
+                                        {pt.description}
+                                    </p>
+                                </LogbookItem>
+                            ))}
+                        </LogbookContainer>
+
+                        {/* --- Readers Reflection Poll --- */}
+                        <motion.div variants={itemVariants} className="p-4 md:p-6 rounded-xl border border-white/10 bg-[#0b111b] shadow-md space-y-4 font-sans">
+                            <h3 className="flex items-start gap-2 text-base font-bold text-slate-100 md:text-lg">
+                                <Zap className="mt-1 text-amber-400 shrink-0" size={16} />
+                                <span className="leading-snug">{supervisedData.readers_reflection.title}</span>
+                            </h3>
+                            <p className="font-serif text-sm leading-relaxed text-justify whitespace-pre-line md:text-base text-slate-300">{supervisedData.readers_reflection.question}</p>
+
+                            <div className="grid grid-cols-1 gap-3 pt-2 md:gap-4 sm:grid-cols-2">
+                                {supervisedData.readers_reflection.options.map((option) => (
+                                    <button key={option.id} onClick={() => setPollSelected(option.id)} className={`rounded-xl border p-3 text-left transition-all flex items-start gap-2.5 text-xs md:text-sm ${pollSelected === option.id ? (option.isCorrect ? 'bg-green-500/10 border-green-500/35 text-slate-100' : 'bg-red-500/10 border-red-500/35 text-slate-100') : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-400'}`}>
+                                        <div className="mt-0.5 shrink-0">{pollSelected === option.id ? (option.isCorrect ? <CheckCircle className="text-green-500" size={16} /> : <XCircle className="text-red-500" size={16} />) : <div className="w-4 h-4 rounded-full border border-white/30 flex items-center justify-center font-bold text-[10px]">{option.id}</div>}</div>
+                                        <div><span className="block mb-0.5 font-bold text-slate-100">অপশন {option.id}</span>{option.text}</div>
+                                    </button>
+                                ))}
+                            </div>
+
+                            <AnimatePresence>
+                                {pollSelected && (
+                                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="p-3 md:p-4 rounded-lg border bg-white/[0.03] border-white/10 text-slate-300 mt-4 text-xs md:text-sm overflow-hidden">
+                                        {supervisedData.readers_reflection.options.map(option => pollSelected === option.id && (
+                                            <div key={option.id} className="space-y-1.5">
+                                                <span className={`flex items-center gap-1 font-bold ${option.isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {option.isCorrect ? <CheckCircle size={14} /> : <XCircle size={14} />}
+                                                    {option.isCorrect ? 'চমৎকার উত্তর!' : 'উত্তরটি সঠিক হয়নি!'}
+                                                </span>
+                                                <p className="leading-relaxed">{option.explanation}</p>
+                                            </div>
+                                        ))}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </motion.div>
+
+                        {/* --- Next Chapter Teaser --- */}
+                        <motion.div variants={itemVariants} className="p-4 md:p-6 rounded-xl border border-white/10 bg-[#0b111b] font-sans">
+                            <div className="space-y-3">
+                                <span className="text-[9px] md:text-[10px] font-mono font-bold tracking-widest text-[#00daf3] uppercase flex items-center gap-1 mb-2">
+                                    <Compass size={12} className="text-[#00daf3] animate-pulse" /> SELF GUIDED INTELLIGENCE
+                                </span>
+                                <p className="text-xs leading-relaxed md:text-sm text-slate-300">
+                                    {supervisedData.next_intro?.text}
+                                </p>
+                                <div className="pt-2">
+                                    <button onClick={() => { setActiveTab('lab'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-5 py-2.5 rounded-lg bg-[#1f3a46] text-slate-100 font-bold text-sm hover:bg-[#294957] transition-all group active:scale-95">
+                                        ল্যাবরেটরিতে ট্রেনিং শুরু করুন <ChevronRight size={14} className="transition-transform group-hover:translate-x-1" />
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+
+                        <motion.div variants={itemVariants}>
+                            <WordNavigation fallbackPath="supervised-ml" />
+                        </motion.div>
+
+                    </motion.div>
+                ) : (
+                    <motion.div key="lab" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="pt-2 pb-10 md:pt-4">
+                        <SimulationLab />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}

@@ -1,0 +1,413 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-sans bg-[#0b0f19] text-slate-200 antialiased;
+  }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #1e293b;
+  border-radius: 10px;
+}
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: #334155;
+}
+
+/* ==========================================
+   Custom Read Mode (রিডিং মোড) Theme Styles
+   ========================================== */
+
+/* 1. Body & main page background when active */
+body.reading-mode-active {
+  background-color: #f7f2ea !important;
+  font-family: 'Kalpurush', Georgia, Cambria, "Times New Roman", Times, serif !important;
+  --reading-font-size: 20px;
+}
+
+body.reading-mode-active #root > div,
+body.reading-mode-active main,
+body.reading-mode-active main div.max-w-\[1440px\],
+body.reading-mode-active [data-reader-scroll],
+body.reading-mode-active .flex-1.flex.flex-col.bg-\[\#0b0f19\] {
+  background-color: transparent !important;
+  color: #1a1a1a !important;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* 2. Typography overrides for readable serif style inside the main content area */
+body.reading-mode-active main p,
+body.reading-mode-active main button,
+body.reading-mode-active main span:not(.font-mono):not(.sr-only):not(.bg-\[\#1f3a46\]):not(.bg-emerald-400\/10):not(.bg-rose-400\/10):not(.text-rose-400):not(.text-emerald-400):not(.bg-white\/5):not(.border-white\/10),
+body.reading-mode-active main h1,
+body.reading-mode-active main h2:not(.font-mono),
+body.reading-mode-active main h3:not(.font-mono),
+body.reading-mode-active main h4:not(.font-mono),
+body.reading-mode-active main li,
+body.reading-mode-active main blockquote,
+body.reading-mode-active main div.indent-6 {
+  color: #1a1a1a !important;
+  font-family: 'Kalpurush', Georgia, Cambria, "Times New Roman", Times, serif !important;
+  line-height: 1.85 !important;
+}
+
+/* 3. Dynamic font size control via CSS variables */
+body.reading-mode-active main p,
+body.reading-mode-active main div.indent-6,
+body.reading-mode-active main li,
+body.reading-mode-active main blockquote {
+  font-size: var(--reading-font-size) !important;
+}
+
+/* Header sizes relative to scale */
+body.reading-mode-active main h1 {
+  font-size: calc(var(--reading-font-size) * 1.5) !important;
+  font-weight: 800 !important;
+}
+body.reading-mode-active main h2:not(.font-mono) {
+  font-size: calc(var(--reading-font-size) * 1.25) !important;
+  font-weight: 700 !important;
+}
+body.reading-mode-active main h3:not(.font-mono) {
+  font-size: calc(var(--reading-font-size) * 1.15) !important;
+  font-weight: 600 !important;
+}
+
+/* Make section headers (like "বাস্তব দুনিয়ার ঝলক") scale with font size */
+body.reading-mode-active main span.tracking-wider.uppercase {
+  font-size: calc(var(--reading-font-size) * 1.15) !important;
+  font-weight: 800 !important;
+  color: #000000 !important;
+}
+
+/* 4. Elegant card layouts (darker sepia to provide subtle depth) */
+body.reading-mode-active main .bg-\[\#0b111b\],
+body.reading-mode-active main .bg-\[\#070b12\],
+body.reading-mode-active main .bg-white\/\[0\.02\],
+body.reading-mode-active main .bg-white\/\[0\.03\] {
+  background-color: transparent !important;
+  border-color: rgba(26, 26, 26, 0.15) !important;
+  color: #2a2a2a !important;
+}
+
+body.reading-mode-active main .bg-\[\#030712\] {
+  background-color: transparent !important;
+  border-color: rgba(26, 26, 26, 0.15) !important;
+  color: #1a1a1a !important;
+}
+
+/* Ensure category badges and any elements using the dark page background
+   are lightened in reading mode for proper contrast (e.g. badges). */
+body.reading-mode-active main .bg-\[\#0b0f19\],
+body.reading-mode-active main .bg-\[\#0b0f19\]\/90 {
+  background-color: #ffffff !important;
+  color: #111111 !important;
+  border: 1px solid rgba(17, 17, 17, 0.15) !important;
+}
+body.reading-mode-active main .bg-\[\#0b0f19\]:hover {
+  background-color: #f7f2ea !important;
+}
+
+body.reading-mode-active main .border-white\/10,
+body.reading-mode-active main .border-white\/5,
+body.reading-mode-active main .border-white\/\[0\.08\],
+body.reading-mode-active main .border-white\/\[0\.07\] {
+  border-color: rgba(26, 26, 26, 0.15) !important;
+}
+
+/* 5. Details elements adjustment (text color classes override) */
+body.reading-mode-active main .text-slate-500 {
+  color: #666666 !important;
+}
+body.reading-mode-active main .text-slate-400 {
+  color: #444444 !important;
+}
+body.reading-mode-active main .text-slate-300 {
+  color: #222222 !important;
+}
+body.reading-mode-active main .text-slate-200 {
+  color: #1a1a1a !important;
+}
+body.reading-mode-active main .text-slate-100 {
+  color: #1a1a1a !important;
+}
+body.reading-mode-active main .text-white {
+  color: #000000 !important;
+}
+
+/* Fix Active Tab underline and text in the Lesson/Lab switch */
+body.reading-mode-active main .bg-slate-500 {
+  background-color: #1a1a1a !important;
+}
+
+/* Fix buttons using bg-[#1f3a46] in read mode to be white with dark text */
+body.reading-mode-active main .bg-\[\#1f3a46\] {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  border: 1px solid rgba(26, 26, 26, 0.15) !important;
+}
+body.reading-mode-active main .bg-\[\#1f3a46\]:hover {
+  background-color: #f3f4f6 !important;
+}
+
+/* Interactive elements in reflection poll and questions (green/red background and text) */
+body.reading-mode-active main .bg-green-500\/10 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: #065f46 !important;
+}
+body.reading-mode-active main .border-green-500\/35 {
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+body.reading-mode-active main .text-green-400 {
+  color: #047857 !important;
+}
+
+body.reading-mode-active main .bg-red-500\/10 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  color: #991b1b !important;
+}
+body.reading-mode-active main .border-red-500\/35 {
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+body.reading-mode-active main .text-red-400 {
+  color: #b91c1c !important;
+}
+
+/* Blog tone: project dark UI by default, clean paper reading mode when enabled */
+body:not(.reading-mode-active) main [data-blog-page] {
+  background: #0b0f19 !important;
+  color: #cbd5e1 !important;
+}
+
+body:not(.reading-mode-active) main [data-blog-page] article,
+body:not(.reading-mode-active) main [data-blog-page] aside section,
+body:not(.reading-mode-active) main [data-blog-page] .shadow-inner {
+  background: transparent !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+  color: #cbd5e1 !important;
+  box-shadow: none !important;
+}
+
+body:not(.reading-mode-active) main [data-blog-page] h1,
+body:not(.reading-mode-active) main [data-blog-page] h2,
+body:not(.reading-mode-active) main [data-blog-page] h3,
+body:not(.reading-mode-active) main [data-blog-page] h4 {
+  color: #f8fafc !important;
+}
+
+body:not(.reading-mode-active) main [data-blog-page] p {
+  color: #94a3b8 !important;
+}
+
+body:not(.reading-mode-active) main [data-blog-page] span,
+body:not(.reading-mode-active) main [data-blog-page] button {
+  border-color: rgba(148, 163, 184, 0.22) !important;
+}
+
+body:not(.reading-mode-active) main [data-blog-page] input {
+  background: rgba(15, 20, 36, 0.82) !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  color: #e2e8f0 !important;
+}
+
+body:not(.reading-mode-active) main [data-blog-page] input::placeholder {
+  color: #64748b !important;
+}
+
+body:not(.reading-mode-active) main [data-blog-page] .bg-white,
+body:not(.reading-mode-active) main [data-blog-page] .bg-white\/60,
+body:not(.reading-mode-active) main [data-blog-page] .bg-white\/65,
+body:not(.reading-mode-active) main [data-blog-page] .bg-white\/70,
+body:not(.reading-mode-active) main [data-blog-page] .bg-white\/90,
+body:not(.reading-mode-active) main [data-blog-page] .bg-stone-50,
+body:not(.reading-mode-active) main [data-blog-page] .bg-stone-100 {
+  background-color: rgba(15, 23, 42, 0.88) !important;
+}
+
+body:not(.reading-mode-active) main [data-blog-page] .text-\[\#7d5639\],
+body:not(.reading-mode-active) main [data-blog-page] .text-\[\#8a5c3c\],
+body:not(.reading-mode-active) main [data-blog-page] .text-stone-500,
+body:not(.reading-mode-active) main [data-blog-page] .text-stone-600 {
+  color: #7dd3fc !important;
+}
+
+body:not(.reading-mode-active) main [data-blog-page] .border-stone-200,
+body:not(.reading-mode-active) main [data-blog-page] .border-stone-300 {
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+body.reading-mode-active main [data-blog-page],
+body.reading-mode-active main [data-blog-page] .bg-\[\#f7f2ea\] {
+  background: transparent !important;
+  color: #111111 !important;
+}
+
+body.reading-mode-active main [data-blog-page] article,
+body.reading-mode-active main [data-blog-page] aside,
+body.reading-mode-active main [data-blog-page] aside section,
+body.reading-mode-active main [data-blog-page] blockquote,
+body.reading-mode-active main [data-blog-page] .shadow-inner {
+  background: transparent !important;
+  border-color: rgba(17, 17, 17, 0.16) !important;
+  color: #111111 !important;
+}
+
+body.reading-mode-active main [data-blog-page] h1,
+body.reading-mode-active main [data-blog-page] h2,
+body.reading-mode-active main [data-blog-page] h3,
+body.reading-mode-active main [data-blog-page] h4,
+body.reading-mode-active main [data-blog-page] p,
+body.reading-mode-active main [data-blog-page] span,
+body.reading-mode-active main [data-blog-page] li,
+body.reading-mode-active main [data-blog-page] a {
+  color: #111111 !important;
+}
+
+/* Force fully black text for main blog content in reading mode for maximum contrast */
+body.reading-mode-active main [data-blog-page] h1,
+body.reading-mode-active main [data-blog-page] h2,
+body.reading-mode-active main [data-blog-page] h3,
+body.reading-mode-active main [data-blog-page] h4,
+body.reading-mode-active main [data-blog-page] p,
+body.reading-mode-active main [data-blog-page] li,
+body.reading-mode-active main [data-blog-page] span,
+body.reading-mode-active main [data-blog-page] a,
+body.reading-mode-active main [data-blog-page] blockquote {
+  color: #000000 !important;
+}
+
+/* Make the whole article subtree black in reading mode */
+body.reading-mode-active main [data-blog-page] article,
+body.reading-mode-active main [data-blog-page] article * {
+  color: #000000 !important;
+}
+
+body.reading-mode-active main [data-blog-page] input,
+body.reading-mode-active main [data-blog-page] button {
+  background-color: #fffaf0 !important;
+  border-color: rgba(17, 17, 17, 0.22) !important;
+  color: #111111 !important;
+}
+
+/* ==========================================
+   KaTeX Math Equation Dark Mode Overrides
+   ========================================== */
+
+/* Inline math */
+.katex {
+  color: #e2e8f0;
+  font-size: 1.05em;
+}
+
+/* Display (block) math */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 1.5rem 0;
+  padding: 1.25rem 1.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 1rem;
+}
+
+.katex-display .katex {
+  color: #7dd3fc;
+  font-size: 1.15em;
+}
+
+/* Reading mode: KaTeX dark text */
+body.reading-mode-active .katex,
+body.reading-mode-active .katex-display .katex {
+  color: #1a1a1a !important;
+}
+
+body.reading-mode-active .katex-display {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+/* ==========================================
+   Reading Mode — Code Block Overrides
+   ========================================== */
+
+/* pre (outer wrapper with dark chrome bar) */
+body.reading-mode-active main pre {
+  background-color: #f0ede8 !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  box-shadow: none !important;
+}
+
+/* The "chrome" title bar inside pre (traffic-light dots row) */
+body.reading-mode-active main pre > div:first-child {
+  background-color: #e4e0da !important;
+  border-bottom-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Language label text in the title bar */
+body.reading-mode-active main pre > div:first-child span {
+  color: #6b6461 !important;
+}
+
+/* The actual code text */
+body.reading-mode-active main pre code,
+body.reading-mode-active main pre > code {
+  color: #1e293b !important;
+  background: transparent !important;
+  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace !important;
+}
+
+/* Inline code chips */
+body.reading-mode-active main code:not(pre code) {
+  background-color: rgba(0, 0, 0, 0.07) !important;
+  color: #1e293b !important;
+  border-radius: 4px;
+}
+
+/* ==========================================
+   Reading Mode — Table Overrides
+   ========================================== */
+
+/* Table wrapper */
+body.reading-mode-active main table {
+  background-color: transparent !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Table outer border wrapper div */
+body.reading-mode-active main div:has(> table) {
+  border-color: rgba(0, 0, 0, 0.14) !important;
+  background-color: transparent !important;
+}
+
+/* thead — dark bar → warm light */
+body.reading-mode-active main thead {
+  background-color: #e8e4de !important;
+}
+
+body.reading-mode-active main thead th {
+  color: #2c2825 !important;
+  border-bottom-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+/* tbody rows */
+body.reading-mode-active main tbody tr {
+  background-color: transparent !important;
+}
+
+body.reading-mode-active main tbody td {
+  color: #1e1a17 !important;
+  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
