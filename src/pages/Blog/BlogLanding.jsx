@@ -52,8 +52,8 @@ export default function BlogLanding() {
   return (
     <div data-blog-page className="min-h-screen bg-[#0b0f19] pb-20 text-slate-300 font-sans relative overflow-hidden">
       <SEO 
-        title="ব্লগ" 
-        description="মেশিন লার্নিং, এআই, ক্যারিয়ার গাইড এবং আধুনিক ওয়েব প্রযুক্তি নিয়ে সহজ, পরিষ্কার ও চিন্তাশীল লেখা।" 
+        title="ব্লগ | Blog" 
+        description="মেশিন লার্নিং, এআই, ক্যারিয়ার গাইড এবং আধুনিক ওয়েব প্রযুক্তি নিয়ে সহজ, পরিষ্কার ও চিন্তাশীল লেখা। Machine Learning, AI, and Career Guide Blog in Bengali." 
         canonical="https://learnwithramim.com/blog"
       />
       {/* Background Ambient Glow Elements */}

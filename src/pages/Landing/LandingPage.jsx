@@ -17,9 +17,16 @@ function LandingPageContent() {
   return (
     <div className="bg-[#050b14] text-slate-200 overflow-x-hidden font-sans selection:bg-indigo-500/30">
       <SEO 
-        title="হোম" 
-        description="জটিল অ্যালগরিদম আর খটমটে সব সংজ্ঞা বাদ দিয়ে, গল্পের ছলে আর জাদুকরী সিমুলেশনের মাধ্যমে শিখুন ভবিষ্যতের প্রযুক্তি।" 
+        title="শব্দে শব্দে মেশিন লার্নিং (এমএল) Book" 
+        description="জটিল অ্যালগরিদম আর খটমট সব সংজ্ঞা বাদ দিয়ে, গল্পের ছলে আর চমকপ্রদ সিমুলেশনের মাধ্যমে শিখুন ভবিষ্যতের প্রযুক্তি। Machine Learning Bengali Book (hardcopy)." 
         canonical="https://learnwithramim.com/" 
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "শব্দে শব্দে মেশিন লার্নিং (এমএল) Book",
+          "url": "https://learnwithramim.com/",
+          "description": "জটিল অ্যালগরিদম আর খটমট সব সংজ্ঞা বাদ দিয়ে, গল্পের ছলে বাংলায় মেশিন লার্নিং শিখুন। Hardcopy available."
+        }}
       />
       
       {/* --- HERO SECTION --- */}
@@ -40,26 +47,20 @@ function LandingPageContent() {
             <Sparkles size={16} /> নতুন যুগের ইন্টারেক্টিভ লার্নিং
           </motion.div>
           
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+          <h1 
             className="mb-6 text-5xl font-black leading-tight tracking-tight text-transparent sm:text-6xl md:text-7xl lg:text-8xl bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-slate-400 drop-shadow-sm"
           >
             শব্দে শব্দে <br/>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-cyan-400 to-emerald-400">
-              মেশিন লার্নিং
+              মেশিন লার্নিং (এমএল) Book
             </span>
-          </motion.h1>
+          </h1>
 
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
+          <p 
             className="max-w-2xl mx-auto mb-10 text-base leading-relaxed md:text-xl text-slate-400"
           >
-            জটিল অ্যালগরিদম আর খটমটে সব সংজ্ঞা বাদ দিয়ে, গল্পের ছলে আর জাদুকরী সিমুলেশনের মাধ্যমে শিখুন ভবিষ্যতের প্রযুক্তি।
-          </motion.p>
+            জটিল অ্যালগরিদম আর খটমট সব সংজ্ঞা বাদ দিয়ে, গল্পের ছলে আর এক চমকপ্রদ জাদুকরী সিমুলেশনের মাধ্যমে শিখুন ভবিষ্যতের প্রযুক্তি। Hardcopy এবং Interactive ভার্সনে উপলব্ধ।
+          </p>
 
           <motion.div 
              initial={{ opacity: 0, y: 20 }}

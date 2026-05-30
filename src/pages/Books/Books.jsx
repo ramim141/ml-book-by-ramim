@@ -224,8 +224,8 @@ export default function Books() {
   return (
     <div className="min-h-screen bg-[#050b12] text-slate-200 selection:bg-teal-400/30">
       <SEO 
-        title="বই কিনুন" 
-        description="শব্দে শব্দে মেশিন লার্নিং - গল্পের ছলে এআই শেখার ইন্টারেক্টিভ বাংলা বই। আজই প্রি-অর্ডার করুন।" 
+        title="বই কিনুন | Buy Book" 
+        description="শব্দে শব্দে মেশিন লার্নিং - গল্পের ছলে এআই শেখার ইন্টারেক্টিভ বাংলা বই। আজই প্রি-অর্ডার করুন। Buy the interactive Machine Learning Bengali Book today." 
         canonical="https://learnwithramim.com/books"
       />
 

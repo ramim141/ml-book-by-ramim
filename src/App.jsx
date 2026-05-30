@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Sidebar from './layout/Sidebar';
 import Navbar from './layout/Navbar';
@@ -6,19 +6,22 @@ import Footer from './layout/Footer';
 import ReadModeWidget from './components/UI/ReadModeWidget';
 
 
-import Home from './pages/Home/Home';
-import LandingPage from './pages/Landing/LandingPage';
-import MLTopics from './pages/MLTopics/MLTopics';
-import Contact from './pages/Contact/Contact';
-import About from './pages/About/About';
-import BookReader from './pages/BookReader/BookReader';
-import BookStart from './components/MachineLearning/start/BookStart';
-import TermsConditions from './pages/Legal/TermsConditions';
-import PrivacyPolicy from './pages/Legal/PrivacyPolicy';
-import Books from './pages/Books/Books';
+import PageLoader from './components/UI/PageLoader';
 
-import BlogLanding from './pages/Blog/BlogLanding';
-import DynamicBlogReader from './pages/Blog/DynamicBlogReader';
+const Home = lazy(() => import('./pages/Home/Home'));
+const LandingPage = lazy(() => import('./pages/Landing/LandingPage'));
+const MLTopics = lazy(() => import('./pages/MLTopics/MLTopics'));
+const Contact = lazy(() => import('./pages/Contact/Contact'));
+const About = lazy(() => import('./pages/About/About'));
+const BookReader = lazy(() => import('./pages/BookReader/BookReader'));
+const BookStart = lazy(() => import('./components/MachineLearning/start/BookStart'));
+const TermsConditions = lazy(() => import('./pages/Legal/TermsConditions'));
+const PrivacyPolicy = lazy(() => import('./pages/Legal/PrivacyPolicy'));
+const Books = lazy(() => import('./pages/Books/Books'));
+
+const BlogLanding = lazy(() => import('./pages/Blog/BlogLanding'));
+const DynamicBlogReader = lazy(() => import('./pages/Blog/DynamicBlogReader'));
+const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 
 
 function App() {
@@ -52,26 +55,28 @@ function App() {
         <div ref={contentScrollRef} className={`flex-1 flex flex-col bg-[#0b0f19] ${showSidebar ? 'min-h-0 overflow-y-auto custom-scrollbar' : 'w-full'}`}>
 
           <main className="flex-1">
-            <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/dashboard" element={<Home />} />
-              <Route path="/ml-topics" element={<MLTopics />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/about" element={<About />} />
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/dashboard" element={<Home />} />
+                <Route path="/ml-topics" element={<MLTopics />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/about" element={<About />} />
 
 
-              <Route path="/start" element={<BookStart />} />
-              <Route path="/word/:wordPath" element={<BookReader />} />
-              <Route path="/terms" element={<TermsConditions />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/books" element={<Books />} />
+                <Route path="/start" element={<BookStart />} />
+                <Route path="/word/:wordPath" element={<BookReader />} />
+                <Route path="/terms" element={<TermsConditions />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/books" element={<Books />} />
 
-              <Route path="/blog" element={<BlogLanding />} />
-              <Route path="/blog/:blogSlug" element={<DynamicBlogReader />} />
+                <Route path="/blog" element={<BlogLanding />} />
+                <Route path="/blog/:blogSlug" element={<DynamicBlogReader />} />
 
 
-              <Route path="*" element={<LandingPage />} />
-            </Routes>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </main>
 
 

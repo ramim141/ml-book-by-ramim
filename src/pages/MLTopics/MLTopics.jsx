@@ -50,8 +50,8 @@ export default function MLTopics() {
   return (
     <main className="min-h-screen bg-[#050b12] px-5 py-14 text-slate-200 sm:px-8 lg:px-12 lg:py-20">
       <SEO 
-        title="টপিকসমূহ" 
-        description="বইয়ের সবগুলো মেশিন লার্নিং শব্দ এক জায়গায়। আপনার পছন্দের শব্দ খুঁজে নিয়ে পড়া শুরু করুন।" 
+        title="টপিকসমূহ | Topics" 
+        description="বইয়ের সবগুলো মেশিন লার্নিং শব্দ এক জায়গায়। আপনার পছন্দের শব্দ খুঁজে নিয়ে পড়া শুরু করুন। Explore all Machine Learning topics and keywords from the Bengali ML book." 
         canonical="https://learnwithramim.com/ml-topics"
       />
       <motion.div

@@ -72,8 +72,8 @@ export default function Contact() {
   return (
     <main className="min-h-screen bg-[#050b12] px-5 py-14 text-slate-200 sm:px-8 lg:px-12 lg:py-20">
       <SEO 
-        title="যোগাযোগ" 
-        description="যেকোনো প্রশ্ন, মতামত বা সহযোগিতার জন্য আমাদের সাথে যোগাযোগ করুন।" 
+        title="যোগাযোগ | Contact Us" 
+        description="যেকোনো প্রশ্ন, মতামত বা সহযোগিতার জন্য আমাদের সাথে যোগাযোগ করুন। Contact the author of Shobde Shobde Machine Learning Bengali Book for queries and collaborations." 
         canonical="https://learnwithramim.com/contact"
       />
       <motion.div

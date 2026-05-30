@@ -44,8 +44,8 @@ export default function PrivacyPolicy() {
   return (
     <main className="min-h-screen bg-[#050b12] px-5 py-14 text-slate-200 sm:px-8 lg:px-12 lg:py-20">
       <SEO 
-        title="গোপনীয়তা নীতি" 
-        description="আপনার তথ্য কীভাবে সংগ্রহ, ব্যবহার এবং সুরক্ষিত রাখা হয় তার সরল ব্যাখ্যা।" 
+        title="গোপনীয়তা নীতি | Privacy Policy" 
+        description="আপনার তথ্য কীভাবে সংগ্রহ, ব্যবহার এবং সুরক্ষিত রাখা হয় তার সরল ব্যাখ্যা। Privacy Policy for the Machine Learning Bengali Book platform." 
         canonical="https://learnwithramim.com/privacy"
       />
       <motion.div

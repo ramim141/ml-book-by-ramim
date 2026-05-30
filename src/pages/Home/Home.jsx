@@ -119,8 +119,8 @@ export default function Home() {
   return (
     <div className="h-screen flex-1 overflow-y-auto bg-[#070b12] p-4 font-sans text-slate-200 custom-scrollbar sm:p-6 md:p-8">
       <SEO 
-        title="ড্যাশবোর্ড" 
-        description="শব্দে শব্দে মেশিন লার্নিং বইয়ের সূচিপত্র ও ড্যাশবোর্ড। এখান থেকে যেকোনো অধ্যায় পড়া শুরু করুন।" 
+        title="ড্যাশবোর্ড | Dashboard" 
+        description="শব্দে শব্দে মেশিন লার্নিং বইয়ের সূচিপত্র ও ড্যাশবোর্ড। এখান থেকে যেকোনো অধ্যায় পড়া শুরু করুন। Machine Learning Bengali Book Dashboard and Table of Contents." 
         canonical="https://learnwithramim.com/dashboard"
       />
       <div className="mx-auto max-w-6xl space-y-6">

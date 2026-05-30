@@ -39,8 +39,8 @@ export default function TermsConditions() {
   return (
     <main className="min-h-screen bg-[#050b12] px-5 py-14 text-slate-200 sm:px-8 lg:px-12 lg:py-20">
       <SEO 
-        title="ব্যবহারের শর্তাবলী" 
-        description="এই learning platform ব্যবহার করার আগে প্রয়োজনীয় নিয়ম, সীমাবদ্ধতা এবং দায়িত্ব সম্পর্কে জেনে নিন।" 
+        title="ব্যবহারের শর্তাবলী | Terms & Conditions" 
+        description="এই learning platform ব্যবহার করার আগে প্রয়োজনীয় নিয়ম, সীমাবদ্ধতা এবং দায়িত্ব সম্পর্কে জেনে নিন। Terms and Conditions for Shobde Shobde Machine Learning Bengali platform." 
         canonical="https://learnwithramim.com/terms"
       />
       <motion.div

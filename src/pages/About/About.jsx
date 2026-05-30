@@ -56,8 +56,8 @@ export default function About() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#050b12] text-slate-200">
       <SEO 
-        title="সম্পর্কে" 
-        description="শব্দে শব্দে মেশিন লার্নিং প্রোজেক্টের মিশন, ভিশন এবং কেন এটি তৈরি করা হয়েছে তা জানুন।" 
+        title="সম্পর্কে | About Us" 
+        description="শব্দে শব্দে মেশিন লার্নিং প্রোজেক্টের মিশন, ভিশন এবং কেন এটি তৈরি করা হয়েছে তা জানুন। About the Shobde Shobde Machine Learning Bengali Book project, its mission, and vision." 
         canonical="https://learnwithramim.com/about"
       />
       <motion.section
