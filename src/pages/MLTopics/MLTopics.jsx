@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { bookStructure, getAllWords } from '../../data/wordsIndex';
+import SEO from '../../components/SEO';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
@@ -48,6 +49,11 @@ export default function MLTopics() {
 
   return (
     <main className="min-h-screen bg-[#050b12] px-5 py-14 text-slate-200 sm:px-8 lg:px-12 lg:py-20">
+      <SEO 
+        title="টপিকসমূহ" 
+        description="বইয়ের সবগুলো মেশিন লার্নিং শব্দ এক জায়গায়। আপনার পছন্দের শব্দ খুঁজে নিয়ে পড়া শুরু করুন।" 
+        canonical="https://learnwithramim.com/ml-topics"
+      />
       <motion.div
         initial="hidden"
         animate="visible"

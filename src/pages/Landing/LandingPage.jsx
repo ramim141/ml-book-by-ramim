@@ -8,6 +8,7 @@ import {
   LineChart, Target, Users, ChevronDown,
   Sliders, MonitorPlay, Activity
 } from 'lucide-react';
+import SEO from '../../components/SEO';
 
 function LandingPageContent() {
   const navigate = useNavigate();
@@ -15,6 +16,11 @@ function LandingPageContent() {
 
   return (
     <div className="bg-[#050b14] text-slate-200 overflow-x-hidden font-sans selection:bg-indigo-500/30">
+      <SEO 
+        title="হোম" 
+        description="জটিল অ্যালগরিদম আর খটমটে সব সংজ্ঞা বাদ দিয়ে, গল্পের ছলে আর জাদুকরী সিমুলেশনের মাধ্যমে শিখুন ভবিষ্যতের প্রযুক্তি।" 
+        canonical="https://learnwithramim.com/" 
+      />
       
       {/* --- HERO SECTION --- */}
       <section className="relative min-h-[90vh] flex items-center justify-center px-6 pt-20">

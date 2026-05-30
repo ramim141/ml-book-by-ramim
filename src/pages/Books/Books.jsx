@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { bookStructure } from '../../data/wordsIndex';
 import bookCover from '../../assets/images/book-cover.jpeg';
+import SEO from '../../components/SEO';
 
 // ════════════════════════════════════════════════════════════════════════════
 // 1. PAGE DATA (Dynamic Configuration)
@@ -222,6 +223,11 @@ export default function Books() {
 
   return (
     <div className="min-h-screen bg-[#050b12] text-slate-200 selection:bg-teal-400/30">
+      <SEO 
+        title="বই কিনুন" 
+        description="শব্দে শব্দে মেশিন লার্নিং - গল্পের ছলে এআই শেখার ইন্টারেক্টিভ বাংলা বই। আজই প্রি-অর্ডার করুন।" 
+        canonical="https://learnwithramim.com/books"
+      />
 
       {/* Ambient glow */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">

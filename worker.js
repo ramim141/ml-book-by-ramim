@@ -7,7 +7,8 @@ export default {
       }
       return res;
     } catch (e) {
-      return new Response(e.stack || e.message || "Unknown error", { status: 500 });
+      console.error(e);
+      return new Response("Internal Server Error", { status: 500 });
     }
   }
 }

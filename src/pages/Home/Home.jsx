@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen, CheckCircle2, ChevronDown, ChevronUp, Database, Layers, Play } from 'lucide-react';
 import { getAllWords, bookStructure } from '../../data/wordsIndex';
+import SEO from '../../components/SEO';
 
 function StatBox({ label, value }) {
   return (
@@ -117,6 +118,11 @@ export default function Home() {
 
   return (
     <div className="h-screen flex-1 overflow-y-auto bg-[#070b12] p-4 font-sans text-slate-200 custom-scrollbar sm:p-6 md:p-8">
+      <SEO 
+        title="ড্যাশবোর্ড" 
+        description="শব্দে শব্দে মেশিন লার্নিং বইয়ের সূচিপত্র ও ড্যাশবোর্ড। এখান থেকে যেকোনো অধ্যায় পড়া শুরু করুন।" 
+        canonical="https://learnwithramim.com/dashboard"
+      />
       <div className="mx-auto max-w-6xl space-y-6">
         <section className="rounded-xl border border-white/10 bg-[#0b111b] p-5 sm:p-7">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">

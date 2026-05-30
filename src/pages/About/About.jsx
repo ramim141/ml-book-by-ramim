@@ -14,6 +14,7 @@ import {
   Users,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import SEO from '../../components/SEO';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 18 },
@@ -54,6 +55,11 @@ const timeline = [
 export default function About() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#050b12] text-slate-200">
+      <SEO 
+        title="সম্পর্কে" 
+        description="শব্দে শব্দে মেশিন লার্নিং প্রোজেক্টের মিশন, ভিশন এবং কেন এটি তৈরি করা হয়েছে তা জানুন।" 
+        canonical="https://learnwithramim.com/about"
+      />
       <motion.section
         initial="hidden"
         animate="visible"

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, BookOpen, Calendar, ChevronLeft, ChevronRight, Clock, Hash, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { allBlogs } from '../../data/blogIndex';
+import SEO from '../../components/SEO';
 
 const POSTS_PER_PAGE = 4;
 
@@ -50,6 +51,11 @@ export default function BlogLanding() {
 
   return (
     <div data-blog-page className="min-h-screen bg-[#0b0f19] pb-20 text-slate-300 font-sans relative overflow-hidden">
+      <SEO 
+        title="ব্লগ" 
+        description="মেশিন লার্নিং, এআই, ক্যারিয়ার গাইড এবং আধুনিক ওয়েব প্রযুক্তি নিয়ে সহজ, পরিষ্কার ও চিন্তাশীল লেখা।" 
+        canonical="https://learnwithramim.com/blog"
+      />
       {/* Background Ambient Glow Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-gradient-to-br from-[#5b5dfa]/5 to-transparent blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-gradient-to-tr from-[#00daf3]/5 to-transparent blur-[120px] pointer-events-none"></div>

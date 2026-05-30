@@ -7,9 +7,11 @@ import {
   Mail,
   MapPin,
   MessageSquare,
+  Phone,
   Send,
   Sparkles,
 } from 'lucide-react';
+import SEO from '../../components/SEO';
 
 const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxr2Yz2uECcWJ6aEoglmSRMOD24ddba6Im4QtKQVyy6KSBsjCEWrp796AjpXwjVrVY-/exec';
 
@@ -20,12 +22,18 @@ const fadeUp = {
 
 const contactItems = [
   {
+    icon: Phone,
+    label: 'ফোন',
+    value: '+880 1768628911',
+    href: 'tel:+8801768628911',
+  },    
+  {
     icon: Mail,
     label: 'ইমেইল',
     value: 'ahramu584@gmail.com',
     href: 'mailto:ahramu584@gmail.com',
   },
-  {
+  { 
     icon: Clock,
     label: 'রেসপন্স টাইম',
     value: 'সাধারণত ২৪-৪৮ ঘণ্টার মধ্যে',
@@ -63,6 +71,11 @@ export default function Contact() {
 
   return (
     <main className="min-h-screen bg-[#050b12] px-5 py-14 text-slate-200 sm:px-8 lg:px-12 lg:py-20">
+      <SEO 
+        title="যোগাযোগ" 
+        description="যেকোনো প্রশ্ন, মতামত বা সহযোগিতার জন্য আমাদের সাথে যোগাযোগ করুন।" 
+        canonical="https://learnwithramim.com/contact"
+      />
       <motion.div
         initial="hidden"
         animate="visible"

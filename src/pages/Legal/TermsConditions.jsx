@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { BellRing, EyeOff, FileText, HelpCircle, Scale, ShieldCheck } from 'lucide-react';
+import SEO from '../../components/SEO';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
@@ -37,6 +38,11 @@ const sections = [
 export default function TermsConditions() {
   return (
     <main className="min-h-screen bg-[#050b12] px-5 py-14 text-slate-200 sm:px-8 lg:px-12 lg:py-20">
+      <SEO 
+        title="ব্যবহারের শর্তাবলী" 
+        description="এই learning platform ব্যবহার করার আগে প্রয়োজনীয় নিয়ম, সীমাবদ্ধতা এবং দায়িত্ব সম্পর্কে জেনে নিন।" 
+        canonical="https://learnwithramim.com/terms"
+      />
       <motion.div
         initial="hidden"
         animate="visible"

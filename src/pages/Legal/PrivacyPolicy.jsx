@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Cookie, Database, FileCheck, Lock, Mail, ShieldCheck, UserCheck } from 'lucide-react';
+import SEO from '../../components/SEO';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
@@ -35,13 +36,18 @@ const sections = [
   {
     icon: Mail,
     title: '৬. যোগাযোগ',
-    text: 'গোপনীয়তা নীতি নিয়ে প্রশ্ন থাকলে contact@mlbookramim.com এ ইমেইল করতে পারেন অথবা Contact পেজ ব্যবহার করতে পারেন।',
+    text: 'গোপনীয়তা নীতি নিয়ে প্রশ্ন থাকলে ahramu584@gmail.com এ ইমেইল করতে পারেন অথবা Contact পেজ ব্যবহার করতে পারেন।',
   },
 ];
 
 export default function PrivacyPolicy() {
   return (
     <main className="min-h-screen bg-[#050b12] px-5 py-14 text-slate-200 sm:px-8 lg:px-12 lg:py-20">
+      <SEO 
+        title="গোপনীয়তা নীতি" 
+        description="আপনার তথ্য কীভাবে সংগ্রহ, ব্যবহার এবং সুরক্ষিত রাখা হয় তার সরল ব্যাখ্যা।" 
+        canonical="https://learnwithramim.com/privacy"
+      />
       <motion.div
         initial="hidden"
         animate="visible"

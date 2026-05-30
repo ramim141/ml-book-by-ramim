@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, BrainCircuit, Mail, MapPin } from "lucide-react";
+import { ArrowRight, BrainCircuit, Mail, MapPin, Phone } from "lucide-react";
 
 const footerGroups = [
   {
@@ -103,6 +103,13 @@ export default function Footer() {
                 <Mail size={16} className="text-teal-300" />
                 ahramu584@gmail.com
               </a>
+              <a
+                href="tel:+8801768628911"
+                className="flex items-center gap-3 transition-colors hover:text-teal-300"
+              >
+                <Phone size={16} className="text-emerald-300" />
+                +8801768628911
+              </a>  
               <div className="flex items-center gap-3">
                 <MapPin size={16} className="text-cyan-300" />
                 Bangladesh
