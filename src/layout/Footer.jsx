@@ -7,7 +7,7 @@ const footerGroups = [
     links: [
       { name: "হোম", path: "/" },
       { name: "বই পড়ুন", path: "/dashboard" },
-      { name: "বই কিনুন", path: "/books" },
+      { name: "বই কিনুন", path: "#", alertMessage: "শীঘ্রই আসছে, চোখ রাখুন ওয়েবসাইট ও Webmart Shop ফেসবুক পেইজে।" },
       { name: "এমএল শব্দ", path: "/ml-topics" },
     ],
   },
@@ -73,18 +73,31 @@ export default function Footer() {
               </h3>
               <ul className="space-y-3 text-sm">
                 {group.links.map((link) => (
-                  <li key={link.path}>
-                    <Link
-                      to={link.path}
-                      onClick={smoothToTop}
-                      className="group inline-flex items-center gap-2 font-semibold text-slate-400 transition-colors duration-200 hover:text-teal-300"
-                    >
-                      <span>{link.name}</span>
-                      <ArrowRight
-                        size={13}
-                        className="opacity-0 transition-all duration-200 group-hover:translate-x-1 group-hover:opacity-100"
-                      />
-                    </Link>
+                  <li key={link.name}>
+                    {link.alertMessage ? (
+                      <button
+                        onClick={() => window.alert(link.alertMessage)}
+                        className="group inline-flex items-center gap-2 font-semibold text-slate-400 transition-colors duration-200 hover:text-teal-300"
+                      >
+                        <span>{link.name}</span>
+                        <ArrowRight
+                          size={13}
+                          className="opacity-0 transition-all duration-200 group-hover:translate-x-1 group-hover:opacity-100"
+                        />
+                      </button>
+                    ) : (
+                      <Link
+                        to={link.path}
+                        onClick={smoothToTop}
+                        className="group inline-flex items-center gap-2 font-semibold text-slate-400 transition-colors duration-200 hover:text-teal-300"
+                      >
+                        <span>{link.name}</span>
+                        <ArrowRight
+                          size={13}
+                          className="opacity-0 transition-all duration-200 group-hover:translate-x-1 group-hover:opacity-100"
+                        />
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>
