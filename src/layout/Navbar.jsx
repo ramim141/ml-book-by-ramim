@@ -82,7 +82,7 @@ export default function Navbar({ onMenuClick }) {
             <span className="block truncate text-[13px] font-black leading-tight text-white sm:text-base lg:text-lg">
               শব্দে শব্দে মেশিন লার্নিং
             </span>
-            <span className="mt-0.5 hidden truncate text-[11px] font-semibold text-slate-500 sm:block">
+            <span className="mt-0.5 block truncate text-[10px] sm:text-[11px] font-semibold text-slate-500">
               রামীম আহমেদ
             </span>
           </span>

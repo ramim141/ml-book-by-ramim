@@ -151,9 +151,9 @@ export default function BlogLanding() {
                     </div>
 
                     <div className="flex flex-col gap-4 pt-5 mt-8 border-t border-slate-800/60 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-500">
-                        <span className="flex items-center gap-1.5"><Calendar size={14} /> {featuredPost.date}</span>
-                        <span className="flex items-center gap-1.5"><Clock size={14} /> {featuredPost.readTime}</span>
+                      <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-slate-500">
+                        <span className="flex items-center gap-1.5"><Calendar size={15} className="shrink-0" /> <span className="pt-0.5">{featuredPost.date}</span></span>
+                        <span className="flex items-center gap-1.5"><Clock size={15} className="shrink-0" /> <span className="pt-0.5">{featuredPost.readTime}</span></span>
                       </div>
                       <span className="inline-flex items-center gap-1.5 text-sm font-bold text-[#5b5dfa] group-hover:text-[#8c8dff] transition-colors">
                         পড়ুন <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
@@ -196,9 +196,9 @@ export default function BlogLanding() {
                           </p>
 
                           <div className="flex items-center justify-between gap-4 pt-5 mt-auto border-t border-slate-800/60">
-                            <div className="min-w-0 text-[11px] font-medium text-slate-500">
-                              <span className="block truncate">{post.date}</span>
-                              <span className="block mt-1">{post.readTime}</span>
+                            <div className="min-w-0 text-xs font-medium text-slate-500 space-y-1">
+                              <span className="block truncate pt-0.5">{post.date}</span>
+                              <span className="block truncate pt-0.5">{post.readTime}</span>
                             </div>
                             <span className="inline-flex shrink-0 items-center gap-1.5 text-xs sm:text-sm font-bold text-[#5b5dfa] group-hover:text-[#8c8dff] transition-colors">
                               পড়ুন <ArrowRight size={15} />
@@ -281,7 +281,7 @@ export default function BlogLanding() {
                         <h4 className="line-clamp-2 text-xs sm:text-sm font-semibold leading-snug text-slate-200 transition-colors group-hover:text-[#5b5dfa]">
                           {post.title}
                         </h4>
-                        <span className="mt-1 block text-[10px] text-slate-500">{post.date}</span>
+                        <span className="mt-1 block text-xs text-slate-500 pt-0.5 leading-relaxed">{post.date}</span>
                       </div>
                     </Link>
                   ))}
