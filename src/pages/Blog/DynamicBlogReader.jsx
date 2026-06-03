@@ -19,7 +19,7 @@ export default function DynamicBlogReader() {
         description={currentBlog.excerpt || currentBlog.summary || `${currentBlog.title} - শব্দে শব্দে মেশিন লার্নিং ব্লগ | Machine Learning Bengali Blog`} 
         canonical={`https://learnwithramim.com/blog/${currentBlog.slug}`}
       />
-      <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
         <BlogContentComponent />
       </div>
     </div>

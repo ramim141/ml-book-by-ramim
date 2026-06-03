@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import rehypeSlug from 'rehype-slug';
 import 'katex/dist/katex.min.css';
 import { Link } from 'react-router-dom';
 import { allBlogs } from '../../../../data/blogIndex';
@@ -11,10 +12,11 @@ import BlogHeader from '../../../../components/BlogUI/BlogHeader';
 import BlogAuthor from '../../../../components/BlogUI/BlogAuthor';
 import markdownSource from './LinearRegression.md?raw';
 
-function MarkdownTitle({ children, level = 1 }) {
+function MarkdownTitle({ children, level = 1, id }) {
   const Tag = `h${level}`;
   return (
     <Tag
+      id={id}
       className={
         level === 1
           ? 'text-3xl font-black text-white md:text-4xl'
@@ -96,15 +98,15 @@ export default function LinearRegressionMarkdownView() {
         titleClassName="text-3xl md:text-4xl lg:text-5xl"
       />
 
-      <div className="max-w-5xl px-4 mx-auto sm:px-6 lg:px-8">
+      <div className="max-w-7xl px-4 mx-auto sm:px-6 lg:px-8">
         <section className="prose prose-invert prose-slate max-w-none mt-2 prose-headings:scroll-mt-28 prose-headings:text-white prose-p:text-slate-300 prose-li:text-slate-300 prose-strong:text-white prose-a:text-[#8c8dff] hover:prose-a:text-[#00daf3] prose-blockquote:border-l-[#00daf3] prose-blockquote:text-slate-300 prose-code:text-[#00daf3] prose-code:before:content-none prose-code:after:content-none">
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}
-            rehypePlugins={[rehypeKatex]}
+            rehypePlugins={[rehypeKatex, rehypeSlug]}
             components={{
-              h1: ({ children }) => <MarkdownTitle level={1}>{children}</MarkdownTitle>,
-              h2: ({ children }) => <MarkdownTitle level={2}>{children}</MarkdownTitle>,
-              h3: ({ children }) => <MarkdownTitle level={3}>{children}</MarkdownTitle>,
+              h1: ({ node, ...props }) => <MarkdownTitle level={1} {...props} />,
+              h2: ({ node, ...props }) => <MarkdownTitle level={2} {...props} />,
+              h3: ({ node, ...props }) => <MarkdownTitle level={3} {...props} />,
               blockquote: MarkdownBlockquote,
               pre: MarkdownPre,
               code: MarkdownInlineCode,
