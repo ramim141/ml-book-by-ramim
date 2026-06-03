@@ -3,18 +3,20 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen, CheckCircle2, ChevronDown, ChevronUp, Database, Layers, Play } from 'lucide-react';
 import { getAllWords, bookStructure } from '../../data/wordsIndex';
 import SEO from '../../components/SEO';
+import { useProgress } from '../../context/ProgressContext';
 
-function StatBox({ label, value }) {
+function StatBox({ label, value, highlight = false }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
-      <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-slate-100">{value}</p>
+    <div className={`rounded-lg border p-4 ${highlight ? 'border-[#10b981]/30 bg-[#10b981]/10' : 'border-white/10 bg-white/[0.03]'}`}>
+      <p className={`text-xs font-semibold uppercase tracking-widest ${highlight ? 'text-[#10b981]' : 'text-slate-500'}`}>{label}</p>
+      <p className={`mt-2 text-2xl font-bold ${highlight ? 'text-[#34d399]' : 'text-slate-100'}`}>{value}</p>
     </div>
   );
 }
 
 function PartPanel({ part }) {
   const [isOpen, setIsOpen] = useState(part.partNo === '০১');
+  const { isCompleted } = useProgress();
 
   return (
     <div className="rounded-lg border border-white/5 bg-white/[0.01] p-3 transition-colors duration-200">
@@ -43,9 +45,10 @@ function PartPanel({ part }) {
               <Link
                 key={word.id}
                 to={`/word/${word.path}`}
-                className="rounded-lg border border-white/10 bg-[#070b12] px-4 py-3 text-sm font-medium leading-relaxed text-slate-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-slate-100"
+                className="flex items-center justify-between rounded-lg border border-white/10 bg-[#070b12] px-4 py-3 text-sm font-medium leading-relaxed text-slate-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-slate-100"
               >
-                {word.title}
+                <span>{word.title}</span>
+                {isCompleted(word.path) && <CheckCircle2 size={16} className="text-[#10b981] shrink-0" />}
               </Link>
             ))}
           </div>
@@ -115,6 +118,7 @@ export default function Home() {
   const allWords = getAllWords();
   const totalParts = bookStructure.reduce((count, chapter) => count + chapter.parts.length, 0);
   const firstWordPath = bookStructure[0]?.parts[0]?.words[0]?.path;
+  const { progressPercentage, completedCount } = useProgress();
 
   return (
     <div className="h-screen flex-1 overflow-y-auto bg-[#070b12] p-4 font-sans text-slate-200 custom-scrollbar sm:p-6 md:p-8">
@@ -150,10 +154,12 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="grid gap-3 sm:grid-cols-3">
+        <section className="grid gap-3 grid-cols-2 sm:grid-cols-5">
           <StatBox label="অধ্যায়" value={bookStructure.length} />
           <StatBox label="পর্ব" value={totalParts} />
           <StatBox label="শব্দ" value={allWords.length} />
+          <StatBox label="পঠিত" value={completedCount} highlight={true} />
+          <StatBox label="প্রোগ্রেস" value={`${progressPercentage}%`} highlight={true} />
         </section>
 
         <section className="space-y-4">

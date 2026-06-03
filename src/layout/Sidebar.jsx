@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { bookStructure } from '../data/wordsIndex';
 import { 
-  ChevronDown, ChevronRight, ChevronLeft, Home, BookOpen, X 
+  ChevronDown, ChevronRight, ChevronLeft, Home, BookOpen, X, CheckCircle2
 } from 'lucide-react';
+import { useProgress } from '../context/ProgressContext';
 
 export default function Sidebar({ isMobileOpen, closeMobileMenu }) {
   const location = useLocation(); 
@@ -11,6 +12,8 @@ export default function Sidebar({ isMobileOpen, closeMobileMenu }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [openChapter, setOpenChapter] = useState("chapter_01");
   const [openPart, setOpenPart] = useState("part_01");
+
+  const { progressPercentage, isCompleted } = useProgress();
 
   const toggleChapter = (chapterId) => {
     if (isCollapsed) setIsCollapsed(false); 
@@ -114,6 +117,22 @@ export default function Sidebar({ isMobileOpen, closeMobileMenu }) {
                 অধ্যায়সমূহ
               </p>
             )}
+
+            {/* Progress Bar (Visible only when not collapsed) */}
+            {!isCollapsed && (
+              <div className="px-4 mb-6">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-xs font-semibold text-slate-400">আপনার প্রোগ্রেস</span>
+                  <span className="text-xs font-bold text-[#4ADE80]">{progressPercentage}%</span>
+                </div>
+                <div className="w-full bg-white/[0.04] rounded-full h-1.5 border border-white/[0.02]">
+                  <div 
+                    className="bg-gradient-to-r from-[#10b981] to-[#34d399] h-1.5 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all duration-500 ease-out" 
+                    style={{ width: `${progressPercentage}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
             
             <div className="space-y-4">
               {bookStructure.map((chapter) => (
@@ -188,7 +207,7 @@ export default function Sidebar({ isMobileOpen, closeMobileMenu }) {
                                       key={word.id}
                                       to={wordPath}
                                       onClick={handleLinkClick}
-                                      className={`block text-left py-2.5 px-4 rounded-xl text-[13px] md:text-[14px] transition-all relative ${
+                                      className={`flex items-center justify-between py-2.5 px-4 rounded-xl text-[13px] md:text-[14px] transition-all relative ${
                                         isWordActive 
                                           ? 'bg-white/[0.07] text-slate-100 font-bold shadow-sm' 
                                           : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.035] font-medium'
@@ -198,6 +217,12 @@ export default function Sidebar({ isMobileOpen, closeMobileMenu }) {
                                         <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-slate-500 rounded-r-md"></span>
                                       )}
                                       <span className="leading-relaxed line-clamp-2">{word.title}</span>
+                                      {isCompleted(word.path) && !isWordActive && (
+                                        <CheckCircle2 size={14} className="ml-2 shrink-0 text-[#10b981]" />
+                                      )}
+                                      {isCompleted(word.path) && isWordActive && (
+                                        <CheckCircle2 size={14} className="ml-2 shrink-0 text-white" />
+                                      )}
                                     </Link>
                                   );
                                 })}
