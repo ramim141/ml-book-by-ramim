@@ -21,6 +21,7 @@ const Books = lazy(() => import('./pages/Books/Books'));
 
 const BlogLanding = lazy(() => import('./pages/Blog/BlogLanding'));
 const DynamicBlogReader = lazy(() => import('./pages/Blog/DynamicBlogReader'));
+const Bookmarks = lazy(() => import('./pages/Bookmarks/Bookmarks'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 
 
@@ -33,7 +34,40 @@ function App() {
   const showSidebar = location.pathname === '/dashboard' || location.pathname.startsWith('/word/');
   const showFooter = !showSidebar && !location.pathname.startsWith('/word/');
 
+  const [isScrollingDown, setIsScrollingDown] = useState(false);
+  const lastScrollY = useRef(0);
+
   useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = showSidebar ? contentScrollRef.current?.scrollTop : window.scrollY;
+      
+      if (scrollY === undefined) return;
+      
+      if (scrollY > lastScrollY.current + 15) {
+        setIsScrollingDown(true);
+        lastScrollY.current = scrollY;
+      } else if (scrollY < lastScrollY.current - 15) {
+        setIsScrollingDown(false);
+        lastScrollY.current = scrollY;
+      }
+    };
+
+    const scrollContainer = showSidebar ? contentScrollRef.current : window;
+    
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+    }
+
+    return () => {
+      if (scrollContainer) {
+        scrollContainer.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [showSidebar]);
+
+  useEffect(() => {
+    setIsScrollingDown(false);
+    lastScrollY.current = 0;
     contentScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [location.pathname]);
@@ -41,7 +75,7 @@ function App() {
   return (
     <div className={`flex flex-col bg-[#0b0f19] font-sans antialiased text-slate-200 ${showSidebar ? 'h-[100dvh] overflow-hidden' : 'min-h-screen overflow-x-hidden'}`}>
 
-      <Navbar onMenuClick={() => setIsMobileMenuOpen(true)} />
+      <Navbar onMenuClick={() => setIsMobileMenuOpen(true)} isScrollingDown={isScrollingDown} />
 
       <div className={`relative flex flex-1 pt-16 sm:pt-18 lg:pt-20 ${showSidebar ? 'min-h-0 overflow-hidden' : ''}`}>
 
@@ -72,6 +106,7 @@ function App() {
 
                 <Route path="/blog" element={<BlogLanding />} />
                 <Route path="/blog/:blogSlug" element={<DynamicBlogReader />} />
+                <Route path="/bookmarks" element={<Bookmarks />} />
 
 
                 <Route path="*" element={<NotFound />} />
@@ -86,7 +121,7 @@ function App() {
       </div>
 
       {/* গ্লোবাল রিডিং মোড ফ্লোটিং বাটন */}
-      <ReadModeWidget />
+      <ReadModeWidget isScrollingDown={isScrollingDown} />
     </div>
   );
 }

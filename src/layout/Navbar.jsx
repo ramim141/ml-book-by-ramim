@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BrainCircuit, Menu, Search, X, PanelLeft } from 'lucide-react';
+import { BrainCircuit, Menu, Search, X, PanelLeft, Bookmark } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getAllWords } from '../data/wordsIndex';
 
@@ -12,7 +12,7 @@ const navLinks = [
   { label: 'যোগাযোগ', path: '/contact' },
 ];
 
-export default function Navbar({ onMenuClick }) {
+export default function Navbar({ onMenuClick, isScrollingDown }) {
   const navigate = useNavigate();
   const location = useLocation();
   const allWords = useMemo(() => getAllWords(), []);
@@ -60,7 +60,7 @@ export default function Navbar({ onMenuClick }) {
   };
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-cyan-100/[0.08] bg-[#050b12]/95 backdrop-blur-xl">
+    <header className={`fixed inset-x-0 top-0 z-50 border-b border-cyan-100/[0.08] bg-[#050b12]/95 backdrop-blur-xl transition-transform duration-300 ${isScrollingDown ? '-translate-y-full md:translate-y-0' : 'translate-y-0'}`}>
       <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-2 px-3 sm:h-18 sm:gap-3 sm:px-6 lg:h-20">
         {showSidebarButton && (
           <button
@@ -126,6 +126,18 @@ export default function Navbar({ onMenuClick }) {
           >
             <Search size={18} />
           </button>
+
+          <Link
+            to="/bookmarks"
+            aria-label="Saved Bookmarks"
+            className={`flex h-9 w-9 items-center justify-center rounded-md transition sm:h-10 sm:w-10 ${
+              isActiveLink('/bookmarks')
+                ? 'bg-teal-300/10 text-teal-300'
+                : 'text-slate-400 hover:bg-white/[0.05] hover:text-teal-300'
+            }`}
+          >
+            <Bookmark size={18} />
+          </Link>
 
           <button
             type="button"

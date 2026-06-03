@@ -5,14 +5,17 @@ import { HelmetProvider } from 'react-helmet-async'
 import App from './App.jsx'
 import './index.css'
 import { ProgressProvider } from './context/ProgressContext.jsx'
+import { BookmarkProvider } from './context/BookmarkContext.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <HelmetProvider>
       <BrowserRouter>
-        <ProgressProvider>
-          <App />
-        </ProgressProvider>
+        <BookmarkProvider>
+          <ProgressProvider>
+            <App />
+          </ProgressProvider>
+        </BookmarkProvider>
       </BrowserRouter>
     </HelmetProvider>
   </React.StrictMode>,

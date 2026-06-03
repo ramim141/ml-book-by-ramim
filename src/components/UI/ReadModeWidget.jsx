@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { BookOpen, Minus, Plus } from 'lucide-react';
+import { BookOpen, Minus, Plus, Bookmark } from 'lucide-react';
+import { useBookmark } from '../../context/BookmarkContext';
+import { getAllWords } from '../../data/wordsIndex';
+import { allBlogs } from '../../data/blogIndex';
 
-export default function ReadModeWidget() {
+export default function ReadModeWidget({ isScrollingDown }) {
   const location = useLocation();
+  const { toggleBookmark, isBookmarked } = useBookmark();
   const [isReadMode, setIsReadMode] = useState(() => localStorage.getItem('read-mode') === 'true');
   const [fontSize, setFontSize] = useState(() => parseInt(localStorage.getItem('read-mode-font-size') || '20', 10));
   const [isLabTab, setIsLabTab] = useState(false);
@@ -14,6 +18,24 @@ export default function ReadModeWidget() {
     location.pathname.startsWith('/word/') ||
     location.pathname === '/blog' ||
     location.pathname.startsWith('/blog/');
+
+  // Determine current item for bookmarking
+  const currentBookmarkItem = useMemo(() => {
+    if (location.pathname.startsWith('/word/')) {
+      const path = location.pathname.split('/word/')[1];
+      const word = getAllWords().find(w => w.path === path);
+      if (word) {
+        return { id: path, type: 'book', title: word.title, link: location.pathname };
+      }
+    } else if (location.pathname.startsWith('/blog/')) {
+      const slug = location.pathname.split('/blog/')[1];
+      const blog = allBlogs.find(b => b.slug === slug);
+      if (blog) {
+        return { id: slug, type: 'blog', title: blog.title, link: location.pathname };
+      }
+    }
+    return null;
+  }, [location.pathname]);
 
   useEffect(() => {
     document.body.style.setProperty('--reading-font-size', `${fontSize}px`);
@@ -65,7 +87,7 @@ export default function ReadModeWidget() {
   if (!isTargetPage || isLabTab) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex select-none items-center gap-2 font-sans">
+    <div className={`fixed bottom-6 right-6 z-50 flex select-none items-center gap-2 font-sans transition-transform duration-300 ${isScrollingDown ? 'translate-y-[150%] md:translate-y-0' : 'translate-y-0'}`}>
       <AnimatePresence>
         {isReadMode && (
           <motion.div
@@ -99,6 +121,23 @@ export default function ReadModeWidget() {
         )}
       </AnimatePresence>
 
+      {/* Bookmark Button (Only shows if there is a valid item to bookmark) */}
+      {currentBookmarkItem && (
+        <button
+          onClick={() => toggleBookmark(currentBookmarkItem)}
+          aria-label="বুকমার্ক করুন"
+          className={`flex h-12 w-12 items-center justify-center rounded-full border shadow-2xl transition-all active:scale-95 ${
+            isBookmarked(currentBookmarkItem.id)
+              ? 'border-[#5b5dfa]/30 bg-[#5b5dfa]/10 text-[#5b5dfa] hover:bg-[#5b5dfa]/20'
+              : 'border-white/10 bg-slate-900/90 text-slate-300 hover:bg-slate-800 hover:text-white'
+          }`}
+          title="বুকমার্ক করে রাখুন"
+        >
+          <Bookmark size={18} strokeWidth={2} fill={isBookmarked(currentBookmarkItem.id) ? 'currentColor' : 'none'} />
+        </button>
+      )}
+
+      {/* Read Mode Button */}
       <button
         onClick={() => setIsReadMode((prev) => !prev)}
         aria-label={isReadMode ? 'রিডিং মোড বন্ধ করুন' : 'রিডিং মোড চালু করুন'}
