@@ -1,18 +1,18 @@
 # লজিস্টিক রিগ্রেশন (Logistic Regression): মাস্টারপ্ল্যান ও সূচি
 
-### [**Phase 1: Foundations (ভিত্তি ও পরিচিতি)**](#phase-1-foundations-ভিত্তি-ও-পরিচিতি)
+### **[Phase 1: Foundations (ভিত্তি ও পরিচিতি)](#phase-1-foundations-ভিত্তি-ও-পরিচিতি)**
 * **লজিস্টিক রিগ্রেশন কী?** (সহজ সংজ্ঞা ও বাস্তব জীবনের উদাহরণ — যেমন: ব্যাংক লোন পাবে কি পাবে না)।
 * **নামের ধোঁকাবাজি:** কাজ করে ক্লাসিফিকেশন (Classification) বা ভাগ করার, কিন্তু নামের শেষে "রিগ্রেশন" কেন?
 * **Classification বনাম Regression:** লিনিয়ার এবং লজিস্টিক রিগ্রেশনের মধ্যে মূল পার্থক্য।
 * **গ্লসারি (Glossary):** Binary Classification, Probability (সম্ভাবনা), Sigmoid Curve।
 
-### [**Phase 2: Technical Mechanics (গাণিতিক কার্যপদ্ধতি ও মেকানিজম)**](#phase-2-technical-mechanics-গাণিতিক-মেকানিজম-ও-কার্যপদ্ধতি)
+### **[Phase 2: Technical Mechanics (গাণিতিক কার্যপদ্ধতি ও মেকানিজম)](#phase-2-technical-mechanics-গাণিতিক-মেকানিজম-ও-কার্যপদ্ধতি)**
 * **লিনিয়ার রিগ্রেশন এখানে কেন ফেইল করে?** (Yes/No বা 0/1 প্রেডিক্ট করতে গেলে সোজা রেখা বা Straight Line কেন কাজ করে না?)
 * **ম্যাজিক ফাংশন (The Sigmoid Function):** কীভাবে একটি সোজা রেখাকে বাঁকিয়ে 'S' আকৃতির কার্ভ (S-Curve) বানানো হয়? 
 * **Probability এবং Threshold:** কীভাবে মডেল সিদ্ধান্ত নেয়? (যেমন: সম্ভাবনা ৫০%-এর বেশি হলে 'হ্যাঁ', কম হলে 'না')।
 * **ভুল মাপার নতুন স্কেল:** লজিস্টিক রিগ্রেশনে কেন MSE কাজ করে না? এর বদলে **Log-Loss (Binary Cross-Entropy)** এর সহজ ব্যাখ্যা।
 
-### [**Phase 3: Evaluation & Validation (মডেলের রিপোর্ট কার্ড)**](#phase-3-evaluation--validation-মডেলের-রিপোর্ট-কার্ড)
+### **[Phase 3: Evaluation & Validation (মডেলের রিপোর্ট কার্ড)](#phase-3-evaluation--validation-মডেলের-রিপোর্ট-কার্ড)**
 * **The Confusion Matrix (কনফিউশন ম্যাট্রিক্স):** এটি কী এবং কেন এটি ক্লাসিফিকেশনের হার্টবিট? (True Positive, False Positive, True Negative, False Negative এর একদম সহজ ব্যাখ্যা)।
 * **Evaluation Metrics:** 
   * Accuracy (সঠিকতার হার)।
@@ -20,16 +20,16 @@
   * Recall / Sensitivity (আসল ঘটনাগুলোর মধ্যে কয়টাকে মডেল ধরতে পারল?)।
   * F1-Score (Precision ও Recall এর ব্যালেন্স)।
 
-### [**Phase 4: Expert Insights & Limitations (অ্যাডভান্সড ধারণা ও সীমাবদ্ধতা)**](#phase-4-expert-insights--limitations-অ্যাডভান্সড-ধারণা-ও-সীমাবদ্ধতা)
+### **[Phase 4: Expert Insights & Limitations (অ্যাডভান্সড ধারণা ও সীমাবদ্ধতা)](#phase-4-expert-insights--limitations-অ্যাডভান্সড-ধারণা-ও-সীমাবদ্ধতা)**
 * **থ্রেশহোল্ড (Threshold) নিয়ে খেলা:** কখন ৫০% রুলস ভাঙতে হয়? (যেমন: ক্যান্সার নির্ণয়ের ক্ষেত্রে মডেলের Threshold ০.৫ এর বদলে ০.৩ কেন রাখা বুদ্ধিমানের কাজ?)
 * **Linear Decision Boundary:** মডেল কীভাবে ডেটাকে দুই ভাগে কাটে?
 * **সীমাবদ্ধতা:** কখন লজিস্টিক রিগ্রেশন একদম ফেইল করে? (যেমন: ডেটা যদি গোলকধাঁধার মতো পেঁচানো থাকে)।
 
-### [**Phase 5: The Upgrades (মডেলের ক্ষমতা বাড়ানো)**](#phase-5-the-upgrades-মডেলের-ক্ষমতা-বাড়ানো)
+### **[Phase 5: The Upgrades (মডেলের ক্ষমতা বাড়ানো)](#phase-5-the-upgrades-মডেলের-ক্ষমতা-বাড়ানো)**
 * **Multinomial Logistic Regression:** লজিস্টিক রিগ্রেশন সাধারণত ২টি জিনিস (Yes/No) ভাগ করতে পারে। কিন্তু যদি ৩-৪টি ক্যাটাগরি (যেমন: বিড়াল, কুকুর, নাকি পাখি) থাকে, তখন মডেলকে কীভাবে আপগ্রেড করতে হয়? (One-vs-Rest বা Softmax এর ধারণা)।
 * **Imbalanced Data (অসম ডেটা) হ্যান্ডলিং:** যদি ডেটাসেটে ১০০ জন সুস্থ মানুষের বিপরীতে মাত্র ২ জন অসুস্থ মানুষ থাকে, তখন মডেলের পাক্ষপাতিত্ব (Bias) কীভাবে দূর করবেন?
 
-### [**Phase 6: Projects & Python Implementation (প্র্যাকটিক্যাল কোডিং)**](#phase-6-python-implementation-কোডিং-ও-প্রজেক্ট)
+### **[Phase 6: Projects & Python Implementation (প্র্যাকটিক্যাল কোডিং)](#phase-6-python-implementation-কোডিং-ও-প্রজেক্ট)**
 * **Project:** "ডায়াবেটিস প্রেডিকশন" (রোগীর বয়স, ব্লাড প্রেসার, সুগার লেভেল ইত্যাদি দেখে লজিস্টিক রিগ্রেশন দিয়ে প্রেডিক্ট করা তার ডায়াবেটিস আছে নাকি নেই)।
 * **কোডিং স্টেপস:** Scikit-Learn দিয়ে ডেটা লোড, ট্রেনিং, এবং Confusion Matrix প্রিন্ট করা।
 * **কোড বিশ্লেষণ এবং আপনার জন্য ছোট্ট টাস্ক।**

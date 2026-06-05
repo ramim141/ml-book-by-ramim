@@ -189,7 +189,7 @@ export const bookStructure = [
       {
         partId: "part_04",
         partNo: "০৪",
-        partTitle: "পর্ব ৪: মেশিন লার্নিংয়ের দর্শন ও ঝুঁকি",
+        partTitle: "মেশিন লার্নিংয়ের দর্শন ও ঝুঁকি",
         words: [
           {
             id: "word_20_GIGO",

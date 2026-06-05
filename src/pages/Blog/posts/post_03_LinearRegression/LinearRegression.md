@@ -1,28 +1,28 @@
 ## কাজের ধাপ বা Outline:
 
-* [**Phase 1: Foundations (ভিত্তি ও পরিচিতি)**](#phase-1-foundations-ভিত্তি-ও-পরিচিতি)
+* **[Phase 1: Foundations (ভিত্তি ও পরিচিতি)](#phase-1-foundations-ভিত্তি-ও-পরিচিতি)**
   * লিনিয়ার রিগ্রেশন কী এবং কেন? (সহজ সংজ্ঞা ও Analogy)
   * এটি কোন ধরনের লার্নিং?
   * কেন শিখব? (Foundational Algorithm)
   * গ্লসারি (Glossary: Features, Target, Weights/Coefficients, Intercept)
-* [**Phase 2: Technical Mechanics (গাণিতিক কার্যপদ্ধতি ও ডেটা প্রস্তুতি)**](#phase-2-technical-mechanics-গাণিতিক-মেকানিজম-ও-ডেটা-প্রস্তুতি)
+* **[Phase 2: Technical Mechanics (গাণিতিক কার্যপদ্ধতি ও ডেটা প্রস্তুতি)](#phase-2-technical-mechanics-গাণিতিক-মেকানিজম-ও-ডেটা-প্রস্তুতি)**
   * মূল মেকানিজম বা সমীকরণ ($y = mx + c$ এবং $y = b_0 + b_1x_1 + b_2x_2...$)
   * Best Fit Line কী?
   * কস্ট ফাংশন (Cost Function: MSE) এবং এটি কমানোর উপায়
   * OLS (Normal Equation) বনাম Gradient Descent
   * এনকোডিং (Categorical Data কে সংখ্যায় রূপান্তর)
-* [**Phase 3: Evaluation & Validation (মডেল মূল্যায়ন)**](#phase-3-evaluation--validation-মডেল-মূল্যায়ন)
+* **[Phase 3: Evaluation & Validation (মডেল মূল্যায়ন)](#phase-3-evaluation--validation-মডেল-মূল্যায়ন)**
   * Evaluation Metrics: MAE, MSE, RMSE
   * $R^2$ এবং Adjusted $R^2$ এর গভীরে প্রবেশ (কেন Adjusted $R^2$ বেশি নির্ভরযোগ্য?)
-* [**Phase 4: Expert Insights & Limitations (অ্যাডভান্সড ধারণা ও সীমাবদ্ধতা)**](#phase-4-expert-insights--limitations-অ্যাডভান্সড-ধারণা-ও-সীমাবদ্ধতা)
+* **[Phase 4: Expert Insights & Limitations (অ্যাডভান্সড ধারণা ও সীমাবদ্ধতা)](#phase-4-expert-insights--limitations-অ্যাডভান্সড-ধারণা-ও-সীমাবদ্ধতা)**
   * লিনিয়ার রিগ্রেশনের ৪টি পূর্বশর্ত (Assumptions: L.I.N.E)
   * Outlier এবং Multicollinearity এর প্রভাব
   * P-Value এবং Statsmodels দিয়ে ফিচারের গুরুত্ব বোঝা
   * কখন লিনিয়ার রিগ্রেশন ব্যবহার করবেন না?
-* [**Phase 5: The Upgrades (মডেলের সীমাবদ্ধতা কাটানোর উপায়)**](#phase-5-the-upgrades-মডেলের-সীমাবদ্ধতা-কাটানোর-সুপার-সায়ান-ভার্সন)
+* **[Phase 5: The Upgrades (মডেলের সীমাবদ্ধতা কাটানোর উপায়)](#phase-5-the-upgrades-মডেলের-সীমাবদ্ধতা-কাটানোর-সুপার-সায়ান-ভার্সন)**
   * পলিনোমিয়াল রিগ্রেশন (Polynomial Regression) - বাঁকা ডেটার সমাধান
   * রেগুলারাইজেশন (Lasso L1, Ridge L2, Elastic Net) - ওভারফিটিং এবং কমপ্লেক্সিটি কমানোর জাদুকরী উপায়
-* [**Phase 6: Projects & Python Implementation (প্র্যাকটিক্যাল কোডিং)**](#phase-6-python-implementation-ম্যাজিক-ইন-অ্যাকশন---কোডিং-ও-প্রজেক্ট)
+* **[Phase 6: Projects & Python Implementation (প্র্যাকটিক্যাল কোডিং)](#phase-6-python-implementation-ম্যাজিক-ইন-অ্যাকশন---কোডিং-ও-প্রজেক্ট)**
   * Project 1: Simple & Multiple Linear Regression (Scikit-Learn দিয়ে)
   * Project 2: Advanced Regression (Ridge/Lasso এবং Polynomial Regression এর ব্যবহার)
   * কোড বিশ্লেষণ এবং আপনার জন্য টাস্ক
