@@ -11,7 +11,8 @@ const staticRoutes = [
   '/ml-topics',
   '/books',
   '/blog',
-  '/dashboard'
+  '/dashboard',
+  '/bookmarks'
 ];
 
 // Read wordsIndex.js
