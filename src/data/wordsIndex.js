@@ -23,6 +23,8 @@ import GIGODetailsPage from '../components/MachineLearning/word_20_GIGO/GIGODeta
 import DataDependencyDetailsPage from '../components/MachineLearning/word_21_DataDependency/DataDependencyDetailsPage';
 import BiasDetailsPage from '../components/MachineLearning/word_22_Bias/BiasDetailsPage';
 import GeneralizationDetailsPage from '../components/MachineLearning/word_23_Generalization/GeneralizationDetailsPage';
+import DomainKnowledgeDetailsPage from '../components/MachineLearning/word_24_DomainKnowledge/DomainKnowledgeDetailsPage';
+import TrainingSetDetailsPage from '../components/MachineLearning/word_25_TrainingSet/TrainingSetDetailsPage';
 
 
 export const bookStructure = [
@@ -218,12 +220,40 @@ export const bookStructure = [
             title: "জেনারেলাইজেশন (Generalization)",
             Component: GeneralizationDetailsPage,
             summary: "মুখস্থ না করে ডেটার আসল লজিক শিখে সম্পূর্ণ নতুন পরিস্থিতিতে সঠিক সিদ্ধান্ত নেওয়ার এআই সক্ষমতা।"
+          },
+          {
+            id: "word_24_DomainKnowledge",
+            path: "domain-knowledge",
+            title: "ডোমেন নলেজ (Domain Knowledge)",
+            Component: DomainKnowledgeDetailsPage,
+            summary: "মডেলটি যে বিষয়ের ওপর কাজ করবে, সেই নির্দিষ্ট বিষয়ের গভীর ও ব্যবহারিক জ্ঞান।"
           }
         ]
       }
 
     ]
   },
+  {
+    chapterId: "chapter_02",
+    chapterNo: "০২",
+    chapterTitle: "মেশিনের ল্যাবরেটরি (মডেল কীভাবে শেখে?)",
+    parts: [
+      {
+        partId: "part_01",
+        partNo: "০১",
+        partTitle: "ট্রেনিং সেট (Training Set)",
+        words: [
+          {
+            id: "word_25_TrainingSet",
+            path: "training-set",
+            title: "ট্রেনিং সেট (Training Set)",
+            Component: TrainingSetDetailsPage,
+            summary: "মেশিন লার্নিং মডেলকে শেখানোর জন্য ব্যবহৃত ডেটাসেট, যা মডেলকে প্যাটার্ন এবং সম্পর্ক শিখতে সাহায্য করে।"
+          }
+        ]
+      }
+    ]
+  }
 
 ];
 
