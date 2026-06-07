@@ -160,7 +160,7 @@ export default function SimulationLab() {
           <div className="lg:col-span-7 bg-white/[0.02] p-4 sm:p-6 rounded-2xl border border-white/5 flex flex-col justify-between shadow-lg">
             <div>
               <h3 className="flex items-center gap-2 pb-2 mb-2 text-base sm:text-lg font-bold border-b text-sky-400 border-white/5">
-                <span>🏢</span> घटनास्थल (The Crime Scene Room)
+                <span>🏢</span> Sherlock's Crime Scene
               </h3>
               <p className="mb-4 text-xs sm:text-sm text-slate-400 leading-relaxed">
                 নিচের বস্তুগুলোতে ক্লিক করে প্রমাণ বা ডেটা সংগ্রহ করুন। মনে রাখবেন—সব প্রমাণ কাজের নাও হতে পারে (নয়েজ)!
