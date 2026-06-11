@@ -25,6 +25,9 @@ import BiasDetailsPage from '../components/MachineLearning/word_22_Bias/BiasDeta
 import GeneralizationDetailsPage from '../components/MachineLearning/word_23_Generalization/GeneralizationDetailsPage';
 import DomainKnowledgeDetailsPage from '../components/MachineLearning/word_24_DomainKnowledge/DomainKnowledgeDetailsPage';
 import TrainingSetDetailsPage from '../components/MachineLearning/word_25_TrainingSet/TrainingSetDetailsPage';
+import TestingSetDetailsPage from '../components/MachineLearning/word_26_TestingSet/TestingSetDetailsPage';
+import ValidationSetDetailsPage from '../components/MachineLearning/word_27_ValidationSet/ValidationSetDetailsPage';
+import CrossValidationDetailsPage from '../components/MachineLearning/word_28_CrossValidation/CrossValidationDetailsPage';
 
 
 export const bookStructure = [
@@ -249,6 +252,27 @@ export const bookStructure = [
             title: "ট্রেনিং সেট (Training Set)",
             Component: TrainingSetDetailsPage,
             summary: "মেশিন লার্নিং মডেলকে শেখানোর জন্য ব্যবহৃত ডেটাসেট, যা মডেলকে প্যাটার্ন এবং সম্পর্ক শিখতে সাহায্য করে।"
+          },
+          {
+            id: "word_26_TestingSet",
+            path: "testing-set",
+            title: "টেস্টিং সেট (Testing Set)",
+            Component: TestingSetDetailsPage,
+            summary: "মডেলের প্রকৃত মেধা বা জেনারেলাইজেশন ক্ষমতা যাচাই করার জন্য লুকিয়ে রাখা অজানা ডেটার অংশ।"
+          },
+          {
+            id: "word_27_ValidationSet",
+            path: "validation-set",
+            title: "ভ্যালিডেশন সেট (Validation Set)",
+            Component: ValidationSetDetailsPage,
+            summary: "মডেলের ভুলত্রুটি ধরা এবং কনফিগারেশন ঠিক করার জন্য বারবার ব্যবহৃত 'মডেল টেস্ট'।"
+          },
+          {
+            id: "word_28_CrossValidation",
+            path: "cross-validation",
+            title: "ক্রস-ভ্যালিডেশন (Cross-Validation)",
+            Component: CrossValidationDetailsPage,
+            summary: "ভাগ্যের খেলা এড়াতে ঘুরিয়ে-ফিরিয়ে ডেটা পরীক্ষা করার বৈজ্ঞানিক পদ্ধতি।"
           }
         ]
       }
