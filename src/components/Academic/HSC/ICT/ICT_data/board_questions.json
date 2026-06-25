@@ -1,0 +1,36 @@
+{
+  "boards": [
+    {
+      "id": "dhaka-2023",
+      "boardName": "ঢাকা বোর্ড",
+      "year": "২০২৩",
+      "pdfUrl": "#",
+      "solutionUrl": "#",
+      "status": "available"
+    },
+    {
+      "id": "rajshahi-2023",
+      "boardName": "রাজশাহী বোর্ড",
+      "year": "২০২৩",
+      "pdfUrl": "#",
+      "solutionUrl": "#",
+      "status": "available"
+    },
+    {
+      "id": "dhaka-2022",
+      "boardName": "ঢাকা বোর্ড",
+      "year": "২০২২",
+      "pdfUrl": "#",
+      "solutionUrl": "#",
+      "status": "available"
+    },
+    {
+      "id": "cumilla-2022",
+      "boardName": "কুমিল্লা বোর্ড",
+      "year": "২০২২",
+      "pdfUrl": "#",
+      "solutionUrl": "#",
+      "status": "upcoming"
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "subjectName": "তথ্য ও যোগাযোগ প্রযুক্তি",
+  "subjectCode": "২৭৫",
+  "description": "এইচএসসি তথ্য ও যোগাযোগ প্রযুক্তি (ICT) বিষয়ের সম্পূর্ণ সিলেবাস। এখানে প্রতিটি অধ্যায়ের ভিডিও ক্লাস, হ্যান্ডনোট এবং কুইজ দেওয়া আছে।",
+  "chapters": [
+    {
+      "id": "chapter-1",
+      "chapterNo": "অধ্যায় ১",
+      "title": "বিশ্ব ও বাংলাদেশ প্রেক্ষিত",
+      "description": "তথ্য ও যোগাযোগ প্রযুক্তির বিশ্ব ও বাংলাদেশ প্রেক্ষিত, ভার্চুয়াল রিয়েলিটি, কৃত্রিম বুদ্ধিমত্তা এবং রোবোটিক্স।",
+      "videos": [
+        { 
+          "id": "v1", 
+          "title": "ভার্চুয়াল রিয়েলিটি (Virtual Reality)", 
+          "youtubeId": "dQw4w9WgXcQ",
+          "duration": "15 min" 
+        },
+        { 
+          "id": "v2", 
+          "title": "কৃত্রিম বুদ্ধিমত্তা (AI)", 
+          "youtubeId": "dQw4w9WgXcQ", 
+          "duration": "20 min" 
+        }
+      ],
+      "notes": [
+        { 
+          "id": "n1", 
+          "title": "অধ্যায় ১ - সম্পূর্ণ হ্যান্ডনোট", 
+          "type": "PDF",
+          "size": "2.5 MB",
+          "pages": 14,
+          "url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+        },
+        { 
+          "id": "n2", 
+          "title": "গুরুত্বপূর্ণ এমসিকিউ ও জ্ঞানমূলক প্রশ্ন", 
+          "type": "PDF",
+          "size": "1.2 MB",
+          "pages": 8,
+          "url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+        }
+      ],
+      "cqs": [
+        { 
+          "id": "cq1", 
+          "title": "ঢাকা বোর্ড ২০২৩ - সৃজনশীল সমাধান" 
+        }
+      ],
+      "mcqs": [
+        { 
+          "id": "m1", 
+          "question": "ভার্চুয়াল রিয়েলিটি বলতে কী বোঝায়?", 
+          "options": ["বাস্তব জগৎ", "কাল্পনিক জগৎ", "কম্পিউটার নিয়ন্ত্রিত কাল্পনিক পরিবেশ", "কোনোটিই নয়"], 
+          "answer": 2
+        }
+      ]
+    },
+    {
+      "id": "chapter-2",
+      "chapterNo": "অধ্যায় ২",
+      "title": "কমিউনিকেশন সিস্টেমস ও নেটওয়ার্কিং",
+      "description": "ডেটা কমিউনিকেশন সিস্টেম, ব্যান্ডউইথ, ট্রান্সমিশন মোড এবং কম্পিউটার নেটওয়ার্কিং টপোলজি।",
+      "videos": [
+        { 
+          "id": "v3", 
+          "title": "ডেটা ট্রান্সমিশন স্পিড বা ব্যান্ডউইথ", 
+          "youtubeId": "dQw4w9WgXcQ", 
+          "duration": "18 min" 
+        }
+      ],
+      "notes": [
+        { 
+          "id": "n3", 
+          "title": "অধ্যায় ২ - বেসিক কনসেপ্ট নোটস", 
+          "type": "PDF",
+          "size": "1.5 MB",
+          "pages": 10,
+          "url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+        }
+      ],
+      "cqs": [],
+      "mcqs": []
+    },
+    {
+      "id": "chapter-3",
+      "chapterNo": "অধ্যায় ৩",
+      "title": "সংখ্যা পদ্ধতি ও ডিজিটাল লজিক ডিজাইন",
+      "description": "বাইনারি, ডেসিমাল, অক্টাল, হেক্সাডেসিমাল সংখ্যা পদ্ধতি এবং লজিক গেটের বিস্তারিত।",
+      "videos": [],
+      "notes": [],
+      "cqs": [],
+      "mcqs": []
+    }
+  ]
+}

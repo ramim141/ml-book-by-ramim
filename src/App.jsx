@@ -24,15 +24,24 @@ const DynamicBlogReader = lazy(() => import('./pages/Blog/DynamicBlogReader'));
 const Bookmarks = lazy(() => import('./pages/Bookmarks/Bookmarks'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 
+const AcademicLayout = lazy(() => import('./layout/Academic/AcademicLayout'));
+const AcademicHome = lazy(() => import('./pages/Academic/AcademicHome'));
+const SSCDashboard = lazy(() => import('./pages/Academic/SSC/SSCDashboard'));
+const HSCDashboard = lazy(() => import('./pages/Academic/HSC/HSCDashboard'));
+const ICTSubjectHome = lazy(() => import('./pages/Academic/HSC/ICT/ICTSubjectHome'));
+const ChapterDetails = lazy(() => import('./pages/Academic/HSC/ICT/ChapterDetails'));
+const BoardQuestionsList = lazy(() => import('./pages/Academic/HSC/ICT/BoardQuestionsList'));
+const BoardQuestionViewer = lazy(() => import('./pages/Academic/HSC/ICT/BoardQuestionViewer'));
 
 function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const contentScrollRef = useRef(null);
 
-
   const showSidebar = location.pathname === '/dashboard' || location.pathname.startsWith('/word/');
-  const showFooter = !showSidebar && !location.pathname.startsWith('/word/');
+  const isAcademic = location.pathname.startsWith('/academic');
+  const showNavbar = !isAcademic;
+  const showFooter = !isAcademic && !showSidebar && !location.pathname.startsWith('/word/');
 
   const [isScrollingDown, setIsScrollingDown] = useState(false);
   const lastScrollY = useRef(0);
@@ -73,11 +82,13 @@ function App() {
   }, [location.pathname]);
 
   return (
-    <div className={`flex flex-col bg-[#0b0f19] font-sans antialiased text-slate-200 ${showSidebar ? 'h-[100dvh] overflow-hidden' : 'min-h-screen overflow-x-hidden'}`}>
+    <div className={`flex flex-col bg-[#0b0f19] font-sans antialiased text-slate-200 ${showSidebar ? 'h-[100dvh] overflow-hidden' : `min-h-screen ${isAcademic ? '' : 'overflow-x-hidden'}`}`}>
 
-      <Navbar onMenuClick={() => setIsMobileMenuOpen(true)} isScrollingDown={isScrollingDown} />
+      {showNavbar && (
+        <Navbar onMenuClick={() => setIsMobileMenuOpen(true)} isScrollingDown={isScrollingDown} />
+      )}
 
-      <div className={`relative flex flex-1 pt-16 sm:pt-18 lg:pt-20 ${showSidebar ? 'min-h-0 overflow-hidden' : ''}`}>
+      <div className={`relative flex flex-1 ${isAcademic ? '' : 'pt-16 sm:pt-18 lg:pt-20'} ${showSidebar ? 'min-h-0 overflow-hidden' : ''}`}>
 
         {showSidebar && (
           <Sidebar
@@ -107,6 +118,17 @@ function App() {
                 <Route path="/blog" element={<BlogLanding />} />
                 <Route path="/blog/:blogSlug" element={<DynamicBlogReader />} />
                 <Route path="/bookmarks" element={<Bookmarks />} />
+
+                {/* Academic Sub-website */}
+                <Route path="/academic" element={<AcademicLayout />}>
+                  <Route index element={<AcademicHome />} />
+                  <Route path="ssc" element={<SSCDashboard />} />
+                  <Route path="hsc" element={<HSCDashboard />} />
+                  <Route path="hsc/ict" element={<ICTSubjectHome />} />
+                  <Route path="hsc/ict/board-questions" element={<BoardQuestionsList />} />
+                  <Route path="hsc/ict/board-questions/:boardName/:year" element={<BoardQuestionViewer />} />
+                  <Route path="hsc/ict/:chapterId" element={<ChapterDetails />} />
+                </Route>
 
 
                 <Route path="*" element={<NotFound />} />

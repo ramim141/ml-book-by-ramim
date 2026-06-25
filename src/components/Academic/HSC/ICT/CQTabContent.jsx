@@ -1,0 +1,236 @@
+import { useState, useMemo, memo } from 'react';
+import { HelpCircle, ChevronDown, ChevronUp, BookOpenCheck, Filter } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import remarkGfm from 'remark-gfm';
+import 'katex/dist/katex.min.css';
+
+const MarkdownRenderer = ({ content }) => (
+  <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-900 prose-pre:border prose-pre:border-slate-700">
+    <ReactMarkdown 
+      remarkPlugins={[remarkMath, remarkGfm]} 
+      rehypePlugins={[rehypeKatex]}
+    >
+      {content}
+    </ReactMarkdown>
+  </div>
+);
+
+const CQAccordion = memo(({ cq }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [showAnswer, setShowAnswer] = useState(false);
+
+  return (
+    <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden transition-all duration-300">
+      {/* Header (Clickable to Expand) */}
+      <div 
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-4 sm:p-6 cursor-pointer hover:bg-slate-800/60 transition-colors flex items-center justify-between gap-3 sm:gap-4"
+      >
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="hidden sm:block bg-emerald-500/10 p-2 sm:p-3 rounded-xl text-emerald-400 shrink-0">
+            <HelpCircle className="w-6 h-6 sm:w-8 sm:h-8" />
+          </div>
+          <div>
+            <h3 className="font-bold text-white text-base sm:text-lg">
+              {cq.title}
+            </h3>
+            <div className="flex items-center gap-1.5 sm:gap-2 mt-2 text-[10px] sm:text-xs font-medium text-slate-500 flex-wrap">
+              {cq.boards && cq.boards.map((b, idx) => (
+                <span key={idx} className="bg-slate-900 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md border border-slate-700 whitespace-nowrap">
+                  {b.name} - {b.year}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="text-slate-500">
+          {isOpen ? <ChevronUp className="w-6 h-6" /> : <ChevronDown className="w-6 h-6" />}
+        </div>
+      </div>
+
+      {/* Expandable Content (Questions & Answers) */}
+      {isOpen && (
+        <div className="px-4 pb-4 sm:px-6 sm:pb-6 pt-2 sm:pt-4">
+          {/* Stem / Uddipok */}
+          <div className="bg-slate-900/50 rounded-xl p-5 mb-6 border border-slate-800 text-slate-300 text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
+            <MarkdownRenderer content={cq.stem} />
+          </div>
+
+          {/* Questions Stack */}
+          <div className="flex flex-col gap-3 mb-6">
+            <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
+              <MarkdownRenderer content={cq.questions.ka} />
+            </div>
+            <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
+              <MarkdownRenderer content={cq.questions.kha} />
+            </div>
+            <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
+              <MarkdownRenderer content={cq.questions.ga} />
+            </div>
+            <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
+              <MarkdownRenderer content={cq.questions.gha} />
+            </div>
+          </div>
+
+          {/* Answer Toggle Button */}
+          <button 
+            onClick={() => setShowAnswer(!showAnswer)}
+            className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 px-6 rounded-xl text-sm font-semibold transition-all shadow-lg shadow-emerald-900/20 w-full sm:w-auto mx-auto"
+          >
+            <BookOpenCheck className="w-4 h-4" /> 
+            {showAnswer ? "উত্তর লুকাও" : "উত্তর মেলাও"}
+          </button>
+
+          {/* Answers Section */}
+          {showAnswer && (
+            <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
+              <div className="bg-emerald-900/10 rounded-xl p-5 border border-emerald-500/20">
+                <MarkdownRenderer content={cq.answers.ka} />
+              </div>
+              <div className="bg-emerald-900/10 rounded-xl p-5 border border-emerald-500/20">
+                <MarkdownRenderer content={cq.answers.kha} />
+              </div>
+              <div className="bg-emerald-900/10 rounded-xl p-5 border border-emerald-500/20">
+                <MarkdownRenderer content={cq.answers.ga} />
+              </div>
+              <div className="bg-emerald-900/10 rounded-xl p-5 border border-emerald-500/20">
+                <MarkdownRenderer content={cq.answers.gha} />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
+CQAccordion.displayName = 'CQAccordion';
+
+const CQTabContent = ({ chapter }) => {
+  const [selectedTopic, setSelectedTopic] = useState('all');
+  const [selectedBoard, setSelectedBoard] = useState('all');
+  const [selectedYear, setSelectedYear] = useState('all');
+
+  const cqs = chapter.cqs || [];
+
+  // Extract unique topics, boards, and years for filter options
+  const allTopics = useMemo(() => [...new Set(cqs.map(cq => cq.topic || "অন্যান্য"))], [cqs]);
+  const allBoards = useMemo(() => [...new Set(cqs.flatMap(cq => cq.boards?.map(b => b.name) || []))], [cqs]);
+  const allYears = useMemo(() => [...new Set(cqs.flatMap(cq => cq.boards?.map(b => b.year) || []))].sort((a, b) => parseInt(b) - parseInt(a)), [cqs]);
+
+  // Apply filters
+  const filteredCQs = useMemo(() => {
+    return cqs.filter(cq => {
+      const topicMatch = selectedTopic === 'all' || (cq.topic || "অন্যান্য") === selectedTopic;
+      const boardMatch = selectedBoard === 'all' || cq.boards?.some(b => b.name === selectedBoard);
+      const yearMatch = selectedYear === 'all' || cq.boards?.some(b => b.year === selectedYear);
+      return topicMatch && boardMatch && yearMatch;
+    });
+  }, [cqs, selectedTopic, selectedBoard, selectedYear]);
+
+  const groupedCQs = useMemo(() => {
+    return filteredCQs.reduce((acc, cq) => {
+      const topic = cq.topic || "অন্যান্য";
+      if (!acc[topic]) acc[topic] = [];
+      acc[topic].push(cq);
+      return acc;
+    }, {});
+  }, [filteredCQs]);
+
+  return (
+    <div className="space-y-6">
+      {cqs.length > 0 && (
+        <div className="bg-slate-800/30 backdrop-blur-xl border border-slate-700/50 p-5 sm:p-6 rounded-2xl shadow-xl shadow-slate-900/20">
+          <div className="flex items-center gap-2 text-slate-400 mb-4">
+            <Filter className="w-5 h-5 text-indigo-400" />
+            <span className="font-semibold text-sm uppercase tracking-wider">প্রশ্ন ফিল্টার করুন</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="relative">
+              <select
+                value={selectedTopic}
+                onChange={(e) => setSelectedTopic(e.target.value)}
+                className="w-full appearance-none bg-slate-900/50 border border-slate-700/50 text-slate-300 text-sm rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all hover:bg-slate-800 cursor-pointer"
+              >
+                <option value="all">সব টপিক</option>
+                {allTopics.map(topic => (
+                  <option key={topic} value={topic}>{topic}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                <ChevronDown className="w-4 h-4" />
+              </div>
+            </div>
+            
+            <div className="relative">
+              <select
+                value={selectedBoard}
+                onChange={(e) => setSelectedBoard(e.target.value)}
+                className="w-full appearance-none bg-slate-900/50 border border-slate-700/50 text-slate-300 text-sm rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all hover:bg-slate-800 cursor-pointer"
+              >
+                <option value="all">সব বোর্ড</option>
+                {allBoards.map(board => (
+                  <option key={board} value={board}>{board}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                <ChevronDown className="w-4 h-4" />
+              </div>
+            </div>
+            
+            <div className="relative sm:col-span-2 md:col-span-1">
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="w-full appearance-none bg-slate-900/50 border border-slate-700/50 text-slate-300 text-sm rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all hover:bg-slate-800 cursor-pointer"
+              >
+                <option value="all">সব সাল</option>
+                {allYears.map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                <ChevronDown className="w-4 h-4" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-8">
+        {filteredCQs.length > 0 ? (
+          Object.entries(groupedCQs).map(([topic, cqsList]) => (
+            <div key={topic} className="space-y-4">
+              <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                <div className="w-1.5 h-5 sm:h-6 bg-indigo-500 rounded-full shrink-0"></div>
+                <h3 className="text-base sm:text-lg md:text-xl font-bold text-white leading-tight">{topic}</h3>
+                <span className="bg-slate-800 text-slate-400 text-[10px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md ml-1 sm:ml-2 border border-slate-700/50 whitespace-nowrap shrink-0">
+                  {cqsList.length} টি প্রশ্ন
+                </span>
+              </div>
+              {cqsList.map((cq) => (
+                <CQAccordion key={cq.id} cq={cq} />
+              ))}
+            </div>
+          ))
+        ) : (
+          cqs.length > 0 ? (
+            <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-12 text-center">
+              <Filter className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+              <p className="text-slate-400">আপনার ফিল্টার অনুযায়ী কোনো সৃজনশীল প্রশ্ন পাওয়া যায়নি।</p>
+            </div>
+          ) : (
+            <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-12 text-center">
+              <HelpCircle className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+              <p className="text-slate-400">এই অধ্যায়ের কোনো সৃজনশীল প্রশ্ন পাওয়া যায়নি।</p>
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  );
+};
+
+export { CQAccordion, MarkdownRenderer };
+export default CQTabContent;

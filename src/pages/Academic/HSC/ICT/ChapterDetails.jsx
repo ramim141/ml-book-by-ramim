@@ -1,0 +1,155 @@
+import { useState, lazy, Suspense } from 'react';
+import { useParams, Link, Navigate } from 'react-router-dom';
+import { ChevronRight, PlayCircle, FileText, HelpCircle, CheckCircle, ArrowLeft, Timer, Loader2 } from 'lucide-react';
+import chaptersData from '../../../../components/Academic/HSC/ICT/ICT_data/chapters.json';
+import videosData from '../../../../components/Academic/HSC/ICT/ICT_data/videos.json';
+import notesData from '../../../../components/Academic/HSC/ICT/ICT_data/notes.json';
+import cqsData from '../../../../components/Academic/HSC/ICT/ICT_data/cqs.json';
+import mcqsData from '../../../../components/Academic/HSC/ICT/ICT_data/mcqs.json';
+
+const VideoTabContent = lazy(() => import('../../../../components/Academic/HSC/ICT/VideoTabContent'));
+const NotesTabContent = lazy(() => import('../../../../components/Academic/HSC/ICT/NotesTabContent'));
+const CQTabContent = lazy(() => import('../../../../components/Academic/HSC/ICT/CQTabContent'));
+const MCQTabContent = lazy(() => import('../../../../components/Academic/HSC/ICT/MCQTabContent'));
+const ModelTestTabContent = lazy(() => import('../../../../components/Academic/HSC/ICT/ModelTestTabContent'));
+
+const ChapterDetails = () => {
+  const { chapterId } = useParams();
+  const baseChapter = chaptersData.chapters.find((c) => c.id === chapterId);
+  
+  if (!baseChapter) {
+    return <Navigate to="/academic/hsc/ict" replace />;
+  }
+
+  const chapter = {
+    ...baseChapter,
+    videos: videosData[chapterId] || [],
+    notes: notesData[chapterId] || [],
+    cqs: cqsData[chapterId] || [],
+    mcqs: mcqsData[chapterId] || []
+  };
+
+  const [activeTab, setActiveTab] = useState('videos');
+  const [activeVideo, setActiveVideo] = useState(chapter.videos[0] || null);
+
+  const tabs = [
+    { id: 'videos', label: 'ভিডিও ক্লাস', icon: PlayCircle, count: chapter.videos.length },
+    { id: 'notes', label: 'ক্লাস নোটস', icon: FileText, count: chapter.notes.length },
+    { id: 'cqs', label: 'সৃজনশীল প্রশ্ন', icon: HelpCircle, count: chapter.cqs.length },
+    { id: 'mcqs', label: 'কুইজ (MCQ)', icon: CheckCircle, count: chapter.mcqs.length },
+    { id: 'modeltest', label: 'মডেল টেস্ট', icon: Timer, count: 0 },
+  ];
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-28 md:py-12 relative">
+      
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-500 mb-6 font-medium flex-wrap">
+        <Link to="/academic" className="hover:text-white transition-colors whitespace-nowrap">একাডেমিক</Link>
+        <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
+        <Link to="/academic/hsc" className="hover:text-white transition-colors whitespace-nowrap">এইচএসসি</Link>
+        <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
+        <Link to="/academic/hsc/ict" className="hover:text-white transition-colors whitespace-nowrap">আইসিটি</Link>
+        <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
+        <span className="text-indigo-400 whitespace-nowrap">{chapter.chapterNo}</span>
+      </nav>
+
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 mb-8 sm:mb-10">
+        <div>
+          <div className="flex items-center gap-2 sm:gap-3 mb-2">
+            <Link to="/academic/hsc/ict" className="p-1.5 sm:p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            </Link>
+            <span className="text-indigo-400 font-bold bg-indigo-500/10 px-2 py-0.5 sm:px-3 sm:py-1 rounded-md border border-indigo-500/20 text-xs sm:text-sm">
+              {chapter.chapterNo}
+            </span>
+          </div>
+          <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-white">
+            {chapter.title}
+          </h1>
+        </div>
+      </div>
+
+      {/* Tabs - Desktop/Tablet Only */}
+      <div className="hidden md:flex overflow-x-auto hide-scrollbar mb-8 border-b border-slate-800 sticky top-[80px] z-40 bg-[#0b0f19]/95 backdrop-blur-md pt-4 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div className="flex gap-8 min-w-max px-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 pb-4 text-sm font-semibold transition-all relative ${
+                  isActive ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+                {tab.count > 0 && (
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] ${isActive ? 'bg-indigo-500/20 text-indigo-300' : 'bg-slate-800 text-slate-500'}`}>
+                    {tab.count}
+                  </span>
+                )}
+                {isActive && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-t-full shadow-[0_-2px_10px_rgba(99,102,241,0.5)]" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tabs - Mobile (Bottom Navigation) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 z-50 px-1 py-2 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
+        <div className="flex justify-between items-center max-w-md mx-auto">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-all ${
+                  isActive ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <div className={`p-1.5 rounded-xl transition-all duration-300 ${isActive ? 'bg-indigo-500/20 text-indigo-400 transform scale-110' : 'bg-transparent text-slate-400'}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] font-medium whitespace-nowrap">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      <div className="min-h-[500px]">
+        <Suspense fallback={
+          <div className="flex justify-center items-center h-64 text-slate-400">
+            <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+          </div>
+        }>
+          {activeTab === 'videos' && <VideoTabContent chapter={chapter} activeVideo={activeVideo} setActiveVideo={setActiveVideo} />}
+          {activeTab === 'notes' && <NotesTabContent chapter={chapter} />}
+          {activeTab === 'cqs' && <CQTabContent chapter={chapter} />}
+          {activeTab === 'mcqs' && <MCQTabContent chapter={chapter} />}
+          {activeTab === 'modeltest' && <ModelTestTabContent mcqs={chapter.mcqs} />}
+
+          {/* Other Tabs Placeholder */}
+          {activeTab !== 'videos' && activeTab !== 'notes' && activeTab !== 'cqs' && activeTab !== 'mcqs' && activeTab !== 'modeltest' && (
+            <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-16 text-center">
+              <h3 className="text-xl font-bold text-slate-300 mb-2">এই সেকশনটি তৈরি করা হচ্ছে</h3>
+              <p className="text-slate-500">শীঘ্রই এখানে কন্টেন্ট যুক্ত করা হবে।</p>
+            </div>
+          )}
+        </Suspense>
+      </div>
+
+    </div>
+  );
+};
+
+export default ChapterDetails;

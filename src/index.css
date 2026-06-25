@@ -34,7 +34,7 @@
 /* 1. Body & main page background when active */
 body.reading-mode-active {
   background-color: #f7f2ea !important;
-  font-family: 'Kalpurush', Georgia, Cambria, "Times New Roman", Times, serif !important;
+  font-family: 'Noto Serif Bengali', Georgia, Cambria, "Times New Roman", Times, serif !important;
   --reading-font-size: 20px;
 }
 
@@ -60,7 +60,7 @@ body.reading-mode-active main li,
 body.reading-mode-active main blockquote,
 body.reading-mode-active main div.indent-6 {
   color: #1a1a1a !important;
-  font-family: 'Kalpurush', Georgia, Cambria, "Times New Roman", Times, serif !important;
+  font-family: 'Noto Serif Bengali', Georgia, Cambria, "Times New Roman", Times, serif !important;
   line-height: 1.85 !important;
 }
 
@@ -410,4 +410,14 @@ body.reading-mode-active main tbody tr {
 body.reading-mode-active main tbody td {
   color: #1e1a17 !important;
   border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }
