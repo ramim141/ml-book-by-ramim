@@ -6,6 +6,22 @@ import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import 'katex/dist/katex.min.css';
 
+const enToBnNumber = (numStr) => {
+  if (!numStr) return numStr;
+  const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return String(numStr).replace(/[0-9]/g, w => bn[w]);
+};
+
+const normalizeYear = (yearStr) => {
+  if (!yearStr) return yearStr;
+  const bnToEn = { '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9' };
+  let enYear = String(yearStr).replace(/[০-৯]/g, w => bnToEn[w]);
+  if (enYear.length === 2) {
+    enYear = "20" + enYear;
+  }
+  return enYear;
+};
+
 const MarkdownRenderer = ({ content }) => (
   <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-900 prose-pre:border prose-pre:border-slate-700">
     <ReactMarkdown 
@@ -54,9 +70,26 @@ const CQAccordion = memo(({ cq }) => {
       {isOpen && (
         <div className="px-4 pb-4 sm:px-6 sm:pb-6 pt-2 sm:pt-4">
           {/* Stem / Uddipok */}
-          <div className="bg-slate-900/50 rounded-xl p-5 mb-6 border border-slate-800 text-slate-300 text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
-            <MarkdownRenderer content={cq.stem} />
-          </div>
+          {(cq.image || cq.stem) && (
+            <div className="bg-slate-900/50 rounded-xl p-5 mb-6 border border-slate-800 text-slate-300 text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
+              {/* If cq.image is provided explicitly */}
+              {cq.image && (
+                <div className="mb-4 flex justify-center">
+                  <img src={cq.image} alt="উদ্দীপকের চিত্র" className="max-w-full h-auto max-h-64 object-contain rounded-lg border border-slate-700/50 bg-slate-800/50 p-1" />
+                </div>
+              )}
+              
+              {/* If cq.stem is directly a URL */}
+              {cq.stem && (cq.stem.trim().startsWith('http://') || cq.stem.trim().startsWith('https://')) ? (
+                <div className="flex justify-center">
+                  <img src={cq.stem.trim()} alt="উদ্দীপকের চিত্র" className="max-w-full h-auto max-h-64 object-contain rounded-lg border border-slate-700/50 bg-slate-800/50 p-1" />
+                </div>
+              ) : (
+                /* Otherwise treat cq.stem as markdown text */
+                cq.stem && <MarkdownRenderer content={cq.stem} />
+              )}
+            </div>
+          )}
 
           {/* Questions Stack */}
           <div className="flex flex-col gap-3 mb-6">
@@ -117,14 +150,14 @@ const CQTabContent = ({ chapter }) => {
   // Extract unique topics, boards, and years for filter options
   const allTopics = useMemo(() => [...new Set(cqs.map(cq => cq.topic || "অন্যান্য"))], [cqs]);
   const allBoards = useMemo(() => [...new Set(cqs.flatMap(cq => cq.boards?.map(b => b.name) || []))], [cqs]);
-  const allYears = useMemo(() => [...new Set(cqs.flatMap(cq => cq.boards?.map(b => b.year) || []))].sort((a, b) => parseInt(b) - parseInt(a)), [cqs]);
+  const allYears = useMemo(() => [...new Set(cqs.flatMap(cq => cq.boards?.map(b => normalizeYear(b.year)) || []))].sort((a, b) => parseInt(b) - parseInt(a)), [cqs]);
 
   // Apply filters
   const filteredCQs = useMemo(() => {
     return cqs.filter(cq => {
       const topicMatch = selectedTopic === 'all' || (cq.topic || "অন্যান্য") === selectedTopic;
       const boardMatch = selectedBoard === 'all' || cq.boards?.some(b => b.name === selectedBoard);
-      const yearMatch = selectedYear === 'all' || cq.boards?.some(b => b.year === selectedYear);
+      const yearMatch = selectedYear === 'all' || cq.boards?.some(b => normalizeYear(b.year) === selectedYear);
       return topicMatch && boardMatch && yearMatch;
     });
   }, [cqs, selectedTopic, selectedBoard, selectedYear]);
@@ -187,7 +220,7 @@ const CQTabContent = ({ chapter }) => {
               >
                 <option value="all">সব সাল</option>
                 {allYears.map(year => (
-                  <option key={year} value={year}>{year}</option>
+                  <option key={year} value={year}>{enToBnNumber(year)}</option>
                 ))}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">

@@ -1,8 +1,17 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronRight, ChevronLeft, ArrowLeft, Download, Eye, FileText, CheckCircle2 } from 'lucide-react';
-import cqsData from '../../../../components/Academic/HSC/ICT/ICT_data/cqs.json';
 import { useRef, useEffect } from 'react';
+
+const cqsModules = import.meta.glob('../../../../components/Academic/HSC/ICT/ICT_data/chapter_*_Json/*_CQs.json', { eager: true });
+const cqsDataWithChapter = Object.entries(cqsModules).map(([path, mod]) => {
+  const match = path.match(/chapter_(\d+)/i);
+  const chapter = match ? parseInt(match[1], 10) : null;
+  return {
+    chapter,
+    cqs: mod.default || mod
+  };
+});
 
 const enToBnNumber = (numStr) => {
   const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
@@ -45,11 +54,11 @@ const ScrollableFilter = ({ label, children }) => {
   return (
     <div className="w-full md:w-auto flex items-center gap-2 bg-slate-800/50 p-1.5 rounded-xl border border-slate-700/50 relative overflow-hidden">
       <span className="text-sm text-slate-400 px-2 font-medium shrink-0">{label}:</span>
-      
+
       <div className="relative flex-1 md:flex-none flex items-center overflow-hidden">
         {showLeft && (
           <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-slate-900/90 to-transparent flex items-center justify-start pointer-events-none z-10">
-            <button 
+            <button
               onClick={() => handleScroll('left')}
               className="p-1 bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white rounded-full border border-slate-750 shadow-md transition-all duration-200 pointer-events-auto focus:outline-none"
               aria-label="Scroll left"
@@ -58,8 +67,8 @@ const ScrollableFilter = ({ label, children }) => {
             </button>
           </div>
         )}
-        
-        <div 
+
+        <div
           ref={scrollRef}
           onScroll={checkScroll}
           className="flex items-center gap-2 overflow-x-auto hide-scrollbar w-full md:w-auto py-0.5 -my-0.5 scroll-smooth"
@@ -69,7 +78,7 @@ const ScrollableFilter = ({ label, children }) => {
 
         {showRight && (
           <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-slate-900/90 to-transparent flex items-center justify-end pointer-events-none z-10">
-            <button 
+            <button
               onClick={() => handleScroll('right')}
               className="p-1 bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white rounded-full border border-slate-750 shadow-md transition-all duration-200 pointer-events-auto focus:outline-none"
               aria-label="Scroll right"
@@ -86,13 +95,16 @@ const ScrollableFilter = ({ label, children }) => {
 const BoardQuestionsList = () => {
   const [selectedYear, setSelectedYear] = useState('all');
   const [selectedBoard, setSelectedBoard] = useState('all');
+  const [selectedChapter, setSelectedChapter] = useState('all');
   const navigate = useNavigate();
 
   // Extract unique boards and years from cqsData
   const boardSet = new Map();
-  
-  Object.values(cqsData).forEach(chapterCqs => {
-    chapterCqs.forEach(cq => {
+
+  cqsDataWithChapter.forEach(({ chapter, cqs }) => {
+    if (selectedChapter !== 'all' && chapter !== selectedChapter) return;
+
+    cqs.forEach(cq => {
       if (cq.boards) {
         cq.boards.forEach(board => {
           const key = `${board.name}-${board.year}`;
@@ -115,6 +127,7 @@ const BoardQuestionsList = () => {
   const boards = Array.from(boardSet.values()).sort((a, b) => b.year.localeCompare(a.year));
   const allYears = [...new Set(boards.map(b => b.year))].sort().reverse();
   const allBoards = [...new Set(boards.map(b => b.boardName))].sort();
+  const allChapters = [...new Set(cqsDataWithChapter.map(d => d.chapter))].filter(c => c !== null).sort((a, b) => a - b);
 
   const filteredBoards = boards.filter(b => {
     const matchYear = selectedYear === 'all' || b.year === selectedYear;
@@ -123,7 +136,11 @@ const BoardQuestionsList = () => {
   });
 
   const handleViewQuestions = (boardName, year) => {
-    navigate(`/academic/hsc/ict/board-questions/${encodeURIComponent(boardName)}/${year}`);
+    let url = `/academic/hsc/ict/board-questions/${encodeURIComponent(boardName)}/${year}`;
+    if (selectedChapter !== 'all') {
+      url += `?chapter=${selectedChapter}`;
+    }
+    navigate(url);
   };
 
   return (
@@ -164,11 +181,10 @@ const BoardQuestionsList = () => {
           <ScrollableFilter label="বোর্ড">
             <button
               onClick={() => setSelectedBoard('all')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${
-                selectedBoard === 'all' 
-                  ? 'bg-indigo-500 text-white shadow-md' 
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${selectedBoard === 'all'
+                  ? 'bg-indigo-500 text-white shadow-md'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
-              }`}
+                }`}
             >
               সব বোর্ড
             </button>
@@ -176,11 +192,10 @@ const BoardQuestionsList = () => {
               <button
                 key={board}
                 onClick={() => setSelectedBoard(board)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${
-                  selectedBoard === board 
-                    ? 'bg-indigo-500 text-white shadow-md' 
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${selectedBoard === board
+                    ? 'bg-indigo-500 text-white shadow-md'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
-                }`}
+                  }`}
               >
                 {board}
               </button>
@@ -191,11 +206,10 @@ const BoardQuestionsList = () => {
           <ScrollableFilter label="সাল">
             <button
               onClick={() => setSelectedYear('all')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${
-                selectedYear === 'all' 
-                  ? 'bg-indigo-500 text-white shadow-md' 
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${selectedYear === 'all'
+                  ? 'bg-indigo-500 text-white shadow-md'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
-              }`}
+                }`}
             >
               সব সাল
             </button>
@@ -203,13 +217,37 @@ const BoardQuestionsList = () => {
               <button
                 key={year}
                 onClick={() => setSelectedYear(year)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${
-                  selectedYear === year 
-                    ? 'bg-indigo-500 text-white shadow-md' 
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${selectedYear === year
+                    ? 'bg-indigo-500 text-white shadow-md'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
-                }`}
+                  }`}
               >
                 {enToBnNumber(year)}
+              </button>
+            ))}
+          </ScrollableFilter>
+
+          {/* Chapter Filter */}
+          <ScrollableFilter label="অধ্যায়">
+            <button
+              onClick={() => setSelectedChapter('all')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${selectedChapter === 'all'
+                  ? 'bg-indigo-500 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                }`}
+            >
+              সব অধ্যায়
+            </button>
+            {allChapters.map(chapter => (
+              <button
+                key={chapter}
+                onClick={() => setSelectedChapter(chapter)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0 ${selectedChapter === chapter
+                    ? 'bg-indigo-500 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                  }`}
+              >
+                অধ্যায় {enToBnNumber(chapter)}
               </button>
             ))}
           </ScrollableFilter>
@@ -223,7 +261,7 @@ const BoardQuestionsList = () => {
             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
               <FileText className="w-24 h-24 text-indigo-400" />
             </div>
-            
+
             <div className="flex items-start justify-between mb-6">
               <div>
                 <h3 className="text-xl font-bold text-white mb-2 leading-none flex items-center gap-1.5 flex-wrap">
@@ -248,14 +286,14 @@ const BoardQuestionsList = () => {
             </div>
 
             <div className="flex gap-3 relative z-10 mt-auto">
-              <button 
+              <button
                 onClick={() => handleViewQuestions(board.boardName, board.year)}
                 className="flex-1 flex items-center justify-center gap-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 py-2.5 rounded-xl text-sm font-medium transition-colors border border-slate-600/50"
                 disabled={board.status !== 'available'}
               >
                 <Eye className="w-4 h-4" /> প্রশ্ন দেখুন
               </button>
-              <button 
+              <button
                 className="flex-1 flex items-center justify-center gap-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 py-2.5 rounded-xl text-sm font-medium transition-colors border border-indigo-500/20"
                 disabled={board.status !== 'available'}
               >
@@ -265,7 +303,7 @@ const BoardQuestionsList = () => {
           </div>
         ))}
       </div>
-      
+
       {filteredBoards.length === 0 && (
         <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-16 text-center">
           <FileText className="w-12 h-12 text-slate-600 mx-auto mb-4" />

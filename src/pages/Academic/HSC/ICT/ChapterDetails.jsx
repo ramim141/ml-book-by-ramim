@@ -1,11 +1,9 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense, useEffect } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { ChevronRight, PlayCircle, FileText, HelpCircle, CheckCircle, ArrowLeft, Timer, Loader2 } from 'lucide-react';
 import chaptersData from '../../../../components/Academic/HSC/ICT/ICT_data/chapters.json';
 import videosData from '../../../../components/Academic/HSC/ICT/ICT_data/videos.json';
 import notesData from '../../../../components/Academic/HSC/ICT/ICT_data/notes.json';
-import cqsData from '../../../../components/Academic/HSC/ICT/ICT_data/cqs.json';
-import mcqsData from '../../../../components/Academic/HSC/ICT/ICT_data/mcqs.json';
 
 const VideoTabContent = lazy(() => import('../../../../components/Academic/HSC/ICT/VideoTabContent'));
 const NotesTabContent = lazy(() => import('../../../../components/Academic/HSC/ICT/NotesTabContent'));
@@ -17,6 +15,36 @@ const ChapterDetails = () => {
   const { chapterId } = useParams();
   const baseChapter = chaptersData.chapters.find((c) => c.id === chapterId);
   
+  const [cqsData, setCqsData] = useState([]);
+  const [mcqsData, setMcqsData] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
+
+  useEffect(() => {
+    if (!baseChapter) return;
+    
+    const chapterNumMatch = chapterId.match(/chapter-(\d+)/);
+    if (chapterNumMatch) {
+      const num = chapterNumMatch[1].padStart(2, '0');
+      
+      setLoadingData(true);
+      Promise.all([
+        import(`../../../../components/Academic/HSC/ICT/ICT_data/chapter_${num}_Json/chapter_${num}_CQs.json`),
+        import(`../../../../components/Academic/HSC/ICT/ICT_data/chapter_${num}_Json/chapter_${num}_MCQs.json`)
+      ]).then(([cqsRes, mcqsRes]) => {
+        setCqsData(cqsRes.default || cqsRes);
+        setMcqsData(mcqsRes.default || mcqsRes);
+      }).catch(err => {
+        console.error("Error loading chapter data:", err);
+        setCqsData([]);
+        setMcqsData([]);
+      }).finally(() => {
+        setLoadingData(false);
+      });
+    } else {
+      setLoadingData(false);
+    }
+  }, [chapterId, baseChapter]);
+
   if (!baseChapter) {
     return <Navigate to="/academic/hsc/ict" replace />;
   }
@@ -25,8 +53,8 @@ const ChapterDetails = () => {
     ...baseChapter,
     videos: videosData[chapterId] || [],
     notes: notesData[chapterId] || [],
-    cqs: cqsData[chapterId] || [],
-    mcqs: mcqsData[chapterId] || []
+    cqs: cqsData,
+    mcqs: mcqsData
   };
 
   const [activeTab, setActiveTab] = useState('videos');

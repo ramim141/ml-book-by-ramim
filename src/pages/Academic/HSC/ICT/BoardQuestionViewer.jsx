@@ -1,21 +1,45 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { ChevronRight, ArrowLeft, FileText, HelpCircle } from 'lucide-react';
-import cqsData from '../../../../components/Academic/HSC/ICT/ICT_data/cqs.json';
 import { CQAccordion } from '../../../../components/Academic/HSC/ICT/CQTabContent';
+
+const cqsModules = import.meta.glob('../../../../components/Academic/HSC/ICT/ICT_data/chapter_*_Json/*_CQs.json', { eager: true });
+const cqsDataWithChapter = Object.entries(cqsModules).map(([path, mod]) => {
+  const match = path.match(/chapter_(\d+)/i);
+  const chapter = match ? parseInt(match[1], 10) : null;
+  return {
+    chapter,
+    cqs: mod.default || mod
+  };
+});
 
 const enToBnNumber = (numStr) => {
   const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
   return String(numStr).replace(/[0-9]/g, w => bn[w]);
 };
 
+const normalizeYear = (yearStr) => {
+  const bnToEn = { '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9' };
+  let enYear = String(yearStr).replace(/[০-৯]/g, w => bnToEn[w]);
+  if (enYear.length === 2) {
+    enYear = "20" + enYear;
+  }
+  return enYear;
+};
+
 const BoardQuestionViewer = () => {
   const { boardName, year } = useParams();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const chapterParam = searchParams.get('chapter');
+  const selectedChapter = chapterParam ? parseInt(chapterParam, 10) : 'all';
 
-  // Find all CQs matching this board and year
+  // Find all CQs matching this board and year, and optionally chapter
   const matchedCQs = [];
-  Object.values(cqsData).forEach(chapterCqs => {
-    chapterCqs.forEach(cq => {
-      if (cq.boards && cq.boards.some(b => b.name === boardName && b.year === year)) {
+  cqsDataWithChapter.forEach(({ chapter, cqs }) => {
+    if (selectedChapter !== 'all' && chapter !== selectedChapter) return;
+
+    cqs.forEach(cq => {
+      if (cq.boards && cq.boards.some(b => b.name === boardName && normalizeYear(b.year) === year)) {
         matchedCQs.push(cq);
       }
     });
@@ -51,6 +75,11 @@ const BoardQuestionViewer = () => {
             <span>{boardName.trim()}</span>
             <span className="text-indigo-400">- {enToBnNumber(year)}</span>
           </h1>
+          {selectedChapter !== 'all' && (
+            <p className="text-slate-400 mt-2">
+              অধ্যায়: {enToBnNumber(selectedChapter)}
+            </p>
+          )}
         </div>
       </div>
 

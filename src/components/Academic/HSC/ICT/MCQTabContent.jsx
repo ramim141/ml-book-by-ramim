@@ -6,6 +6,22 @@ import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import 'katex/dist/katex.min.css';
 
+const enToBnNumber = (numStr) => {
+  if (!numStr) return numStr;
+  const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return String(numStr).replace(/[0-9]/g, w => bn[w]);
+};
+
+const normalizeYear = (yearStr) => {
+  if (!yearStr) return yearStr;
+  const bnToEn = { '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9' };
+  let enYear = String(yearStr).replace(/[০-৯]/g, w => bnToEn[w]);
+  if (enYear.length === 2) {
+    enYear = "20" + enYear;
+  }
+  return enYear;
+};
+
 const MarkdownRenderer = ({ content }) => (
   <span className="prose prose-invert max-w-none prose-p:inline prose-p:leading-relaxed">
     <ReactMarkdown 
@@ -154,8 +170,8 @@ const MCQTabContent = ({ chapter }) => {
   const allBoards = useMemo(() => [...new Set(mcqs.flatMap(mcq => mcq.boards?.map(b => b.name) || []))], [mcqs]);
   const allInstitutions = useMemo(() => [...new Set(mcqs.flatMap(mcq => mcq.institutions?.map(i => i.name) || []))], [mcqs]);
   const allYears = useMemo(() => [...new Set(mcqs.flatMap(mcq => [
-    ...(mcq.boards?.map(b => b.year) || []),
-    ...(mcq.institutions?.map(i => i.year) || [])
+    ...(mcq.boards?.map(b => normalizeYear(b.year)) || []),
+    ...(mcq.institutions?.map(i => normalizeYear(i.year)) || [])
   ]))].sort().reverse(), [mcqs]);
 
   // Apply filters
@@ -165,8 +181,8 @@ const MCQTabContent = ({ chapter }) => {
       const boardMatch = selectedBoard === 'all' || mcq.boards?.some(b => b.name === selectedBoard);
       const instMatch = selectedInstitution === 'all' || mcq.institutions?.some(i => i.name === selectedInstitution);
       const yearMatch = selectedYear === 'all' || 
-        mcq.boards?.some(b => b.year === selectedYear) || 
-        mcq.institutions?.some(i => i.year === selectedYear);
+        mcq.boards?.some(b => normalizeYear(b.year) === selectedYear) || 
+        mcq.institutions?.some(i => normalizeYear(i.year) === selectedYear);
 
       return topicMatch && boardMatch && instMatch && yearMatch;
     });
@@ -255,7 +271,7 @@ const MCQTabContent = ({ chapter }) => {
                 >
                   <option value="all">সব সাল</option>
                   {allYears.map(year => (
-                    <option key={year} value={year}>{year}</option>
+                    <option key={year} value={year}>{enToBnNumber(year)}</option>
                   ))}
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">

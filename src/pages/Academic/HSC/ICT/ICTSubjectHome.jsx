@@ -3,9 +3,22 @@ import { BookOpen, ChevronRight, FileText, ArrowRight } from 'lucide-react';
 import chaptersData from '../../../../components/Academic/HSC/ICT/ICT_data/chapters.json';
 import videosData from '../../../../components/Academic/HSC/ICT/ICT_data/videos.json';
 import notesData from '../../../../components/Academic/HSC/ICT/ICT_data/notes.json';
-import cqsData from '../../../../components/Academic/HSC/ICT/ICT_data/cqs.json';
-import mcqsData from '../../../../components/Academic/HSC/ICT/ICT_data/mcqs.json';
 import ChapterCard from '../../../../components/Academic/HSC/ICT/ChapterCard';
+
+const cqsModules = import.meta.glob('../../../../components/Academic/HSC/ICT/ICT_data/chapter_*_Json/*_CQs.json', { eager: true });
+const mcqsModules = import.meta.glob('../../../../components/Academic/HSC/ICT/ICT_data/chapter_*_Json/*_MCQs.json', { eager: true });
+
+const getChapterData = (modules, chapterId) => {
+  const chapterNumMatch = chapterId.match(/chapter-(\d+)/);
+  if (chapterNumMatch) {
+    const num = chapterNumMatch[1].padStart(2, '0');
+    const key = Object.keys(modules).find(path => path.includes(`chapter_${num}`));
+    if (key && modules[key]) {
+      return modules[key].default || modules[key];
+    }
+  }
+  return [];
+};
 
 const ICTSubjectHome = () => {
   return (
@@ -71,8 +84,8 @@ const ICTSubjectHome = () => {
               ...baseChapter,
               videos: videosData[chapterId] || [],
               notes: notesData[chapterId] || [],
-              cqs: cqsData[chapterId] || [],
-              mcqs: mcqsData[chapterId] || []
+              cqs: getChapterData(cqsModules, chapterId),
+              mcqs: getChapterData(mcqsModules, chapterId)
             };
             return <ChapterCard key={chapterId} chapter={fullChapter} />;
           })}
