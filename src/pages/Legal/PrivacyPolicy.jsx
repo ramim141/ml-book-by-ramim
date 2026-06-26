@@ -59,7 +59,7 @@ export default function PrivacyPolicy() {
             <Lock size={14} />
             Data Protection
           </div>
-          <h1 className="text-4xl font-black leading-tight text-white md:text-6xl">গোপনীয়তা নীতি</h1>
+          <h1 className="text-3xl font-black leading-tight text-white md:text-6xl">গোপনীয়তা নীতি</h1>
           <p className="mt-5 text-base leading-8 text-slate-400">
             আপনার তথ্য কীভাবে সংগ্রহ, ব্যবহার এবং সুরক্ষিত রাখা হয় তার সরল ব্যাখ্যা।
           </p>

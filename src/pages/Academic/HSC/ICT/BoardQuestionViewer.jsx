@@ -71,7 +71,7 @@ const BoardQuestionViewer = () => {
               <FileText className="w-4 h-4" /> প্রশ্নপত্র
             </span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white flex items-center gap-2 flex-wrap">
+          <h1 className="text-xl sm:text-4xl font-extrabold text-white flex items-center gap-2 flex-wrap">
             <span>{boardName.trim()}</span>
             <span className="text-indigo-400">- {enToBnNumber(year)}</span>
           </h1>

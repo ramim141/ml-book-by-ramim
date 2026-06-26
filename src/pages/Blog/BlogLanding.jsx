@@ -68,7 +68,7 @@ export default function BlogLanding() {
               <BookOpen size={14} />
               <span>জ্ঞান, প্রযুক্তি ও শেখা</span>
             </div>
-            <h1 className="max-w-2xl text-4xl font-black leading-tight text-white break-keep sm:text-5xl">
+            <h1 className="max-w-2xl text-2xl font-black leading-tight text-white break-keep sm:text-5xl">
               আমাদের ব্লগ
             </h1>
             <p className="max-w-2xl mt-5 text-base leading-relaxed text-slate-400 sm:text-lg">

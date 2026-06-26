@@ -87,7 +87,7 @@ export default function Contact() {
             <Sparkles size={14} />
             Contact
           </div>
-          <h1 className="text-4xl font-black leading-tight text-white md:text-6xl">
+          <h1 className="text-3xl font-black leading-tight text-white md:text-6xl">
             প্রশ্ন, feedback বা সহযোগিতার কথা জানাতে পারেন।
           </h1>
           <p className="mt-6 max-w-2xl text-base leading-8 text-slate-400 md:text-lg">

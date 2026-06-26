@@ -167,7 +167,7 @@ const BoardQuestionsList = () => {
               <FileText className="w-4 h-4" /> আর্কাইভ
             </span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white">
+          <h1 className="text-xl sm:text-4xl font-extrabold text-white">
             সম্পূর্ণ বোর্ড প্রশ্নাবলি
           </h1>
           <p className="text-slate-400 mt-2">

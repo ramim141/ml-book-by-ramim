@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense, useEffect } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
-import { ChevronRight, PlayCircle, FileText, HelpCircle, CheckCircle, ArrowLeft, Timer, Loader2 } from 'lucide-react';
+import { ChevronRight, PlayCircle, FileText, HelpCircle, CheckCircle, ArrowLeft, Timer, Loader2, BookOpen, Menu, X } from 'lucide-react';
 import chaptersData from '../../../../components/Academic/HSC/ICT/ICT_data/chapters.json';
 import videosData from '../../../../components/Academic/HSC/ICT/ICT_data/videos.json';
 import notesData from '../../../../components/Academic/HSC/ICT/ICT_data/notes.json';
@@ -59,12 +59,14 @@ const ChapterDetails = () => {
 
   const [activeTab, setActiveTab] = useState('videos');
   const [activeVideo, setActiveVideo] = useState(chapter.videos[0] || null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const tabs = [
     { id: 'videos', label: 'ভিডিও ক্লাস', icon: PlayCircle, count: chapter.videos.length },
     { id: 'notes', label: 'ক্লাস নোটস', icon: FileText, count: chapter.notes.length },
+    { id: 'knowledge', label: 'জ্ঞান ও অনুধাবন', icon: BookOpen, count: 0 },
     { id: 'cqs', label: 'সৃজনশীল প্রশ্ন', icon: HelpCircle, count: chapter.cqs.length },
-    { id: 'mcqs', label: 'কুইজ (MCQ)', icon: CheckCircle, count: chapter.mcqs.length },
+    { id: 'mcqs', label: 'বহুনির্বাচনী (MCQ)', icon: CheckCircle, count: chapter.mcqs.length },
     { id: 'modeltest', label: 'মডেল টেস্ট', icon: Timer, count: 0 },
   ];
 
@@ -129,28 +131,40 @@ const ChapterDetails = () => {
         </div>
       </div>
 
-      {/* Tabs - Mobile (Bottom Navigation) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 z-50 px-1 py-2 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
-        <div className="flex justify-between items-center max-w-md mx-auto">
+      {/* Tabs - Mobile (Floating Menu) */}
+      <div className="md:hidden fixed bottom-6 right-4 z-50">
+        <div 
+          className={`absolute bottom-16 right-0 bg-slate-800 border border-slate-700 rounded-2xl shadow-xl w-48 flex flex-col gap-1 p-2 transition-all duration-300 origin-bottom-right ${
+            isMobileMenuOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'
+          }`}
+        >
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-all ${
-                  isActive ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-200'
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  isActive ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-300 hover:bg-slate-700'
                 }`}
               >
-                <div className={`p-1.5 rounded-xl transition-all duration-300 ${isActive ? 'bg-indigo-500/20 text-indigo-400 transform scale-110' : 'bg-transparent text-slate-400'}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <span className="text-[10px] font-medium whitespace-nowrap">{tab.label}</span>
+                <Icon className="w-4 h-4" />
+                {tab.label}
               </button>
             );
           })}
         </div>
+
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white p-2.5 rounded-full shadow-[0_4px_20px_rgba(79,70,229,0.4)] transition-transform hover:scale-105 active:scale-95 flex items-center justify-center"
+        >
+          {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
       </div>
 
       {/* Tab Content */}

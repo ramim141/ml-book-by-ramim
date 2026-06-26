@@ -135,7 +135,7 @@ export default function Home() {
                 <BookOpen size={15} />
                 বইয়ের ড্যাশবোর্ড
               </div>
-              <h1 className="text-3xl font-bold leading-tight text-slate-100 sm:text-4xl">
+              <h1 className="text-2xl font-bold leading-tight text-slate-100 sm:text-4xl">
                 শব্দে শব্দে মেশিন লার্নিং
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">

@@ -66,7 +66,7 @@ export default function MLTopics() {
               <Sparkles size={14} />
               ML Topics
             </div>
-            <h1 className="text-4xl font-black leading-tight text-white md:text-6xl">
+            <h1 className="text-3xl font-black leading-tight text-white md:text-6xl">
               সব মেশিন লার্নিং শব্দ এক জায়গায়।
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-8 text-slate-400 md:text-lg">

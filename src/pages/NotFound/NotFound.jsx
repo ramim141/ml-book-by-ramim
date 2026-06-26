@@ -18,7 +18,7 @@ export default function NotFound() {
         transition={{ duration: 0.5 }}
         className="max-w-md"
       >
-        <h1 className="mb-4 text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-indigo-500">
+        <h1 className="mb-4 text-6xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-indigo-500">
           404
         </h1>
         <h2 className="mb-6 text-2xl font-semibold sm:text-3xl">

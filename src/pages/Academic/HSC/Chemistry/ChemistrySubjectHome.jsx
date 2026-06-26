@@ -44,7 +44,7 @@ const ChemistrySubjectHome = () => {
               বিষয় কোড: {chaptersData.subjectCode}
             </span>
           </div>
-          <h1 className="text-3xl sm:text-5xl font-extrabold text-white mb-6">
+          <h1 className="text-xl sm:text-5xl font-extrabold text-white mb-6">
             {chaptersData.subjectName}
           </h1>
           <p className="text-lg text-slate-300 leading-relaxed">

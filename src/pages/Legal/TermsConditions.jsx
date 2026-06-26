@@ -54,7 +54,7 @@ export default function TermsConditions() {
             <Scale size={14} />
             Legal Documents
           </div>
-          <h1 className="text-4xl font-black leading-tight text-white md:text-6xl">ব্যবহারের শর্তাবলী</h1>
+          <h1 className="text-3xl font-black leading-tight text-white md:text-6xl">ব্যবহারের শর্তাবলী</h1>
           <p className="mt-5 text-base leading-8 text-slate-400">
             এই learning platform ব্যবহার করার আগে প্রয়োজনীয় নিয়ম, সীমাবদ্ধতা এবং দায়িত্ব সম্পর্কে জেনে নিন।
           </p>

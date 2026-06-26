@@ -16,7 +16,7 @@ const AcademicHome = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
       {/* Hero Section */}
       <div className="text-center max-w-3xl mx-auto mb-20">
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight mb-6">
+        <h1 className="text-2xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight mb-6">
           <span className="block text-white mb-2">স্বাগতম আমাদের</span>
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
             একাডেমিক হাবে

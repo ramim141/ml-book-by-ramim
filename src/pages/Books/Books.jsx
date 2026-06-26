@@ -295,7 +295,7 @@ export default function Books() {
 
             <Section className="relative z-20 text-center lg:text-left">
               <motion.div variants={fadeUp} className="space-y-3">
-                <h1 className="text-4xl font-black leading-[1.08] text-teal-300 sm:text-5xl lg:text-6xl">
+                <h1 className="text-2xl font-black leading-[1.08] text-teal-300 sm:text-5xl lg:text-6xl">
                   {pageData.book.title}
                 </h1>
                 <p className="text-3xl font-bold leading-tight text-slate-300 sm:text-4xl">{pageData.book.subtitle}</p>

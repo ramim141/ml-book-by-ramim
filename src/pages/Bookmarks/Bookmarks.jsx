@@ -34,7 +34,7 @@ export default function Bookmarks() {
             <div className="p-2.5 bg-[#5b5dfa]/10 rounded-xl border border-[#5b5dfa]/20">
               <Bookmark size={24} />
             </div>
-            <h1 className="text-3xl font-black text-white sm:text-4xl">আমার বুকমার্কস</h1>
+            <h1 className="text-xl font-black text-white sm:text-4xl">আমার বুকমার্কস</h1>
           </div>
           <p className="text-slate-400 text-lg">আপনার সেভ করে রাখা সকল আর্টিকেল এবং বইয়ের পর্বগুলো এখানে দেখতে পাবেন।</p>
         </header>
