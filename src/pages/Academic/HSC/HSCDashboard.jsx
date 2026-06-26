@@ -11,6 +11,15 @@ const HSCDashboard = () => {
       link: '/academic/hsc/ict',
       color: 'pink'
     },
+    {
+      id: 2,
+      title: 'রসায়ন ১ম পত্র',
+      description: 'পরিবেশ রসায়ন, গুণগত রসায়ন, পর্যায়বৃত্ত ধর্ম ও অন্যান্য অধ্যায়ের বিস্তারিত আলোচনা।',
+      code: '২৬৭',
+      chaptersCount: 3,
+      link: '/academic/hsc/chemistry',
+      color: 'blue'
+    },
 
   ];
 

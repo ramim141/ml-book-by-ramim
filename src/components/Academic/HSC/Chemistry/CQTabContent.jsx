@@ -79,15 +79,15 @@ const CQAccordion = memo(({ cq }) => {
           {/* Stem / Uddipok */}
           {(cq.image || cq.stem) && (
             <div className="bg-slate-900/50 rounded-xl p-5 mb-6 border border-slate-800 text-slate-300 text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
-              {/* If cq.image is provided explicitly */}
-              {cq.image && (
+              {/* If cq.image or cq.image_url is provided explicitly */}
+              {(cq.image || cq.image_url) && (
                 <div className="mb-4 flex justify-center">
-                  <img src={cq.image} alt="উদ্দীপকের চিত্র" className="max-w-full h-auto max-h-64 object-contain rounded-lg border border-slate-700/50 bg-slate-800/50 p-1" />
+                  <img src={cq.image || cq.image_url} alt="উদ্দীপকের চিত্র" className="max-w-full h-auto max-h-64 object-contain rounded-lg border border-slate-700/50 bg-slate-800/50 p-1" />
                 </div>
               )}
               
               {/* If cq.stem is directly a URL */}
-              {cq.stem && (cq.stem.trim().startsWith('http://') || cq.stem.trim().startsWith('https://')) ? (
+              {cq.stem && (cq.stem.trim().startsWith('http://') || cq.stem.trim().startsWith('https://') || cq.stem.trim().startsWith('/') || cq.stem.trim().startsWith('./')) ? (
                 <div className="flex justify-center">
                   <img src={cq.stem.trim()} alt="উদ্দীপকের চিত্র" className="max-w-full h-auto max-h-64 object-contain rounded-lg border border-slate-700/50 bg-slate-800/50 p-1" />
                 </div>
@@ -100,18 +100,14 @@ const CQAccordion = memo(({ cq }) => {
 
           {/* Questions Stack */}
           <div className="flex flex-col gap-3 mb-6">
-            <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
-              <MarkdownRenderer content={cq.questions.ka} />
-            </div>
-            <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
-              <MarkdownRenderer content={cq.questions.kha} />
-            </div>
-            <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
-              <MarkdownRenderer content={cq.questions.ga} />
-            </div>
-            <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
-              <MarkdownRenderer content={cq.questions.gha} />
-            </div>
+            {cq.questions && Object.entries(cq.questions).map(([key, content]) => {
+              if (!content) return null;
+              return (
+                <div key={key} className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
+                  <MarkdownRenderer content={content} />
+                </div>
+              );
+            })}
           </div>
 
           {/* Answer Toggle Button */}
@@ -126,18 +122,14 @@ const CQAccordion = memo(({ cq }) => {
           {/* Answers Section */}
           {showAnswer && (
             <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
-              <div className="bg-emerald-900/10 rounded-xl p-5 border border-emerald-500/20">
-                <MarkdownRenderer content={cq.answers.ka} />
-              </div>
-              <div className="bg-emerald-900/10 rounded-xl p-5 border border-emerald-500/20">
-                <MarkdownRenderer content={cq.answers.kha} />
-              </div>
-              <div className="bg-emerald-900/10 rounded-xl p-5 border border-emerald-500/20">
-                <MarkdownRenderer content={cq.answers.ga} />
-              </div>
-              <div className="bg-emerald-900/10 rounded-xl p-5 border border-emerald-500/20">
-                <MarkdownRenderer content={cq.answers.gha} />
-              </div>
+              {cq.answers && Object.entries(cq.answers).map(([key, content]) => {
+                if (!content) return null;
+                return (
+                  <div key={key} className="bg-emerald-900/10 rounded-xl p-5 border border-emerald-500/20">
+                    <MarkdownRenderer content={content} />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

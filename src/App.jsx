@@ -33,6 +33,11 @@ const ChapterDetails = lazy(() => import('./pages/Academic/HSC/ICT/ChapterDetail
 const BoardQuestionsList = lazy(() => import('./pages/Academic/HSC/ICT/BoardQuestionsList'));
 const BoardQuestionViewer = lazy(() => import('./pages/Academic/HSC/ICT/BoardQuestionViewer'));
 
+const ChemistrySubjectHome = lazy(() => import('./pages/Academic/HSC/Chemistry/ChemistrySubjectHome'));
+const ChemistryChapterDetails = lazy(() => import('./pages/Academic/HSC/Chemistry/ChapterDetails'));
+const ChemistryBoardQuestionsList = lazy(() => import('./pages/Academic/HSC/Chemistry/BoardQuestionsList'));
+const ChemistryBoardQuestionViewer = lazy(() => import('./pages/Academic/HSC/Chemistry/BoardQuestionViewer'));
+
 function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -128,6 +133,11 @@ function App() {
                   <Route path="hsc/ict/board-questions" element={<BoardQuestionsList />} />
                   <Route path="hsc/ict/board-questions/:boardName/:year" element={<BoardQuestionViewer />} />
                   <Route path="hsc/ict/:chapterId" element={<ChapterDetails />} />
+                  
+                  <Route path="hsc/chemistry" element={<ChemistrySubjectHome />} />
+                  <Route path="hsc/chemistry/board-questions" element={<ChemistryBoardQuestionsList />} />
+                  <Route path="hsc/chemistry/board-questions/:boardName/:year" element={<ChemistryBoardQuestionViewer />} />
+                  <Route path="hsc/chemistry/:chapterId" element={<ChemistryChapterDetails />} />
                 </Route>
 
 

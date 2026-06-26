@@ -1,8 +1,8 @@
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { ChevronRight, ArrowLeft, FileText, HelpCircle } from 'lucide-react';
-import { CQAccordion } from '../../../../components/Academic/HSC/ICT/CQTabContent';
+import { CQAccordion } from '../../../../components/Academic/HSC/Chemistry/CQTabContent';
 
-const cqsModules = import.meta.glob('../../../../components/Academic/HSC/ICT/ICT_data/chapter_*_Json/*_CQs.json', { eager: true });
+const cqsModules = import.meta.glob('../../../../components/Academic/HSC/Chemistry/Chemistry_data/chapter_*_Json/*_CQs.json', { eager: true });
 const cqsDataWithChapter = Object.entries(cqsModules).map(([path, mod]) => {
   const match = path.match(/chapter_(\d+)/i);
   const chapter = match ? parseInt(match[1], 10) : null;
@@ -53,9 +53,9 @@ const BoardQuestionViewer = () => {
         <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
         <Link to="/academic/hsc" className="hover:text-white transition-colors whitespace-nowrap">এইচএসসি</Link>
         <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
-        <Link to="/academic/hsc/ict" className="hover:text-white transition-colors whitespace-nowrap">আইসিটি</Link>
+        <Link to="/academic/hsc/chemistry" className="hover:text-white transition-colors whitespace-nowrap">রসায়ন</Link>
         <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
-        <Link to="/academic/hsc/ict/board-questions" className="hover:text-white transition-colors whitespace-nowrap">বোর্ড প্রশ্নাবলি</Link>
+        <Link to="/academic/hsc/chemistry/board-questions" className="hover:text-white transition-colors whitespace-nowrap">বোর্ড প্রশ্নাবলি</Link>
         <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
         <span className="text-indigo-400">{boardName.trim()} {enToBnNumber(year)}</span>
       </nav>
@@ -64,7 +64,7 @@ const BoardQuestionViewer = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <Link to="/academic/hsc/ict/board-questions" className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+            <Link to="/academic/hsc/chemistry/board-questions" className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <span className="text-indigo-400 font-bold bg-indigo-500/10 px-3 py-1 rounded-md border border-indigo-500/20 text-sm flex items-center gap-2">
