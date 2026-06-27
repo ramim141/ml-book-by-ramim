@@ -1,5 +1,6 @@
 import { useState, useMemo, memo } from 'react';
-import { HelpCircle, Filter, ChevronDown, CheckCircle2, Circle } from 'lucide-react';
+import { HelpCircle, Filter, CheckCircle2, Circle } from 'lucide-react';
+import FilterSelect from '../../../UI/FilterSelect';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -69,7 +70,7 @@ const MCQItem = memo(({ mcq, index, isQuizMode, quizSelectedOption, onQuizSelect
           {index + 1}
         </div>
         <div className="flex-1 mt-1 sm:mt-1.5 min-w-0">
-          <div className="text-slate-200 text-base sm:text-lg font-medium leading-relaxed mb-3">
+          <div className="text-slate-200 text-sm sm:text-lg font-medium leading-relaxed mb-3">
             <MarkdownRenderer content={mcq.question} />
           </div>
           
@@ -113,7 +114,7 @@ const MCQItem = memo(({ mcq, index, isQuizMode, quizSelectedOption, onQuizSelect
               className={`flex items-center gap-3 p-3 sm:p-3.5 rounded-xl border transition-all ${optionClass} ${showAnswer && optIdx !== mcq.answer && optIdx !== selectedOption ? 'opacity-50' : ''}`}
             >
               <Icon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-              <span className="text-sm sm:text-base"><MarkdownRenderer content={option} /></span>
+              <span className="text-xs sm:text-base"><MarkdownRenderer content={option} /></span>
             </div>
           );
         })}
@@ -214,77 +215,37 @@ const MCQTabContent = ({ chapter }) => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {/* Topic Filter */}
-            <div className="relative">
-              <select
-                value={selectedTopic}
-                onChange={(e) => setSelectedTopic(e.target.value)}
-                className="w-full appearance-none bg-slate-900/50 border border-slate-700/50 text-slate-300 text-sm rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all hover:bg-slate-800 cursor-pointer"
-              >
-                <option value="all">সব টপিক</option>
-                {allTopics.map(topic => (
-                  <option key={topic} value={topic}>{topic}</option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                <ChevronDown className="w-4 h-4" />
-              </div>
-            </div>
+            <FilterSelect
+              value={selectedTopic}
+              onChange={setSelectedTopic}
+              options={[{ value: 'all', label: 'সব টপিক' }, ...allTopics.map(t => ({ value: t, label: t }))]}
+            />
 
             {/* Board Filter */}
             {allBoards.length > 0 && (
-              <div className="relative">
-                <select
-                  value={selectedBoard}
-                  onChange={(e) => setSelectedBoard(e.target.value)}
-                  className="w-full appearance-none bg-slate-900/50 border border-slate-700/50 text-slate-300 text-sm rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all hover:bg-slate-800 cursor-pointer"
-                >
-                  <option value="all">সব বোর্ড</option>
-                  {allBoards.map(board => (
-                    <option key={board} value={board}>{board}</option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                  <ChevronDown className="w-4 h-4" />
-                </div>
-              </div>
+              <FilterSelect
+                value={selectedBoard}
+                onChange={setSelectedBoard}
+                options={[{ value: 'all', label: 'সব বোর্ড' }, ...allBoards.map(b => ({ value: b, label: b }))]}
+              />
             )}
 
             {/* Institution Filter */}
             {allInstitutions.length > 0 && (
-              <div className="relative">
-                <select
-                  value={selectedInstitution}
-                  onChange={(e) => setSelectedInstitution(e.target.value)}
-                  className="w-full appearance-none bg-slate-900/50 border border-slate-700/50 text-slate-300 text-sm rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all hover:bg-slate-800 cursor-pointer"
-                >
-                  <option value="all">সব স্কুল/কলেজ</option>
-                  {allInstitutions.map(inst => (
-                    <option key={inst} value={inst}>{inst}</option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                  <ChevronDown className="w-4 h-4" />
-                </div>
-              </div>
+              <FilterSelect
+                value={selectedInstitution}
+                onChange={setSelectedInstitution}
+                options={[{ value: 'all', label: 'সব স্কুল/কলেজ' }, ...allInstitutions.map(i => ({ value: i, label: i }))]}
+              />
             )}
 
             {/* Year Filter */}
             {allYears.length > 0 && (
-              <div className="relative">
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="w-full appearance-none bg-slate-900/50 border border-slate-700/50 text-slate-300 text-sm rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all hover:bg-slate-800 cursor-pointer"
-                >
-                  <option value="all">সব সাল</option>
-                  {allYears.map(year => (
-                    <option key={year} value={year}>{enToBnNumber(year)}</option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                  <ChevronDown className="w-4 h-4" />
-                </div>
-              </div>
+              <FilterSelect
+                value={selectedYear}
+                onChange={setSelectedYear}
+                options={[{ value: 'all', label: 'সব সাল' }, ...allYears.map(y => ({ value: y, label: enToBnNumber(y) }))]}
+              />
             )}
           </div>
         </div>
@@ -296,7 +257,7 @@ const MCQTabContent = ({ chapter }) => {
             <div key={topic} className="space-y-4">
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 <div className="w-1.5 h-6 bg-indigo-500 rounded-full shrink-0"></div>
-                <h3 className="text-xl sm:text-2xl font-bold text-white leading-tight">{topic}</h3>
+                <h3 className="text-base sm:text-2xl font-bold text-white leading-tight">{topic}</h3>
                 <span className="bg-slate-800 text-slate-400 text-xs px-2.5 py-1 rounded-md border border-slate-700/50 shrink-0">
                   {mcqsList.length} টি প্রশ্ন
                 </span>

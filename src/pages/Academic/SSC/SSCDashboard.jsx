@@ -32,20 +32,20 @@ const SSCDashboard = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 lg:py-14">
       
       {/* Header */}
-      <div className="mb-12">
-        <h1 className="text-xl sm:text-4xl font-extrabold text-white mb-4">
+      <div className="mb-6 sm:mb-10 lg:mb-12">
+        <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-white mb-2.5 sm:mb-3 lg:mb-4 leading-tight">
           এসএসসি (নবম-দশম শ্রেণি)
         </h1>
-        <p className="text-slate-400 max-w-2xl text-lg">
+        <p className="text-slate-400 max-w-2xl text-sm sm:text-base lg:text-lg leading-relaxed">
           এসএসসি পরীক্ষার জন্য প্রয়োজনীয় বিষয়গুলোর বিস্তারিত সিলেবাস, চ্যাপ্টার ভিত্তিক ক্লাস নোটস এবং কুইজ নিচে দেওয়া হলো। আপনার প্রয়োজনীয় বিষয়টি নির্বাচন করুন।
         </p>
       </div>
 
       {/* Subjects Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
         {subjects.map((subject) => (
           <SubjectCard key={subject.id} {...subject} />
         ))}

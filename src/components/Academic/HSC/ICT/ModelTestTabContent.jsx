@@ -69,25 +69,25 @@ const ModelTestTabContent = ({ mcqs }) => {
   // --------------------------------------------------------
   if (phase === 'setup') {
     return (
-      <div className="flex flex-col items-center justify-center py-12 animate-in fade-in zoom-in-95 duration-500">
-        <div className="bg-slate-800/40 border border-slate-700/50 p-8 rounded-3xl w-full max-w-lg shadow-2xl backdrop-blur-xl">
+      <div className="flex flex-col items-center justify-center py-6 sm:py-12 animate-in fade-in zoom-in-95 duration-500">
+        <div className="bg-slate-800/40 border border-slate-700/50 p-5 sm:p-8 rounded-2xl sm:rounded-3xl w-full max-w-lg shadow-2xl backdrop-blur-xl">
           <div className="flex justify-center mb-6">
             <div className="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center">
               <Settings2 className="w-8 h-8 text-indigo-400" />
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-white text-center mb-2">মডেল টেস্ট কনফিগারেশন</h2>
-          <p className="text-slate-400 text-center mb-8">আপনার পছন্দমতো প্রশ্ন সংখ্যা এবং সময় নির্বাচন করে পরীক্ষা শুরু করুন।</p>
+<h2 className="text-base sm:text-2xl font-bold text-white text-center mb-2 leading-tight">মডেল টেস্ট কনফিগারেশন</h2>
+          <p className="text-xs sm:text-base text-slate-400 text-center mb-6 sm:mb-8 px-2 leading-relaxed">আপনার পছন্দমতো প্রশ্ন সংখ্যা এবং সময় নির্বাচন করে পরীক্ষা শুরু করুন।</p>
 
-          <div className="space-y-6">
+          <div className="space-y-5 sm:space-y-6">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">কতগুলো প্রশ্ন চান?</label>
-              <div className="grid grid-cols-3 gap-3">
+              <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-2">কতগুলো প্রশ্ন চান?</label>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {[10, 20, 25].map(count => (
                   <button
                     key={count}
                     onClick={() => setSelectedCount(count)}
-                    className={`py-3 rounded-xl border font-semibold transition-all ${
+                    className={`py-2.5 sm:py-3 px-1 rounded-xl border text-sm sm:text-base font-semibold transition-all ${
                       selectedCount === count 
                         ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-900/20' 
                         : 'bg-slate-900/50 border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-200'
@@ -100,13 +100,13 @@ const ModelTestTabContent = ({ mcqs }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">কত সময় চান?</label>
-              <div className="grid grid-cols-3 gap-3">
+<label className="block text-xs sm:text-sm font-medium text-slate-300 mb-2">কত সময় চান?</label>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {[5, 15, 25].map(time => (
                   <button
                     key={time}
                     onClick={() => setSelectedTime(time)}
-                    className={`py-3 rounded-xl border font-semibold transition-all ${
+                    className={`py-2.5 sm:py-3 px-1 rounded-xl border text-sm sm:text-base font-semibold transition-all ${
                       selectedTime === time 
                         ? 'bg-amber-600 border-amber-500 text-white shadow-lg shadow-amber-900/20' 
                         : 'bg-slate-900/50 border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-200'
@@ -121,7 +121,7 @@ const ModelTestTabContent = ({ mcqs }) => {
             <button
               onClick={startTest}
               disabled={mcqs.length === 0}
-              className="w-full mt-4 py-4 rounded-xl font-bold text-lg text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 transition-all shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full mt-4 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 transition-all shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {mcqs.length > 0 ? 'পরীক্ষা শুরু করুন' : 'কোনো প্রশ্ন নেই'}
             </button>
@@ -143,18 +143,18 @@ const ModelTestTabContent = ({ mcqs }) => {
   if (phase === 'running') {
     return (
       <div className="space-y-6 relative pb-20">
-        <div className="sticky top-20 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700/50 rounded-2xl p-4 shadow-2xl flex items-center justify-between animate-in slide-in-from-top-4 duration-500">
+        <div className="sticky top-20 z-40 bg-slate-900/90 backdrop-blur-md border border-slate-700/50 rounded-2xl p-3 sm:p-4 shadow-2xl flex items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500">
           <div>
-            <div className="text-sm text-slate-400 font-medium mb-1">সময় বাকি</div>
-            <div className={`text-2xl font-extrabold flex items-center gap-2 ${timeLeft < 60 ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`}>
-              <Timer className="w-6 h-6" />
+            <div className="text-xs sm:text-sm text-slate-400 font-medium mb-1">সময় বাকি</div>
+            <div className={`text-lg sm:text-2xl font-extrabold flex items-center gap-2 ${timeLeft < 60 ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`}>
+              <Timer className="w-5 h-5 sm:w-6 sm:h-6" />
               {formatTime(timeLeft)}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-sm text-slate-400 font-medium mb-1">উত্তর দেওয়া হয়েছে</div>
-            <div className="text-xl font-bold text-white">
-              {Object.keys(answers).length} <span className="text-slate-500 text-base font-medium">/ {testMcqs.length}</span>
+            <div className="text-xs sm:text-sm text-slate-400 font-medium mb-1">উত্তর দেওয়া হয়েছে</div>
+            <div className="text-base sm:text-xl font-bold text-white">
+              {Object.keys(answers).length} <span className="text-slate-500 text-sm sm:text-base font-medium">/ {testMcqs.length}</span>
             </div>
           </div>
         </div>
@@ -176,7 +176,7 @@ const ModelTestTabContent = ({ mcqs }) => {
         <div className="flex justify-center mt-8 pt-8 border-t border-slate-800">
           <button 
             onClick={submitTest}
-            className="px-10 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl font-bold text-lg transition-all shadow-xl shadow-indigo-900/20 transform hover:-translate-y-1"
+            className="w-full sm:w-auto px-8 sm:px-10 py-3 sm:py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl font-bold text-base sm:text-lg transition-all shadow-xl shadow-indigo-900/20 transform hover:-translate-y-1"
           >
             পরীক্ষা শেষ করুন
           </button>
@@ -202,24 +202,24 @@ const ModelTestTabContent = ({ mcqs }) => {
 
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
-        <div className="bg-slate-800/60 border border-slate-700/50 p-8 sm:p-10 rounded-3xl max-w-2xl mx-auto text-center shadow-2xl backdrop-blur-xl">
+        <div className="bg-slate-800/60 border border-slate-700/50 p-5 sm:p-10 rounded-2xl sm:rounded-3xl max-w-2xl mx-auto text-center shadow-2xl backdrop-blur-xl">
           <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 className="w-10 h-10 text-emerald-400" />
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">পরীক্ষা সম্পন্ন হয়েছে!</h2>
-          <div className={`text-lg font-medium mb-6 ${messageColor}`}>{message}</div>
+          <h2 className="text-xl sm:text-3xl font-bold text-white mb-2">পরীক্ষা সম্পন্ন হয়েছে!</h2>
+          <div className={`text-base sm:text-lg font-medium mb-6 ${messageColor}`}>{message}</div>
           
-          <div className="flex justify-center items-center gap-8 mb-8 bg-slate-900/50 py-6 px-8 rounded-2xl border border-slate-800">
+          <div className="flex justify-center items-center gap-4 sm:gap-8 mb-8 bg-slate-900/50 py-5 sm:py-6 px-4 sm:px-8 rounded-2xl border border-slate-800">
             <div>
               <div className="text-slate-400 text-sm font-medium mb-1">প্রাপ্ত নম্বর</div>
-              <div className="text-4xl font-extrabold text-white">
-                {score} <span className="text-xl text-slate-500 font-medium">/ {testMcqs.length}</span>
+              <div className="text-2xl sm:text-4xl font-extrabold text-white">
+                {score} <span className="text-base sm:text-xl text-slate-500 font-medium">/ {testMcqs.length}</span>
               </div>
             </div>
             <div className="w-px h-16 bg-slate-700"></div>
             <div>
               <div className="text-slate-400 text-sm font-medium mb-1">সঠিকতা</div>
-              <div className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
+              <div className="text-2xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
                 {percentage}%
               </div>
             </div>
@@ -235,7 +235,7 @@ const ModelTestTabContent = ({ mcqs }) => {
         </div>
 
         <div className="pt-8 border-t border-slate-800">
-          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
+          <h3 className="text-base sm:text-xl font-bold text-white mb-6 flex items-center gap-3">
             <div className="w-1.5 h-6 bg-indigo-500 rounded-full"></div>
             উত্তরপত্র বিশ্লেষণ
           </h3>

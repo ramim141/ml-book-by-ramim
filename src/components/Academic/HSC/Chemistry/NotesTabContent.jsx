@@ -11,7 +11,7 @@ const NotesTabContent = ({ chapter }) => {
                 <FileText className="w-6 h-6 sm:w-8 sm:h-8" />
               </div>
               <div>
-                <h3 className="font-bold text-white text-base sm:text-lg group-hover:text-red-400 transition-colors line-clamp-2">
+                <h3 className="font-bold text-white text-sm sm:text-lg group-hover:text-red-400 transition-colors line-clamp-2">
                   {note.title}
                 </h3>
                 <div className="flex items-center flex-wrap gap-2 sm:gap-3 mt-1 sm:mt-2 text-[10px] sm:text-xs font-medium text-slate-500">

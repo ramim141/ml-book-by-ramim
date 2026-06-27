@@ -11,38 +11,70 @@ const CQTabContent = lazy(() => import('../../../../components/Academic/HSC/Chem
 const MCQTabContent = lazy(() => import('../../../../components/Academic/HSC/Chemistry/MCQTabContent'));
 const ModelTestTabContent = lazy(() => import('../../../../components/Academic/HSC/Chemistry/ModelTestTabContent'));
 
+// Cache + lazy loader map to avoid re-downloads.
+const chapterDataCache = new Map();
+const cqsLoaders = import.meta.glob(
+  '../../../../components/Academic/HSC/Chemistry/Chemistry_data/chapter_*_Json/chapter_*_CQs.json'
+);
+const mcqLoaders = import.meta.glob(
+  '../../../../components/Academic/HSC/Chemistry/Chemistry_data/chapter_*_Json/chapter_*_MCQs.json'
+);
+
+const getLoaders = (chapterId) => {
+  const m = chapterId.match(/chapter-(\d+)/);
+  if (!m) return { cqs: null, mcqs: null };
+  const num = m[1].padStart(2, '0');
+  const cqsKey = Object.keys(cqsLoaders).find((p) => p.includes(`chapter_${num}`));
+  const mcqKey = Object.keys(mcqLoaders).find((p) => p.includes(`chapter_${num}`));
+  return {
+    cqs: cqsKey ? cqsLoaders[cqsKey] : null,
+    mcqs: mcqKey ? mcqLoaders[mcqKey] : null,
+  };
+};
+
+const fetchChapterData = (chapterId) => {
+  if (chapterDataCache.has(chapterId)) return chapterDataCache.get(chapterId);
+  const { cqs, mcqs } = getLoaders(chapterId);
+  const promise = Promise.all([
+    cqs ? cqs() : Promise.resolve(null),
+    mcqs ? mcqs() : Promise.resolve(null),
+  ]).then(([cqsRes, mcqsRes]) => ({
+    cqs: cqsRes?.default ?? cqsRes ?? [],
+    mcqs: mcqsRes?.default ?? mcqsRes ?? [],
+  })).catch((err) => {
+    console.error('Error loading chapter data:', err);
+    chapterDataCache.delete(chapterId);
+    return { cqs: [], mcqs: [] };
+  });
+  chapterDataCache.set(chapterId, promise);
+  return promise;
+};
+
+if (typeof window !== 'undefined') {
+  window.__prefetchChapter = (chapterId) => fetchChapterData(chapterId);
+}
+
 const ChapterDetails = () => {
   const { chapterId } = useParams();
   const baseChapter = chaptersData.chapters.find((c) => c.id === chapterId);
-  
+
   const [cqsData, setCqsData] = useState([]);
   const [mcqsData, setMcqsData] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
-    if (!baseChapter) return;
-    
-    const chapterNumMatch = chapterId.match(/chapter-(\d+)/);
-    if (chapterNumMatch) {
-      const num = chapterNumMatch[1].padStart(2, '0');
-      
-      setLoadingData(true);
-      Promise.all([
-        import(`../../../../components/Academic/HSC/Chemistry/Chemistry_data/chapter_${num}_Json/chapter_${num}_CQs.json`),
-        import(`../../../../components/Academic/HSC/Chemistry/Chemistry_data/chapter_${num}_Json/chapter_${num}_MCQs.json`)
-      ]).then(([cqsRes, mcqsRes]) => {
-        setCqsData(cqsRes.default || cqsRes);
-        setMcqsData(mcqsRes.default || mcqsRes);
-      }).catch(err => {
-        console.error("Error loading chapter data:", err);
-        setCqsData([]);
-        setMcqsData([]);
-      }).finally(() => {
-        setLoadingData(false);
-      });
-    } else {
+    if (!baseChapter) return undefined;
+    let cancelled = false;
+    setLoadingData(true);
+    fetchChapterData(chapterId).then((data) => {
+      if (cancelled) return;
+      setCqsData(data.cqs);
+      setMcqsData(data.mcqs);
       setLoadingData(false);
-    }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [chapterId, baseChapter]);
 
   if (!baseChapter) {
@@ -71,10 +103,10 @@ const ChapterDetails = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-28 md:py-12 relative">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-28 md:py-12 relative">
       
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-500 mb-6 font-medium flex-wrap">
+      <nav className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-500 mb-5 sm:mb-6 font-medium flex-wrap">
         <Link to="/academic" className="hover:text-white transition-colors whitespace-nowrap">একাডেমিক</Link>
         <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
         <Link to="/academic/hsc" className="hover:text-white transition-colors whitespace-nowrap">এইচএসসি</Link>
@@ -85,8 +117,8 @@ const ChapterDetails = () => {
       </nav>
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 mb-8 sm:mb-10">
-        <div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 mb-6 sm:mb-10">
+        <div className="min-w-0">
           <div className="flex items-center gap-2 sm:gap-3 mb-2">
             <Link to="/academic/hsc/chemistry" className="p-1.5 sm:p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -95,7 +127,7 @@ const ChapterDetails = () => {
               {chapter.chapterNo}
             </span>
           </div>
-          <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-white">
+          <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight">
             {chapter.title}
           </h1>
         </div>
@@ -103,7 +135,7 @@ const ChapterDetails = () => {
 
       {/* Tabs - Desktop/Tablet Only */}
       <div className="hidden md:flex overflow-x-auto hide-scrollbar mb-8 border-b border-slate-800 sticky top-[80px] z-40 bg-[#0b0f19]/95 backdrop-blur-md pt-4 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <div className="flex gap-8 min-w-max px-1">
+        <div className="flex gap-5 lg:gap-8 min-w-max px-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -132,9 +164,9 @@ const ChapterDetails = () => {
       </div>
 
       {/* Tabs - Mobile (Floating Menu) */}
-      <div className="md:hidden fixed bottom-6 right-4 z-50">
+      <div className="md:hidden fixed bottom-5 right-4 z-50">
         <div 
-          className={`absolute bottom-16 right-0 bg-slate-800 border border-slate-700 rounded-2xl shadow-xl w-48 flex flex-col gap-1 p-2 transition-all duration-300 origin-bottom-right ${
+          className={`absolute bottom-16 right-0 bg-slate-800 border border-slate-700 rounded-2xl shadow-xl w-[min(19rem,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto flex flex-col gap-1 p-2 transition-all duration-300 origin-bottom-right ${
             isMobileMenuOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'
           }`}
         >
@@ -148,7 +180,7 @@ const ChapterDetails = () => {
                   setActiveTab(tab.id);
                   setIsMobileMenuOpen(false);
                 }}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
                   isActive ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-300 hover:bg-slate-700'
                 }`}
               >
@@ -168,7 +200,7 @@ const ChapterDetails = () => {
       </div>
 
       {/* Tab Content */}
-      <div className="min-h-[500px]">
+      <div className="min-h-[420px] sm:min-h-[500px]">
         <Suspense fallback={
           <div className="flex justify-center items-center h-64 text-slate-400">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
@@ -182,8 +214,8 @@ const ChapterDetails = () => {
 
           {/* Other Tabs Placeholder */}
           {activeTab !== 'videos' && activeTab !== 'notes' && activeTab !== 'cqs' && activeTab !== 'mcqs' && activeTab !== 'modeltest' && (
-            <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-16 text-center">
-              <h3 className="text-xl font-bold text-slate-300 mb-2">এই সেকশনটি তৈরি করা হচ্ছে</h3>
+            <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6 sm:p-16 text-center">
+              <h3 className="text-base sm:text-xl font-bold text-slate-300 mb-2">এই সেকশনটি তৈরি করা হচ্ছে</h3>
               <p className="text-slate-500">শীঘ্রই এখানে কন্টেন্ট যুক্ত করা হবে।</p>
             </div>
           )}
