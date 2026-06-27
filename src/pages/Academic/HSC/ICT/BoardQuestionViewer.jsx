@@ -35,6 +35,7 @@ const BoardQuestionViewer = () => {
 
   const [cqsDataWithChapter, setCqsDataWithChapter] = useState([]);
   const [loadingCqs, setLoadingCqs] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(15);
 
   // Lazy-load chapter CQ JSONs on mount.
   useEffect(() => {
@@ -119,15 +120,26 @@ const BoardQuestionViewer = () => {
           <span className="text-sm sm:text-base">প্রশ্নপত্র লোড হচ্ছে…</span>
         </div>
       ) : matchedCQs.length > 0 ? (
-        <div className="space-y-4">
+        <div className="space-y-4 pb-8">
           <div className="flex items-center gap-2 mb-6">
             <span className="bg-slate-800 text-slate-400 text-sm px-3 py-1.5 rounded-lg border border-slate-700/50">
               মোট প্রশ্ন: <strong>{matchedCQs.length} টি</strong>
             </span>
           </div>
-          {matchedCQs.map((cq) => (
+          {matchedCQs.slice(0, visibleCount).map((cq) => (
             <CQAccordion key={cq.id} cq={cq} />
           ))}
+
+          {visibleCount < matchedCQs.length && (
+            <div className="flex justify-center mt-4 mb-8">
+              <button
+                onClick={() => setVisibleCount(prev => prev + 15)}
+                className="px-6 py-2.5 bg-indigo-500/20 text-indigo-300 font-bold rounded-xl border border-indigo-500/30 hover:bg-indigo-500/30 transition-colors"
+              >
+                আরও দেখুন
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6 sm:p-16 text-center">

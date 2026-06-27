@@ -6,6 +6,8 @@ const navLinks = [
   { to: '/academic', label: 'হোম' },
   { to: '/academic/ssc', label: 'এসএসসি (SSC)' },
   { to: '/academic/hsc', label: 'এইচএসসি (HSC)' },
+  { to: '/academic/question-bank', label: 'প্রশ্নব্যাংক' },
+  { to: '/academic/shortcut/all/all/all', label: 'শর্টকাট' },
 ];
 
 const AcademicNavbar = () => {
@@ -35,14 +37,13 @@ const AcademicNavbar = () => {
         <div className="flex items-center justify-between gap-2 sm:gap-3 min-h-16 py-3 sm:h-20 sm:py-0">
 
           {/* Logo / Brand */}
-          <div className="min-w-0 flex-shrink flex items-center gap-2 sm:gap-3">
-            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-xl shadow-lg shadow-indigo-500/30 shrink-0">
-              <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-            </div>
-            <Link to="/academic" className="truncate text-base sm:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-200 via-white to-purple-200">
-              একাডেমিক হাব
-            </Link>
-          </div>
+          <Link to="/academic" className="min-w-0 flex-shrink flex items-center transition hover:opacity-90">
+            <img 
+              src="/assets/images/logo.png" 
+              alt="একাডেমিক হাব" 
+              className="h-14 sm:h-20 w-auto object-contain py-1 sm:py-2 scale-[1.15] sm:scale-125 ml-2 sm:ml-4" 
+            />
+          </Link>
 
           {/* Desktop Navigation Links */}
           <div className="hidden md:flex items-center space-x-8">
@@ -85,9 +86,8 @@ const AcademicNavbar = () => {
 
       {/* Mobile Menu Drawer */}
       <div
-        className={`md:hidden overflow-hidden border-t border-indigo-500/10 transition-[max-height,opacity] duration-300 ease-out ${
-          isMobileOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-        }`}
+        className={`md:hidden overflow-hidden border-t border-indigo-500/10 transition-[max-height,opacity] duration-300 ease-out ${isMobileOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+          }`}
       >
         <div className="px-4 sm:px-6 py-3 bg-[#0f172a]/95 backdrop-blur-xl space-y-1">
           {navLinks.map((link) => {
@@ -96,11 +96,10 @@ const AcademicNavbar = () => {
               <Link
                 key={link.to}
                 to={link.to}
-                className={`flex items-center justify-between px-3 py-3 rounded-xl text-sm font-bold transition-colors ${
-                  isActive
-                    ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
-                    : 'text-slate-200 hover:bg-slate-800/70 border border-transparent'
-                }`}
+                className={`flex items-center justify-between px-3 py-3 rounded-xl text-sm font-bold transition-colors ${isActive
+                  ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
+                  : 'text-slate-200 hover:bg-slate-800/70 border border-transparent'
+                  }`}
               >
                 <span>{link.label}</span>
                 <span className="text-indigo-400/70">›</span>

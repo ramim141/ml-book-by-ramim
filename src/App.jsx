@@ -27,6 +27,8 @@ const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 const AcademicLayout = lazy(() => import('./layout/Academic/AcademicLayout'));
 const AcademicHome = lazy(() => import('./pages/Academic/AcademicHome'));
 const SSCDashboard = lazy(() => import('./pages/Academic/SSC/SSCDashboard'));
+const ShortcutDashboard = lazy(() => import('./pages/Academic/Shortcut/ShortcutDashboard'));
+const ChapterShortcutViewer = lazy(() => import('./pages/Academic/Shortcut/ChapterShortcutViewer'));
 const HSCDashboard = lazy(() => import('./pages/Academic/HSC/HSCDashboard'));
 const ICTSubjectHome = lazy(() => import('./pages/Academic/HSC/ICT/ICTSubjectHome'));
 const ChapterDetails = lazy(() => import('./pages/Academic/HSC/ICT/ChapterDetails'));
@@ -37,6 +39,14 @@ const ChemistrySubjectHome = lazy(() => import('./pages/Academic/HSC/Chemistry/C
 const ChemistryChapterDetails = lazy(() => import('./pages/Academic/HSC/Chemistry/ChapterDetails'));
 const ChemistryBoardQuestionsList = lazy(() => import('./pages/Academic/HSC/Chemistry/BoardQuestionsList'));
 const ChemistryBoardQuestionViewer = lazy(() => import('./pages/Academic/HSC/Chemistry/BoardQuestionViewer'));
+const QuestionBankDashboard = lazy(() => import('./pages/Academic/QuestionBank/QuestionBankDashboard'));
+const CQQuestionViewer = lazy(() => import('./pages/Academic/QuestionBank/CQQuestionViewer'));
+const MCQQuestionViewer = lazy(() => import('./pages/Academic/QuestionBank/MCQQuestionViewer'));
+const KnowledgeQuestionViewer = lazy(() => import('./pages/Academic/QuestionBank/KnowledgeQuestionViewer'));
+
+const ModelTestConfig = lazy(() => import('./pages/Academic/ModelTest/ModelTestConfig'));
+const ModelTestExam = lazy(() => import('./pages/Academic/ModelTest/ModelTestExam'));
+const ModelTestResult = lazy(() => import('./pages/Academic/ModelTest/ModelTestResult'));
 
 function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -54,9 +64,9 @@ function App() {
   useEffect(() => {
     const handleScroll = () => {
       const scrollY = showSidebar ? contentScrollRef.current?.scrollTop : window.scrollY;
-      
+
       if (scrollY === undefined) return;
-      
+
       if (scrollY > lastScrollY.current + 15) {
         setIsScrollingDown(true);
         lastScrollY.current = scrollY;
@@ -67,7 +77,7 @@ function App() {
     };
 
     const scrollContainer = showSidebar ? contentScrollRef.current : window;
-    
+
     if (scrollContainer) {
       scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
     }
@@ -127,14 +137,29 @@ function App() {
                 {/* Academic Sub-website */}
                 <Route path="/academic" element={<AcademicLayout />}>
                   <Route index element={<AcademicHome />} />
+                  <Route path="shortcut" element={<ShortcutDashboard />} />
+                  <Route path="shortcut/:educationLevel/:subject/:chapterId" element={<ChapterShortcutViewer />} />
+                  <Route path="question-bank" element={<QuestionBankDashboard />} />
+                  
+                  {/* Model Test */}
+                  <Route path="model-test" element={<ModelTestConfig />} />
+                  <Route path="model-test/exam" element={<ModelTestExam />} />
+                  <Route path="model-test/result" element={<ModelTestResult />} />
+
                   <Route path="ssc" element={<SSCDashboard />} />
                   <Route path="hsc" element={<HSCDashboard />} />
                   <Route path="hsc/ict" element={<ICTSubjectHome />} />
+                  <Route path="hsc/ict/cq" element={<CQQuestionViewer educationLevel="hsc" subject="ict" />} />
+                  <Route path="hsc/ict/mcq" element={<MCQQuestionViewer educationLevel="hsc" subject="ict" />} />
+                  <Route path="hsc/ict/knowledge" element={<KnowledgeQuestionViewer educationLevel="hsc" subject="ict" />} />
                   <Route path="hsc/ict/board-questions" element={<BoardQuestionsList />} />
                   <Route path="hsc/ict/board-questions/:boardName/:year" element={<BoardQuestionViewer />} />
                   <Route path="hsc/ict/:chapterId" element={<ChapterDetails />} />
-                  
+
                   <Route path="hsc/chemistry" element={<ChemistrySubjectHome />} />
+                  <Route path="hsc/chemistry/cq" element={<CQQuestionViewer educationLevel="hsc" subject="chemistry" />} />
+                  <Route path="hsc/chemistry/mcq" element={<MCQQuestionViewer educationLevel="hsc" subject="chemistry" />} />
+                  <Route path="hsc/chemistry/knowledge" element={<KnowledgeQuestionViewer educationLevel="hsc" subject="chemistry" />} />
                   <Route path="hsc/chemistry/board-questions" element={<ChemistryBoardQuestionsList />} />
                   <Route path="hsc/chemistry/board-questions/:boardName/:year" element={<ChemistryBoardQuestionViewer />} />
                   <Route path="hsc/chemistry/:chapterId" element={<ChemistryChapterDetails />} />

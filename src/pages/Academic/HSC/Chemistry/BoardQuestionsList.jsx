@@ -329,7 +329,6 @@ const BoardQuestionsList = () => {
                 className="flex-1 flex items-center justify-center gap-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 py-2.5 rounded-xl text-sm font-medium transition-colors border border-indigo-500/20"
                 disabled={board.status !== 'available'}
               >
->
                 <Download className="w-4 h-4" /> PDF
               </button>
             </div>

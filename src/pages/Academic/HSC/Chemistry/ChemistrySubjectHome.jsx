@@ -23,35 +23,10 @@ const loaderFor = (loaders, chapterId) => {
 };
 
 const ChemistrySubjectHome = () => {
-  // Pre-warm chapter JSON loaders when the user idles on this page so the
-  // first click feels instant. Uses requestIdleCallback when available and
-  // falls back to a short setTimeout on older browsers.
+  // Pre-warming removed to avoid network congestion on mobile and slow networks.
+  // The JSONs will now load on-demand when navigating to the specific chapter/question bank.
   useEffect(() => {
-    const loaderPairs = chaptersData.chapters.map((c) => ({
-      id: c.id,
-      cqsLoader: loaderFor(cqsLoaders, c.id),
-      mcqsLoader: loaderFor(mcqsLoaders, c.id),
-    }));
-    let cancelled = false;
-    const warm = () => {
-      if (cancelled) return;
-      loaderPairs.forEach(({ cqsLoader, mcqsLoader }) => {
-        if (cqsLoader) cqsLoader().catch(() => {});
-        if (mcqsLoader) mcqsLoader().catch(() => {});
-      });
-    };
-    if (typeof window.requestIdleCallback === 'function') {
-      const id = window.requestIdleCallback(warm, { timeout: 2000 });
-      return () => {
-        cancelled = true;
-        if (window.cancelIdleCallback) window.cancelIdleCallback(id);
-      };
-    }
-    const t = setTimeout(warm, 1200);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
+    // Empty effect to keep the hook signature, but no pre-fetching is done.
   }, []);
 
   return (

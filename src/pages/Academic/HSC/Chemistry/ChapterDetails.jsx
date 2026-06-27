@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense, useEffect } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
-import { ChevronRight, PlayCircle, FileText, HelpCircle, CheckCircle, ArrowLeft, Timer, Loader2, BookOpen, Menu, X } from 'lucide-react';
+import { ChevronRight, PlayCircle, FileText, HelpCircle, CheckCircle, ArrowLeft, Timer, Loader2, BookOpen, Menu, X, Zap } from 'lucide-react';
 import chaptersData from '../../../../components/Academic/HSC/Chemistry/Chemistry_data/chapters.json';
 import videosData from '../../../../components/Academic/HSC/Chemistry/Chemistry_data/videos.json';
 import notesData from '../../../../components/Academic/HSC/Chemistry/Chemistry_data/notes.json';
@@ -10,6 +10,7 @@ const NotesTabContent = lazy(() => import('../../../../components/Academic/HSC/C
 const CQTabContent = lazy(() => import('../../../../components/Academic/HSC/Chemistry/CQTabContent'));
 const MCQTabContent = lazy(() => import('../../../../components/Academic/HSC/Chemistry/MCQTabContent'));
 const ModelTestTabContent = lazy(() => import('../../../../components/Academic/HSC/Chemistry/ModelTestTabContent'));
+const KnowledgeTabContent = lazy(() => import('../../../../components/Academic/HSC/Chemistry/KnowledgeTabContent'));
 
 // Cache + lazy loader map to avoid re-downloads.
 const chapterDataCache = new Map();
@@ -19,32 +20,39 @@ const cqsLoaders = import.meta.glob(
 const mcqLoaders = import.meta.glob(
   '../../../../components/Academic/HSC/Chemistry/Chemistry_data/chapter_*_Json/chapter_*_MCQs.json'
 );
+const kqLoaders = import.meta.glob(
+  '../../../../components/Academic/HSC/Chemistry/Chemistry_data/chapter_*_Json/chapter_*_k_kh.json'
+);
 
 const getLoaders = (chapterId) => {
   const m = chapterId.match(/chapter-(\d+)/);
-  if (!m) return { cqs: null, mcqs: null };
+  if (!m) return { cqs: null, mcqs: null, kqs: null };
   const num = m[1].padStart(2, '0');
   const cqsKey = Object.keys(cqsLoaders).find((p) => p.includes(`chapter_${num}`));
   const mcqKey = Object.keys(mcqLoaders).find((p) => p.includes(`chapter_${num}`));
+  const kqKey = Object.keys(kqLoaders).find((p) => p.includes(`chapter_${num}`));
   return {
     cqs: cqsKey ? cqsLoaders[cqsKey] : null,
     mcqs: mcqKey ? mcqLoaders[mcqKey] : null,
+    kqs: kqKey ? kqLoaders[kqKey] : null,
   };
 };
 
 const fetchChapterData = (chapterId) => {
   if (chapterDataCache.has(chapterId)) return chapterDataCache.get(chapterId);
-  const { cqs, mcqs } = getLoaders(chapterId);
+  const { cqs, mcqs, kqs } = getLoaders(chapterId);
   const promise = Promise.all([
     cqs ? cqs() : Promise.resolve(null),
     mcqs ? mcqs() : Promise.resolve(null),
-  ]).then(([cqsRes, mcqsRes]) => ({
+    kqs ? kqs() : Promise.resolve(null),
+  ]).then(([cqsRes, mcqsRes, kqsRes]) => ({
     cqs: cqsRes?.default ?? cqsRes ?? [],
     mcqs: mcqsRes?.default ?? mcqsRes ?? [],
+    kQs: kqsRes?.default ?? kqsRes ?? [],
   })).catch((err) => {
     console.error('Error loading chapter data:', err);
     chapterDataCache.delete(chapterId);
-    return { cqs: [], mcqs: [] };
+    return { cqs: [], mcqs: [], kQs: [] };
   });
   chapterDataCache.set(chapterId, promise);
   return promise;
@@ -60,6 +68,7 @@ const ChapterDetails = () => {
 
   const [cqsData, setCqsData] = useState([]);
   const [mcqsData, setMcqsData] = useState([]);
+  const [kQsData, setKQsData] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
@@ -70,6 +79,7 @@ const ChapterDetails = () => {
       if (cancelled) return;
       setCqsData(data.cqs);
       setMcqsData(data.mcqs);
+      setKQsData(data.kQs);
       setLoadingData(false);
     });
     return () => {
@@ -86,7 +96,8 @@ const ChapterDetails = () => {
     videos: videosData[chapterId] || [],
     notes: notesData[chapterId] || [],
     cqs: cqsData,
-    mcqs: mcqsData
+    mcqs: mcqsData,
+    kQs: kQsData
   };
 
   const [activeTab, setActiveTab] = useState('videos');
@@ -96,7 +107,7 @@ const ChapterDetails = () => {
   const tabs = [
     { id: 'videos', label: 'ভিডিও ক্লাস', icon: PlayCircle, count: chapter.videos.length },
     { id: 'notes', label: 'ক্লাস নোটস', icon: FileText, count: chapter.notes.length },
-    { id: 'knowledge', label: 'জ্ঞান ও অনুধাবন', icon: BookOpen, count: 0 },
+    { id: 'knowledge', label: 'জ্ঞান ও অনুধাবন', icon: BookOpen, count: chapter.kQs.length },
     { id: 'cqs', label: 'সৃজনশীল প্রশ্ন', icon: HelpCircle, count: chapter.cqs.length },
     { id: 'mcqs', label: 'বহুনির্বাচনী (MCQ)', icon: CheckCircle, count: chapter.mcqs.length },
     { id: 'modeltest', label: 'মডেল টেস্ট', icon: Timer, count: 0 },
@@ -130,6 +141,14 @@ const ChapterDetails = () => {
           <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight">
             {chapter.title}
           </h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link 
+            to={`/academic/shortcut/hsc/chemistry/${chapter.id}`}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white text-sm font-bold rounded-xl shadow-lg shadow-amber-500/20 transition-all active:scale-95"
+          >
+            <Zap className="w-4 h-4" /> শর্টকাট ও ট্রিকস
+          </Link>
         </div>
       </div>
 
@@ -210,10 +229,11 @@ const ChapterDetails = () => {
           {activeTab === 'notes' && <NotesTabContent chapter={chapter} />}
           {activeTab === 'cqs' && <CQTabContent chapter={chapter} />}
           {activeTab === 'mcqs' && <MCQTabContent chapter={chapter} />}
+          {activeTab === 'knowledge' && <KnowledgeTabContent chapter={chapter} />}
           {activeTab === 'modeltest' && <ModelTestTabContent mcqs={chapter.mcqs} />}
 
           {/* Other Tabs Placeholder */}
-          {activeTab !== 'videos' && activeTab !== 'notes' && activeTab !== 'cqs' && activeTab !== 'mcqs' && activeTab !== 'modeltest' && (
+          {activeTab !== 'videos' && activeTab !== 'notes' && activeTab !== 'cqs' && activeTab !== 'mcqs' && activeTab !== 'knowledge' && activeTab !== 'modeltest' && (
             <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6 sm:p-16 text-center">
               <h3 className="text-base sm:text-xl font-bold text-slate-300 mb-2">এই সেকশনটি তৈরি করা হচ্ছে</h3>
               <p className="text-slate-500">শীঘ্রই এখানে কন্টেন্ট যুক্ত করা হবে।</p>

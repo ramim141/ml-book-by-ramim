@@ -10,6 +10,7 @@ const NotesTabContent = lazy(() => import('../../../../components/Academic/HSC/I
 const CQTabContent = lazy(() => import('../../../../components/Academic/HSC/ICT/CQTabContent'));
 const MCQTabContent = lazy(() => import('../../../../components/Academic/HSC/ICT/MCQTabContent'));
 const ModelTestTabContent = lazy(() => import('../../../../components/Academic/HSC/ICT/ModelTestTabContent'));
+const KnowledgeTabContent = lazy(() => import('../../../../components/Academic/HSC/ICT/KnowledgeTabContent'));
 
 // Cache so repeated visits (and prefetches) don't re-download.
 const chapterDataCache = new Map();
@@ -19,32 +20,39 @@ const chapterLoaders = import.meta.glob(
 const mcqLoaders = import.meta.glob(
   '../../../../components/Academic/HSC/ICT/ICT_data/chapter_*_Json/chapter_*_MCQs.json'
 );
+const kqLoaders = import.meta.glob(
+  '../../../../components/Academic/HSC/ICT/ICT_data/chapter_*_Json/chapter_*_k_kh.json'
+);
 
 const getLoaders = (chapterId) => {
   const m = chapterId.match(/chapter-(\d+)/);
-  if (!m) return { cqs: null, mcqs: null };
+  if (!m) return { cqs: null, mcqs: null, kqs: null };
   const num = m[1].padStart(2, '0');
   const cqsKey = Object.keys(chapterLoaders).find((p) => p.includes(`chapter_${num}`));
   const mcqKey = Object.keys(mcqLoaders).find((p) => p.includes(`chapter_${num}`));
+  const kqKey = Object.keys(kqLoaders).find((p) => p.includes(`chapter_${num}`));
   return {
     cqs: cqsKey ? chapterLoaders[cqsKey] : null,
     mcqs: mcqKey ? mcqLoaders[mcqKey] : null,
+    kqs: kqKey ? kqLoaders[kqKey] : null,
   };
 };
 
 const fetchChapterData = (chapterId) => {
   if (chapterDataCache.has(chapterId)) return chapterDataCache.get(chapterId);
-  const { cqs, mcqs } = getLoaders(chapterId);
+  const { cqs, mcqs, kqs } = getLoaders(chapterId);
   const promise = Promise.all([
     cqs ? cqs() : Promise.resolve(null),
     mcqs ? mcqs() : Promise.resolve(null),
-  ]).then(([cqsRes, mcqsRes]) => ({
+    kqs ? kqs() : Promise.resolve(null),
+  ]).then(([cqsRes, mcqsRes, kqsRes]) => ({
     cqs: cqsRes?.default ?? cqsRes ?? [],
     mcqs: mcqsRes?.default ?? mcqsRes ?? [],
+    kQs: kqsRes?.default ?? kqsRes ?? [],
   })).catch((err) => {
     console.error('Error loading chapter data:', err);
     chapterDataCache.delete(chapterId);
-    return { cqs: [], mcqs: [] };
+    return { cqs: [], mcqs: [], kQs: [] };
   });
   chapterDataCache.set(chapterId, promise);
   return promise;
@@ -61,6 +69,7 @@ const ChapterDetails = () => {
 
   const [cqsData, setCqsData] = useState([]);
   const [mcqsData, setMcqsData] = useState([]);
+  const [kQsData, setKQsData] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [activeTab, setActiveTab] = useState('videos');
   const [activeVideo, setActiveVideo] = useState(null);
@@ -75,6 +84,7 @@ const ChapterDetails = () => {
       if (cancelled) return;
       setCqsData(data.cqs);
       setMcqsData(data.mcqs);
+      setKQsData(data.kQs);
       setLoadingData(false);
     });
 
@@ -97,13 +107,14 @@ const ChapterDetails = () => {
     videos: videosData[chapterId] || [],
     notes: notesData[chapterId] || [],
     cqs: cqsData,
-    mcqs: mcqsData
+    mcqs: mcqsData,
+    kQs: kQsData
   };
 
   const tabs = [
     { id: 'videos', label: 'ভিডিও ক্লাস', icon: PlayCircle, count: chapter.videos.length },
     { id: 'notes', label: 'ক্লাস নোটস', icon: FileText, count: chapter.notes.length },
-    { id: 'knowledge', label: 'জ্ঞান ও অনুধাবন', icon: BookOpen, count: 0 },
+    { id: 'knowledge', label: 'জ্ঞান ও অনুধাবন', icon: BookOpen, count: chapter.kQs.length },
     { id: 'cqs', label: 'সৃজনশীল প্রশ্ন', icon: HelpCircle, count: chapter.cqs.length },
     { id: 'mcqs', label: 'বহুনির্বাচনী (MCQ)', icon: CheckCircle, count: chapter.mcqs.length },
     { id: 'modeltest', label: 'মডেল টেস্ট', icon: Timer, count: 0 },
@@ -217,10 +228,11 @@ const ChapterDetails = () => {
           {activeTab === 'notes' && <NotesTabContent chapter={chapter} />}
           {activeTab === 'cqs' && <CQTabContent chapter={chapter} />}
           {activeTab === 'mcqs' && <MCQTabContent chapter={chapter} />}
+          {activeTab === 'knowledge' && <KnowledgeTabContent chapter={chapter} />}
           {activeTab === 'modeltest' && <ModelTestTabContent mcqs={chapter.mcqs} />}
 
           {/* Other Tabs Placeholder */}
-          {activeTab !== 'videos' && activeTab !== 'notes' && activeTab !== 'cqs' && activeTab !== 'mcqs' && activeTab !== 'modeltest' && (
+          {activeTab !== 'videos' && activeTab !== 'notes' && activeTab !== 'cqs' && activeTab !== 'mcqs' && activeTab !== 'knowledge' && activeTab !== 'modeltest' && (
             <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6 sm:p-16 text-center">
               <h3 className="text-base sm:text-xl font-bold text-slate-300 mb-2">এই সেকশনটি তৈরি করা হচ্ছে</h3>
               <p className="text-slate-500">শীঘ্রই এখানে কন্টেন্ট যুক্ত করা হবে।</p>

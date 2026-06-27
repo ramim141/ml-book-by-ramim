@@ -1,0 +1,51 @@
+[
+  {
+    "id": "1",
+    "topic": "কোয়ান্টাম সংখ্যা",
+    "type": "mnemonic",
+    "title": "কোয়ান্টাম সংখ্যার প্রকারভেদ",
+    "content": "প্রিন্সিপাল (n), সাবসিডিয়ারি (l), ম্যাগনেটিক (m), স্পিন (s)",
+    "description": "সহজভাবে মনে রাখুন: 'P-S-M-S' (Principal, Subsidiary, Magnetic, Spin)। এগুলো যথাক্রমে শক্তিস্তর, উপস্তর, অরবিটালের দিক এবং ঘূর্ণন নির্দেশ করে।"
+  },
+  {
+    "id": "2",
+    "topic": "আউফবাউ নীতি",
+    "type": "video",
+    "title": "আউফবাউ নীতি মনে রাখার টেকনিক",
+    "content": "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    "description": "ইলেকট্রন সবসময় নিম্ন শক্তির অরবিটালে আগে প্রবেশ করে। (n+l) এর মান যার কম, তার শক্তি কম। (n+l) সমান হলে যার n কম তার শক্তি কম।"
+  },
+  {
+    "id": "3",
+    "topic": "পরমাণু মডেল",
+    "type": "formula",
+    "title": "বোর ব্যাসার্ধ ও বেগ",
+    "content": "বোর ব্যাসার্ধের সমীকরণ:\n$$ r_n = \\frac{n^2 h^2}{4\\pi^2 m Z e^2} $$ \n\nইলেকট্রনের বেগের সমীকরণ:\n$$ v_n = \\frac{2\\pi Z e^2}{n h} $$",
+    "description": "হাইড্রোজেন পরমাণুর জন্য n তম কক্ষপথের ব্যাসার্ধ এবং ইলেকট্রনের বেগের সূত্র।",
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Bohr-atom-PAR.svg/310px-Bohr-atom-PAR.svg.png"
+  },
+  {
+    "id": "4",
+    "topic": "দ্রাব্যতা",
+    "type": "flashcard",
+    "title": "দ্রাব্যতা গুণফল (Ksp) এবং আয়নিক গুণফল (Kip)",
+    "content": "Kip > Ksp",
+    "description": "Kip > Ksp হলে অধঃক্ষেপ পড়বে।\nKip = Ksp হলে দ্রবণ সম্পৃক্ত।\nKip < Ksp হলে দ্রবণ অসম্পৃক্ত।"
+  },
+  {
+    "id": "5",
+    "topic": "বর্ণালি",
+    "type": "mindmap",
+    "title": "হাইড্রোজেনের বিভিন্ন বর্ণালি সিরিজ",
+    "content": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Hydrogen_transitions.svg/1200px-Hydrogen_transitions.svg.png",
+    "description": "লাইমেন (n1=1), বামার (n1=2), প্যাশেন (n1=3), ব্র্যাকেট (n1=4), ফান্ড (n1=5), হামফ্রিস (n1=6)।"
+  },
+  {
+    "id": "6",
+    "topic": "ইলেকট্রন বিন্যাস",
+    "type": "mnemonic",
+    "title": "অরবিটাল শক্তির ক্রম (আউফবাউ)",
+    "content": "School School, Public School Public School, Delhi Public School...",
+    "description": "ss ps ps dps dps fdps fdps\n1s 2s 2p 3s 3p 4s 3d 4p 5s 4d 5p 6s 4f 5d 6p 7s 5f 6d 7p"
+  }
+]
