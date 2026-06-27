@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  BookOpen, Calculator, CalendarDays, ChevronRight, FileText, 
-  GraduationCap, LayoutDashboard, Library, Lightbulb, 
-  Settings, Target, Trophy, Clock, Search, Zap 
+import {
+  BookOpen, Calculator, CalendarDays, ChevronRight, FileText,
+  GraduationCap, LayoutDashboard, Library, Lightbulb,
+  Settings, Target, Trophy, Clock, Search, Zap
 } from 'lucide-react';
 
 export default function ShortcutDashboard() {
@@ -35,19 +35,19 @@ export default function ShortcutDashboard() {
   return (
     <div className="min-h-screen bg-[#0a0f1c] pb-24 sm:pb-10 pt-10 font-bangla selection:bg-indigo-500/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-10">
-        
+
         {/* Header Section */}
         <div className="relative">
           <div className="absolute -top-10 -left-10 w-40 h-40 bg-indigo-500/20 rounded-full blur-[60px] pointer-events-none"></div>
           <div className="absolute top-10 right-0 w-32 h-32 bg-fuchsia-500/20 rounded-full blur-[60px] pointer-events-none"></div>
-          
+
           <div className="relative z-10">
             <h1 className="text-3xl sm:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-indigo-400 drop-shadow-sm mb-2">
               শর্টকাট মেনু
             </h1>
             <p className="text-slate-400 text-sm sm:text-base font-medium">আপনার প্রয়োজনীয় সবকিছু এক ক্লিকে</p>
           </div>
-          
+
           {/* Global Search Bar (Mobile focused) */}
           <div className="mt-6 relative z-10">
             <div className="flex items-center bg-slate-800/40 border border-slate-700/50 rounded-2xl p-2 shadow-inner backdrop-blur-md focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all">
@@ -67,21 +67,21 @@ export default function ShortcutDashboard() {
         <section className="relative z-10">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-200 flex items-center gap-2">
-              <Zap className="h-5 w-5 text-amber-400" /> 
+              <Zap className="h-5 w-5 text-amber-400" />
               কুইক অ্যাকশন
             </h2>
           </div>
-          
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             {quickActions.map((action, idx) => (
-              <Link 
-                key={idx} 
+              <Link
+                key={idx}
                 to={action.path}
                 className={`relative overflow-hidden group rounded-3xl p-4 sm:p-5 flex flex-col items-center justify-center gap-3 bg-gradient-to-br ${action.color} shadow-lg ${action.shadow} transition-all duration-300 hover:scale-[1.03] hover:shadow-xl active:scale-95`}
               >
                 {/* Glassy overlay */}
                 <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                
+
                 <div className="bg-white/20 p-3 rounded-2xl shadow-inner backdrop-blur-md">
                   <action.icon className="h-7 w-7 sm:h-8 sm:w-8 text-white drop-shadow-md" />
                 </div>
@@ -97,7 +97,7 @@ export default function ShortcutDashboard() {
         <section className="relative z-10">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-200 flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-indigo-400" /> 
+              <GraduationCap className="h-5 w-5 text-indigo-400" />
               জনপ্রিয় বিষয়সমূহ
             </h2>
             <Link to="/academic" className="text-xs font-bold text-indigo-400 flex items-center hover:text-indigo-300 transition-colors">
@@ -107,8 +107,8 @@ export default function ShortcutDashboard() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {academicSubjects.map((subject, idx) => (
-              <Link 
-                key={idx} 
+              <Link
+                key={idx}
                 to={subject.path}
                 className="group flex items-center gap-4 bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl transition-all hover:bg-slate-800 hover:border-slate-600 active:scale-[0.98]"
               >
@@ -131,7 +131,7 @@ export default function ShortcutDashboard() {
         <section className="relative z-10">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-200 flex items-center gap-2">
-              <Settings className="h-5 w-5 text-teal-400" /> 
+              <Settings className="h-5 w-5 text-teal-400" />
               স্টাডি টুলস
             </h2>
           </div>
