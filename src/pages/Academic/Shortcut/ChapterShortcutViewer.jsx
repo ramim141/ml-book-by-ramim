@@ -3,7 +3,7 @@ import { useParams, Link, Navigate } from 'react-router-dom';
 import {
   ArrowLeft, Brain, Video, FileQuestion, BookOpen, Search,
   Lightbulb, Calculator, Image as ImageIcon, Zap, CheckCircle2,
-  MousePointer2, Sparkles, Filter
+  MousePointer2, Sparkles, Filter, SlidersHorizontal
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -193,6 +193,7 @@ export default function ChapterShortcutViewer({ educationLevel: propEdu, subject
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   if (!isGlobalAll && !config) return <Navigate to="/academic/shortcut" />;
   const currentChapter = !isGlobalAll ? config.chapters.find(c => c.id === chapterId) : null;
@@ -277,36 +278,76 @@ export default function ChapterShortcutViewer({ educationLevel: propEdu, subject
 
       <div className="relative z-10 px-4 py-8 mx-auto max-w-7xl sm:px-6 lg:px-8">
         
-        {/* Mobile Search */}
-        <div className="relative mb-6 sm:hidden group">
-          <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-            <Search className="w-4 h-4 transition-colors text-slate-400 group-focus-within:text-indigo-400" />
+        {/* Mobile Search & Filter */}
+        <div className="relative mb-6 sm:hidden flex items-center gap-2 z-30">
+          <div className="relative flex-1 group">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+              <Search className="w-4 h-4 transition-colors text-slate-400 group-focus-within:text-indigo-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="যেকোনো শর্টকাট বা টেকনিক খুঁজুন..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-11 pr-4 py-2.5 bg-slate-900/80 border border-slate-700/80 rounded-full text-slate-100 focus:outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-inner placeholder:text-slate-500 text-sm"
+            />
           </div>
-          <input
-            type="text"
-            placeholder="যেকোনো শর্টকাট বা টেকনিক খুঁজুন..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-2.5 bg-slate-900/80 border border-slate-700/80 rounded-full text-slate-100 focus:outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-inner placeholder:text-slate-500 text-sm"
-          />
+          <button 
+            onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
+            className={`p-2.5 rounded-full border transition-all ${
+              isMobileFilterOpen 
+                ? 'bg-indigo-600 text-white border-indigo-500' 
+                : 'bg-slate-900/80 text-slate-400 border-slate-700/80 focus:ring-2 focus:ring-indigo-500/50'
+            }`}
+          >
+            <SlidersHorizontal className="w-5 h-5" />
+          </button>
+
+          {/* Mobile Filter Dropdown */}
+          {isMobileFilterOpen && (
+            <div className="absolute right-0 top-full mt-2 w-56 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-2 z-50">
+              <div className="flex flex-col gap-1">
+                {tabs.map(tab => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTab(tab.id);
+                        setIsMobileFilterOpen(false);
+                      }}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all w-full text-left ${
+                        isActive
+                          ? 'bg-indigo-500/20 text-indigo-300'
+                          : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      <span className={`${isActive ? 'text-indigo-400' : 'text-slate-500'}`}>{tab.icon}</span>
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Filter Section */}
-        <div className="mb-6 sm:mb-10">
-          <div className="flex items-center gap-2 px-1 mb-3 sm:mb-4">
-            <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-400" />
-            <h3 className="text-xs font-semibold tracking-wide text-slate-300 sm:text-sm">ফিল্টার করুন</h3>
+        {/* Filter Section (Desktop) */}
+        <div className="mb-6 sm:mb-10 hidden sm:block">
+          <div className="flex items-center gap-2 mb-3 sm:mb-4">
+            <SlidersHorizontal className="h-4 w-4 text-slate-400" />
+            <h3 className="text-sm font-semibold tracking-wide text-slate-300">ফিল্টার করুন</h3>
           </div>
-          <div className="flex gap-2 px-4 pb-3 -mx-4 overflow-x-auto sm:pb-4 sm:mx-0 sm:px-0 custom-scrollbar sm:gap-3 hide-scrollbar">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             {tabs.map(tab => {
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-300 border shrink-0 ${
+                  className={`flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-300 border ${
                     isActive
-                      ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-500/30 transform scale-105'
+                      ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-500/30 transform scale-[1.02] sm:scale-105'
                       : 'bg-slate-900/50 text-slate-400 border-slate-700/50 hover:bg-slate-800 hover:text-slate-200 hover:border-slate-600 shadow-sm'
                   }`}
                 >
