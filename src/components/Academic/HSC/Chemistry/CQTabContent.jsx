@@ -24,7 +24,7 @@ const normalizeYear = (yearStr) => {
 };
 
 const MarkdownRenderer = ({ content }) => (
-  <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-900 prose-pre:border prose-pre:border-slate-700">
+  <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-p:my-2 prose-li:my-0 prose-ul:my-2 prose-ol:my-2 prose-pre:bg-slate-900 prose-pre:border prose-pre:border-slate-700">
     <ReactMarkdown 
       remarkPlugins={[remarkMath, remarkGfm]} 
       rehypePlugins={[rehypeKatex]}
@@ -102,7 +102,7 @@ const CQAccordion = memo(({ cq }) => {
           {/* Questions Stack */}
           <div className="flex flex-col gap-3 mb-6">
             {cq.questions && Object.entries(cq.questions).map(([key, content]) => {
-              if (!content) return null;
+              if (!content || !content.trim()) return null;
               return (
                 <div key={key} className="p-3 border rounded-lg bg-slate-800/30 border-slate-700/30">
                   <MarkdownRenderer content={content} />
@@ -124,7 +124,7 @@ const CQAccordion = memo(({ cq }) => {
           {showAnswer && (
             <div className="mt-6 space-y-4 duration-500 animate-in fade-in slide-in-from-top-4">
               {cq.answers && Object.entries(cq.answers).map(([key, content]) => {
-                if (!content) return null;
+                if (!content || !content.trim()) return null;
                 return (
                   <div key={key} className="p-5 border bg-emerald-900/10 rounded-xl border-emerald-500/20">
                     <MarkdownRenderer content={content} />

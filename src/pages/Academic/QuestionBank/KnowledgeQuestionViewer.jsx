@@ -246,6 +246,51 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
     });
   }, [allQuestions, searchQuery, selectedChapter, selectedBoard, selectedYear, selectedTopic, selectedType]);
 
+  const renderFilters = () => (
+    <>
+      <div>
+        <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">অধ্যায়</label>
+        <FilterSelect
+          value={selectedChapter}
+          onChange={setSelectedChapter}
+          options={[{ value: 'all', label: 'সকল অধ্যায়' }, ...filterOptions.chapters]}
+        />
+      </div>
+      <div>
+        <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">প্রশ্নের ধরন</label>
+        <FilterSelect
+          value={selectedType}
+          onChange={setSelectedType}
+          options={[{ value: 'all', label: 'সকল ধরন' }, ...filterOptions.types]}
+        />
+      </div>
+      <div>
+        <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">বোর্ড</label>
+        <FilterSelect
+          value={selectedBoard}
+          onChange={setSelectedBoard}
+          options={[{ value: 'all', label: 'সকল বোর্ড' }, ...filterOptions.boards]}
+        />
+      </div>
+      <div>
+        <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">সাল</label>
+        <FilterSelect
+          value={selectedYear}
+          onChange={setSelectedYear}
+          options={[{ value: 'all', label: 'সকল সাল' }, ...filterOptions.years]}
+        />
+      </div>
+      <div>
+        <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">টপিক</label>
+        <FilterSelect
+          value={selectedTopic}
+          onChange={setSelectedTopic}
+          options={[{ value: 'all', label: 'সকল টপিক' }, ...filterOptions.topics]}
+        />
+      </div>
+    </>
+  );
+
   return (
     <div className="min-h-screen bg-[#0b0f19] py-6 sm:py-8 text-slate-200">
       {/* Header */}
@@ -277,24 +322,27 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
 
         {/* Search & Filter Bar */}
         <div className="p-4 sm:p-5 border shadow-xl bg-slate-800/20 backdrop-blur-xl border-slate-700/50 rounded-3xl relative z-40">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3 relative w-full">
+          <div className="flex flex-col lg:flex-row lg:items-end gap-4 relative w-full">
+            <div className="flex items-end gap-3 w-full lg:w-auto lg:max-w-xs xl:max-w-sm shrink-0">
               {/* Search Box */}
-              <div className="flex-grow flex items-center bg-slate-900/50 border border-slate-700/50 rounded-full p-1.5 shadow-inner focus-within:border-purple-500/50 focus-within:ring-1 focus-within:ring-purple-500/50 transition-all min-w-0">
-                <div className="pl-4 pr-2 flex items-center pointer-events-none shrink-0">
-                  <Search className="h-5 w-5 text-slate-400" />
+              <div className="flex-grow w-full">
+                <label className="hidden lg:block text-[10px] font-bold text-transparent mb-1.5 select-none">Search</label>
+                <div className="flex items-center bg-slate-900/50 border border-slate-700/50 rounded-full p-1.5 shadow-inner focus-within:border-purple-500/50 focus-within:ring-1 focus-within:ring-purple-500/50 transition-all min-w-0">
+                  <div className="pl-4 pr-2 flex items-center pointer-events-none shrink-0">
+                    <Search className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="প্রশ্ন বা টপিক খুঁজুন..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="flex-grow w-full min-w-0 bg-transparent border-none text-slate-100 text-sm sm:text-base focus:outline-none focus:ring-0 py-2 sm:py-2.5"
+                  />
                 </div>
-                <input
-                  type="text"
-                  placeholder="প্রশ্ন বা টপিক খুঁজুন..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-grow w-full min-w-0 bg-transparent border-none text-slate-100 text-sm sm:text-base focus:outline-none focus:ring-0 py-2 sm:py-2.5"
-                />
               </div>
 
               {/* Advance Filter Toggle (Mobile Only) */}
-              <div className="relative shrink-0 lg:hidden">
+              <div className="lg:hidden relative shrink-0">
                 <button
                   onClick={() => setShowAdvanceFilters(!showAdvanceFilters)}
                   className={`p-3 sm:p-3.5 rounded-2xl sm:rounded-[1.25rem] border transition-all flex items-center justify-center ${showAdvanceFilters
@@ -305,91 +353,18 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
                   <SlidersHorizontal className="h-5 w-5 sm:h-6 sm:w-6" />
                 </button>
 
-                {/* Expanded Filters Popup (Mobile Only) */}
+                {/* Expanded Filters Popup */}
                 {showAdvanceFilters && (
-                  <div className="absolute right-0 top-full mt-3 w-[260px] sm:w-[320px] p-4 rounded-2xl bg-slate-800/95 border border-slate-700/70 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 z-50 flex flex-col gap-4">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">অধ্যায়</label>
-                      <FilterSelect
-                        value={selectedChapter}
-                        onChange={setSelectedChapter}
-                        options={[{ value: 'all', label: 'সকল অধ্যায়' }, ...filterOptions.chapters]}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">প্রশ্নের ধরন</label>
-                      <FilterSelect
-                        value={selectedType}
-                        onChange={setSelectedType}
-                        options={[{ value: 'all', label: 'সকল ধরন' }, ...filterOptions.types]}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">বোর্ড</label>
-                      <FilterSelect
-                        value={selectedBoard}
-                        onChange={setSelectedBoard}
-                        options={[{ value: 'all', label: 'সকল বোর্ড' }, ...filterOptions.boards]}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">সাল</label>
-                      <FilterSelect
-                        value={selectedYear}
-                        onChange={setSelectedYear}
-                        options={[{ value: 'all', label: 'সকল সাল' }, ...filterOptions.years]}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">টপিক</label>
-                      <FilterSelect
-                        value={selectedTopic}
-                        onChange={setSelectedTopic}
-                        options={[{ value: 'all', label: 'সকল টপিক' }, ...filterOptions.topics]}
-                      />
-                    </div>
+                  <div className="absolute right-0 top-full mt-3 w-[260px] sm:w-[320px] p-4 rounded-2xl bg-slate-800/95 border border-slate-700/70 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 z-50 flex flex-col gap-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                    {renderFilters()}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Desktop Filters Row */}
-            <div className="hidden lg:flex items-center gap-3">
-              <div className="flex-1 min-w-[120px]">
-                <FilterSelect
-                  value={selectedChapter}
-                  onChange={setSelectedChapter}
-                  options={[{ value: 'all', label: 'সকল অধ্যায়' }, ...filterOptions.chapters]}
-                />
-              </div>
-              <div className="flex-1 min-w-[120px]">
-                <FilterSelect
-                  value={selectedType}
-                  onChange={setSelectedType}
-                  options={[{ value: 'all', label: 'সকল ধরন' }, ...filterOptions.types]}
-                />
-              </div>
-              <div className="flex-1 min-w-[120px]">
-                <FilterSelect
-                  value={selectedBoard}
-                  onChange={setSelectedBoard}
-                  options={[{ value: 'all', label: 'সকল বোর্ড' }, ...filterOptions.boards]}
-                />
-              </div>
-              <div className="flex-1 min-w-[100px]">
-                <FilterSelect
-                  value={selectedYear}
-                  onChange={setSelectedYear}
-                  options={[{ value: 'all', label: 'সকল সাল' }, ...filterOptions.years]}
-                />
-              </div>
-              <div className="flex-[1.5] min-w-[150px]">
-                <FilterSelect
-                  value={selectedTopic}
-                  onChange={setSelectedTopic}
-                  options={[{ value: 'all', label: 'সকল টপিক' }, ...filterOptions.topics]}
-                />
-              </div>
+            {/* Desktop Filters Row (Hidden on mobile) */}
+            <div className="hidden lg:flex flex-row flex-wrap items-center gap-3 w-full flex-1 [&>div]:flex-1 [&>div]:min-w-[100px]">
+              {renderFilters()}
             </div>
           </div>
         </div>
