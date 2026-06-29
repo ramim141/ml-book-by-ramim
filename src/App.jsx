@@ -27,6 +27,13 @@ const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 const AcademicLayout = lazy(() => import('./layout/Academic/AcademicLayout'));
 const AcademicHome = lazy(() => import('./pages/Academic/AcademicHome'));
 const SSCDashboard = lazy(() => import('./pages/Academic/SSC/SSCDashboard'));
+const AdmissionDashboard = lazy(() => import('./pages/Academic/Admission/AdmissionDashboard'));
+const MedicalDashboard = lazy(() => import('./pages/Academic/Admission/Medical/MedicalDashboard'));
+const EngineeringDashboard = lazy(() => import('./pages/Academic/Admission/Engineering/EngineeringDashboard'));
+const VarsityADashboard = lazy(() => import('./pages/Academic/Admission/VarsityA/VarsityADashboard'));
+const GSTDashboard = lazy(() => import('./pages/Academic/Admission/GST/GSTDashboard'));
+const AgriDashboard = lazy(() => import('./pages/Academic/Admission/Agri/AgriDashboard'));
+const VarsityOthersDashboard = lazy(() => import('./pages/Academic/Admission/VarsityOthers/VarsityOthersDashboard'));
 const ShortcutDashboard = lazy(() => import('./pages/Academic/Shortcut/ShortcutDashboard'));
 const ChapterShortcutViewer = lazy(() => import('./pages/Academic/Shortcut/ChapterShortcutViewer'));
 const HSCDashboard = lazy(() => import('./pages/Academic/HSC/HSCDashboard'));
@@ -39,10 +46,17 @@ const ChemistrySubjectHome = lazy(() => import('./pages/Academic/HSC/Chemistry/C
 const ChemistryChapterDetails = lazy(() => import('./pages/Academic/HSC/Chemistry/ChapterDetails'));
 const ChemistryBoardQuestionsList = lazy(() => import('./pages/Academic/HSC/Chemistry/BoardQuestionsList'));
 const ChemistryBoardQuestionViewer = lazy(() => import('./pages/Academic/HSC/Chemistry/BoardQuestionViewer'));
+
+const SSCPhysicsSubjectHome = lazy(() => import('./pages/Academic/SSC/Physics/PhysicsSubjectHome'));
+const SSCChemistrySubjectHome = lazy(() => import('./pages/Academic/SSC/Chemistry/ChemistrySubjectHome'));
+const SSCMathSubjectHome = lazy(() => import('./pages/Academic/SSC/Math/MathSubjectHome'));
+const SSCHigherMathSubjectHome = lazy(() => import('./pages/Academic/SSC/HigherMath/HigherMathSubjectHome'));
+const SSCBiologySubjectHome = lazy(() => import('./pages/Academic/SSC/Biology/BiologySubjectHome'));
 const QuestionBankDashboard = lazy(() => import('./pages/Academic/QuestionBank/QuestionBankDashboard'));
 const CQQuestionViewer = lazy(() => import('./pages/Academic/QuestionBank/CQQuestionViewer'));
 const MCQQuestionViewer = lazy(() => import('./pages/Academic/QuestionBank/MCQQuestionViewer'));
 const KnowledgeQuestionViewer = lazy(() => import('./pages/Academic/QuestionBank/KnowledgeQuestionViewer'));
+const QuestionBuilder = lazy(() => import('./pages/Academic/QuestionBuilder/QuestionBuilder'));
 
 const ModelTestConfig = lazy(() => import('./pages/Academic/ModelTest/ModelTestConfig'));
 const ModelTestExam = lazy(() => import('./pages/Academic/ModelTest/ModelTestExam'));
@@ -140,6 +154,7 @@ function App() {
                   <Route path="shortcut" element={<ShortcutDashboard />} />
                   <Route path="shortcut/:educationLevel/:subject/:chapterId" element={<ChapterShortcutViewer />} />
                   <Route path="question-bank" element={<QuestionBankDashboard />} />
+                  <Route path="question-builder" element={<QuestionBuilder />} />
                   
                   {/* Model Test */}
                   <Route path="model-test" element={<ModelTestConfig />} />
@@ -147,7 +162,20 @@ function App() {
                   <Route path="model-test/result" element={<ModelTestResult />} />
 
                   <Route path="ssc" element={<SSCDashboard />} />
+                  <Route path="ssc/physics" element={<SSCPhysicsSubjectHome />} />
+                  <Route path="ssc/chemistry" element={<SSCChemistrySubjectHome />} />
+                  <Route path="ssc/math" element={<SSCMathSubjectHome />} />
+                  <Route path="ssc/higher-math" element={<SSCHigherMathSubjectHome />} />
+                  <Route path="ssc/biology" element={<SSCBiologySubjectHome />} />
+                  
                   <Route path="hsc" element={<HSCDashboard />} />
+                  <Route path="admission" element={<AdmissionDashboard />} />
+                  <Route path="admission/medical" element={<MedicalDashboard />} />
+                  <Route path="admission/engineering" element={<EngineeringDashboard />} />
+                  <Route path="admission/varsity-a" element={<VarsityADashboard />} />
+                  <Route path="admission/gst" element={<GSTDashboard />} />
+                  <Route path="admission/agri" element={<AgriDashboard />} />
+                  <Route path="admission/varsity-others" element={<VarsityOthersDashboard />} />
                   <Route path="hsc/ict" element={<ICTSubjectHome />} />
                   <Route path="hsc/ict/cq" element={<CQQuestionViewer educationLevel="hsc" subject="ict" />} />
                   <Route path="hsc/ict/mcq" element={<MCQQuestionViewer educationLevel="hsc" subject="ict" />} />

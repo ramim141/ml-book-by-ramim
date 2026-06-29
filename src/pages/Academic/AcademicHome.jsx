@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Book, GraduationCap, Video, ArrowRight, Library, BookOpen, FileText, CheckSquare, Sparkles } from 'lucide-react';
+import { Book, GraduationCap, Video, ArrowRight, Library, BookOpen, FileText, CheckSquare, Sparkles, Award } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const FeatureCard = ({ icon: Icon, title, description }) => (
@@ -113,7 +113,7 @@ const AcademicHome = () => {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20 lg:py-28">
         
         {/* Hero Section */}
-        <div className="text-center max-w-4xl mx-auto mb-16 sm:mb-24">
+        <div className="text-center max-w-5xl mx-auto mb-16 sm:mb-24">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs sm:text-sm font-bold mb-8 shadow-[0_0_15px_rgba(99,102,241,0.15)]">
              <Sparkles size={16} /> সেরা একাডেমিক প্ল্যাটফর্ম
           </div>
@@ -127,8 +127,8 @@ const AcademicHome = () => {
             এসএসসি এবং এইচএসসি শিক্ষার্থীদের জন্য বিষয়ভিত্তিক গোছানো কোর্স, ক্লাস নোটস এবং মডেল টেস্টের একটি পূর্ণাঙ্গ প্ল্যাটফর্ম।
           </p>
 
-          {/* SSC and HSC Selection Buttons */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-6 mt-12">
+          {/* SSC, HSC and Admission Selection Buttons */}
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-6 mt-12">
             <Link
               to="/academic/ssc"
               className="group relative w-full sm:w-72 p-1 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 hover:shadow-[0_0_40px_rgba(99,102,241,0.3)] hover:-translate-y-1 transition-all duration-300"
@@ -156,6 +156,22 @@ const AcademicHome = () => {
                 <h2 className="text-2xl sm:text-3xl font-black text-white mb-2">এইচএসসি</h2>
                 <p className="text-slate-400 text-sm mb-6 font-medium">একাদশ - দ্বাদশ শ্রেণি</p>
                 <div className="flex items-center text-cyan-400 text-sm font-bold group-hover:text-cyan-300 bg-cyan-500/10 px-4 py-2 rounded-xl border border-cyan-500/20 transition-colors">
+                  সিলেবাস দেখুন <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
+                </div>
+              </div>
+            </Link>
+
+            <Link
+              to="/academic/admission"
+              className="group relative w-full sm:w-72 p-1 rounded-3xl bg-gradient-to-br from-rose-500 to-orange-500 hover:shadow-[0_0_40px_rgba(244,63,94,0.3)] hover:-translate-y-1 transition-all duration-300"
+            >
+              <div className="bg-[#0b1120] rounded-[22px] p-6 sm:p-8 h-full flex flex-col items-center justify-center group-hover:bg-[#0b1120]/80 transition-colors">
+                <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center justify-center mb-6 text-rose-400 group-hover:scale-110 transition-transform shadow-inner">
+                   <Award size={32} />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-white mb-2">অ্যাডমিশন</h2>
+                <p className="text-slate-400 text-sm mb-6 font-medium">বিশ্ববিদ্যালয় ভর্তি প্রস্তুতি</p>
+                <div className="flex items-center text-rose-400 text-sm font-bold group-hover:text-rose-300 bg-rose-500/10 px-4 py-2 rounded-xl border border-rose-500/20 transition-colors">
                   সিলেবাস দেখুন <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
                 </div>
               </div>

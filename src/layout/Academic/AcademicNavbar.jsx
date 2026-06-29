@@ -4,8 +4,9 @@ import { ArrowLeft, GraduationCap, Menu, X } from 'lucide-react';
 
 const navLinks = [
   { to: '/academic', label: 'হোম' },
-  { to: '/academic/ssc', label: 'এসএসসি (SSC)' },
-  { to: '/academic/hsc', label: 'এইচএসসি (HSC)' },
+  { to: '/academic/ssc', label: 'এসএসসি' },
+  { to: '/academic/hsc', label: 'এইচএসসি' },
+  { to: '/academic/admission', label: 'এডমিশন' },
   { to: '/academic/question-bank', label: 'প্রশ্নব্যাংক' },
   { to: '/academic/shortcut/all/all/all', label: 'শর্টকাট' },
 ];
