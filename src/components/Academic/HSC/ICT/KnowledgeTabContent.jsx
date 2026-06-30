@@ -28,7 +28,7 @@ const KQAccordion = memo(({ kq }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="overflow-hidden transition-all duration-300 border bg-slate-800/20 border-slate-700/50 rounded-2xl hover:border-slate-600/50 mb-4">
+    <div className="overflow-hidden transition-all duration-300 border bg-slate-800/20 border-slate-700/50 rounded-2xl hover:border-slate-600/50 mb-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header (Clickable to Expand) */}
       <div
         onClick={() => setIsOpen(!isOpen)}
@@ -83,6 +83,7 @@ KQAccordion.displayName = 'KQAccordion';
 
 export default function KnowledgeTabContent({ chapter }) {
   const kQs = chapter?.kQs || [];
+  const [displayCount, setDisplayCount] = useState(10);
 
   if (kQs.length === 0) {
     return (
@@ -97,10 +98,21 @@ export default function KnowledgeTabContent({ chapter }) {
   return (
     <div className="mt-6">
       <div className="flex flex-col">
-        {kQs.map((kq, idx) => (
+        {kQs.slice(0, displayCount).map((kq, idx) => (
           <KQAccordion key={`${kq.id || idx}`} kq={kq} />
         ))}
       </div>
+      
+      {displayCount < kQs.length && (
+        <div className="flex justify-center mt-8">
+          <button
+            onClick={() => setDisplayCount(prev => prev + 10)}
+            className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-white transition-all border border-slate-700/50 shadow-lg"
+          >
+            আরও দেখুন
+          </button>
+        </div>
+      )}
     </div>
   );
 }

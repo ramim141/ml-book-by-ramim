@@ -1,4 +1,4 @@
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, useEffect } from 'react';
 import { HelpCircle, ChevronDown, ChevronUp, BookOpenCheck, Filter } from 'lucide-react';
 import FilterSelect from '../../../UI/FilterSelect';
 import ReactMarkdown from 'react-markdown';
@@ -46,7 +46,7 @@ const CQAccordion = memo(({ cq }) => {
   const [showAnswer, setShowAnswer] = useState(false);
 
   return (
-    <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden transition-all duration-300">
+    <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header (Clickable to Expand) */}
       <div 
         onClick={() => setIsOpen(!isOpen)}
@@ -144,8 +144,13 @@ const CQTabContent = ({ chapter }) => {
   const [selectedTopic, setSelectedTopic] = useState('all');
   const [selectedBoard, setSelectedBoard] = useState('all');
   const [selectedYear, setSelectedYear] = useState('all');
+  const [displayCount, setDisplayCount] = useState(10);
 
   const cqs = chapter.cqs || [];
+
+  useEffect(() => {
+    setDisplayCount(10);
+  }, [selectedTopic, selectedBoard, selectedYear]);
 
   // Extract unique topics, boards, and years for filter options
   const allTopics = useMemo(() => [...new Set(cqs.map(cq => cq.topic || "অন্যান্য"))], [cqs]);
@@ -162,14 +167,16 @@ const CQTabContent = ({ chapter }) => {
     });
   }, [cqs, selectedTopic, selectedBoard, selectedYear]);
 
+  const displayedCQs = useMemo(() => filteredCQs.slice(0, displayCount), [filteredCQs, displayCount]);
+
   const groupedCQs = useMemo(() => {
-    return filteredCQs.reduce((acc, cq) => {
+    return displayedCQs.reduce((acc, cq) => {
       const topic = cq.topic || "অন্যান্য";
       if (!acc[topic]) acc[topic] = [];
       acc[topic].push(cq);
       return acc;
     }, {});
-  }, [filteredCQs]);
+  }, [displayedCQs]);
 
   return (
     <div className="space-y-6">
@@ -233,6 +240,17 @@ const CQTabContent = ({ chapter }) => {
           )
         )}
       </div>
+
+      {displayCount < filteredCQs.length && (
+        <div className="flex justify-center mt-8">
+          <button
+            onClick={() => setDisplayCount(prev => prev + 10)}
+            className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-white transition-all border border-slate-700/50 shadow-lg"
+          >
+            আরও দেখুন
+          </button>
+        </div>
+      )}
     </div>
   );
 };

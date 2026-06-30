@@ -1,4 +1,4 @@
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, useEffect } from 'react';
 import { HelpCircle, Filter, CheckCircle2, Circle } from 'lucide-react';
 import FilterSelect from '../../../UI/FilterSelect';
 import ReactMarkdown from 'react-markdown';
@@ -64,7 +64,7 @@ const MCQItem = memo(({ mcq, index, isQuizMode, quizSelectedOption, onQuizSelect
   };
 
   return (
-    <div className={`bg-slate-800/40 border ${isQuizMode && isQuizSubmitted ? (selectedOption === mcq.answer ? 'border-emerald-500/50' : 'border-red-500/50') : 'border-slate-700/50'} rounded-2xl p-4 sm:p-6 transition-all duration-300`}>
+    <div className={`bg-slate-800/40 border ${isQuizMode && isQuizSubmitted ? (selectedOption === mcq.answer ? 'border-emerald-500/50' : 'border-red-500/50') : 'border-slate-700/50'} rounded-2xl p-4 sm:p-6 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 duration-500`}>
       <div className="flex items-start gap-3 sm:gap-4 mb-5">
         <div className={`font-bold w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 text-sm sm:text-base ${isQuizMode && isQuizSubmitted ? (selectedOption === mcq.answer ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400') : 'bg-indigo-500/10 text-indigo-400'}`}>
           {index + 1}
@@ -73,6 +73,16 @@ const MCQItem = memo(({ mcq, index, isQuizMode, quizSelectedOption, onQuizSelect
           <div className="text-slate-200 text-sm sm:text-lg font-medium leading-relaxed mb-3">
             <MarkdownRenderer content={mcq.question} />
           </div>
+
+          {mcq.image_url && (
+            <div className="mb-4 rounded-xl overflow-hidden max-w-sm bg-white/5">
+              <img 
+                src={mcq.image_url.startsWith('./') ? mcq.image_url.slice(1) : mcq.image_url.startsWith('/') ? mcq.image_url : `/${mcq.image_url}`} 
+                alt="Question Context" 
+                className="w-full h-auto object-contain rounded-xl" 
+              />
+            </div>
+          )}
           
           {/* Tags */}
           <div className="flex flex-wrap gap-2">
@@ -170,8 +180,13 @@ const MCQTabContent = ({ chapter }) => {
   const [selectedBoard, setSelectedBoard] = useState('all');
   const [selectedInstitution, setSelectedInstitution] = useState('all');
   const [selectedYear, setSelectedYear] = useState('all');
+  const [displayCount, setDisplayCount] = useState(10);
 
   const mcqs = chapter.mcqs || [];
+
+  useEffect(() => {
+    setDisplayCount(10);
+  }, [selectedTopic, selectedBoard, selectedInstitution, selectedYear]);
 
   // Extract unique filter options
   const allTopics = useMemo(() => [...new Set(mcqs.map(mcq => mcq.topic || "অন্যান্য"))], [mcqs]);
@@ -196,14 +211,16 @@ const MCQTabContent = ({ chapter }) => {
     });
   }, [mcqs, selectedTopic, selectedBoard, selectedInstitution, selectedYear]);
 
+  const displayedMCQs = useMemo(() => filteredMCQs.slice(0, displayCount), [filteredMCQs, displayCount]);
+
   const groupedMCQs = useMemo(() => {
-    return filteredMCQs.reduce((acc, mcq) => {
+    return displayedMCQs.reduce((acc, mcq) => {
       const topic = mcq.topic || "অন্যান্য";
       if (!acc[topic]) acc[topic] = [];
       acc[topic].push(mcq);
       return acc;
     }, {});
-  }, [filteredMCQs]);
+  }, [displayedMCQs]);
 
   return (
     <div className="space-y-6">
@@ -287,6 +304,17 @@ const MCQTabContent = ({ chapter }) => {
           )
         )}
       </div>
+
+      {displayCount < filteredMCQs.length && (
+        <div className="flex justify-center mt-8">
+          <button
+            onClick={() => setDisplayCount(prev => prev + 10)}
+            className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-white transition-all border border-slate-700/50 shadow-lg"
+          >
+            আরও দেখুন
+          </button>
+        </div>
+      )}
     </div>
   );
 };
