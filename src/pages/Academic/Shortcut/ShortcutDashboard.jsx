@@ -1,14 +1,53 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../config/firebase';
+import { getSubjectPath } from '../../../utils/academicRoutes';
 import { Link } from 'react-router-dom';
 import {
   BookOpen, Calculator, CalendarDays, ChevronRight, FileText,
   GraduationCap, LayoutDashboard, Library, Lightbulb,
-  Settings, Target, Trophy, Clock, Search, Zap
+  Settings, Target, Trophy, Clock, Search, Zap, FlaskConical
 } from 'lucide-react';
 
 export default function ShortcutDashboard() {
+  const [academicSubjects, setAcademicSubjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     window.scrollTo(0, 0);
+    const fetchSubjects = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'admin_settings', 'subjects'));
+        if (snap.exists() && snap.data().list) {
+          const presets = [
+            'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+            'bg-purple-500/10 text-purple-400 border-purple-500/20',
+            'bg-rose-500/10 text-rose-400 border-rose-500/20',
+            'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+          ];
+          const subjects = snap.data().list
+            .filter(s => s.level === 'HSC' || s.level === 'SSC')
+            .map((s, idx) => {
+              const baseRoute = getSubjectPath(s);
+              const shortcutPath = baseRoute.replace('/academic/', '/academic/shortcut/') + '/all';
+              return {
+                title: s.label,
+                subtitle: s.chapters?.length ? `${s.chapters.length} টি অধ্যায়` : 'সকল অধ্যায়ের শর্টকাট',
+                icon: LayoutDashboard,
+                emoji: s.emoji,
+                path: shortcutPath,
+                color: presets[idx % presets.length]
+              };
+            });
+          setAcademicSubjects(subjects);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSubjects();
   }, []);
 
   const quickActions = [
@@ -18,18 +57,8 @@ export default function ShortcutDashboard() {
     { title: 'শর্টকাট', icon: Zap, path: '/academic/shortcut/all/all/all', color: 'from-emerald-400 to-teal-500', shadow: 'shadow-emerald-500/20' },
   ];
 
-  const academicSubjects = [
-    { title: 'HSC আইসিটি', subtitle: 'সকল অধ্যায়ের শর্টকাট', icon: LayoutDashboard, path: '/academic/shortcut/hsc/ict/all', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
-    { title: 'HSC রসায়ন', subtitle: 'সকল অধ্যায়ের শর্টকাট', icon: BookOpen, path: '/academic/shortcut/hsc/chemistry/all', color: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
-    { title: 'SSC পদার্থ', subtitle: 'পদার্থবিজ্ঞান', icon: Zap, path: '/academic/shortcut/ssc/physics/all', color: 'bg-rose-500/10 text-rose-400 border-rose-500/20' },
-    { title: 'SSC সাধারণ গণিত', subtitle: 'গণিত', icon: Calculator, path: '/academic/shortcut/ssc/math/all', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-  ];
-
   const studyTools = [
-    { title: 'সিলেবাস', icon: BookOpen, path: '/academic/syllabus' },
-    { title: 'রুটিন', icon: CalendarDays, path: '/academic/routine' },
-    { title: 'রেজাল্ট', icon: Trophy, path: '/academic/result' },
-    { title: 'স্টাডি টাইমার', icon: Clock, path: '/academic/timer' },
+    { title: 'পর্যায় সারণি', icon: FlaskConical, path: '/academic/periodic-table' },
   ];
 
   return (
@@ -112,8 +141,8 @@ export default function ShortcutDashboard() {
                 to={subject.path}
                 className="group flex items-center gap-4 bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl transition-all hover:bg-slate-800 hover:border-slate-600 active:scale-[0.98]"
               >
-                <div className={`p-3 rounded-xl border ${subject.color}`}>
-                  <subject.icon className="h-6 w-6" />
+                <div className={`p-3 rounded-xl border flex items-center justify-center w-12 h-12 ${subject.color}`}>
+                  {subject.emoji ? <span className="text-xl leading-none">{subject.emoji}</span> : <subject.icon className="h-6 w-6" />}
                 </div>
                 <div className="flex-1">
                   <h3 className="text-slate-200 font-bold text-sm sm:text-base group-hover:text-white transition-colors">{subject.title}</h3>

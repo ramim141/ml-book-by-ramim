@@ -12,7 +12,19 @@ const staticRoutes = [
   '/books',
   '/blog',
   '/dashboard',
-  '/bookmarks'
+  '/bookmarks',
+  '/academic',
+  '/academic/ssc',
+  '/academic/hsc',
+  '/academic/admission',
+  '/academic/question-bank',
+  '/academic/model-test',
+  '/academic/suggestion',
+  '/academic/shortcut/all/all/all',
+  '/academic/syllabus',
+  '/academic/routine',
+  '/academic/result',
+  '/academic/timer'
 ];
 
 // Read wordsIndex.js

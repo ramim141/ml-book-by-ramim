@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { 
   BookOpen, Calculator, CalendarDays, ChevronRight, FileText, 
   GraduationCap, LayoutDashboard, Library, Lightbulb, 
-  Settings, Target, Trophy, Clock, Search, Zap, Microscope, Globe, Activity, Cpu, School
+  Settings, Target, Trophy, Clock, Search, Zap, Microscope, Globe, Activity, Cpu, School, Loader2, FlaskConical
 } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../config/firebase';
 
 export default function AdmissionDashboard() {
   useEffect(() => {
@@ -18,20 +20,48 @@ export default function AdmissionDashboard() {
     { title: 'শর্টকাট', icon: Zap, path: '/academic/shortcut/all/all/all', color: 'from-emerald-400 to-teal-500', shadow: 'shadow-emerald-500/20' },
   ];
 
-  const categories = [
-    { title: 'মেডিকেল', subtitle: 'মেডিকেল ও ডেন্টাল ভর্তি প্রস্তুতি', icon: Activity, path: '/academic/admission/medical', color: 'bg-rose-500/10 text-rose-400 border-rose-500/20' },
-    { title: 'ইঞ্জিনিয়ারিং', subtitle: 'বুয়েট, চুয়েট, রুয়েট, কুয়েট', icon: Cpu, path: '/academic/admission/engineering', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-    { title: 'ভার্সিটি \'ক\' ইউনিট', subtitle: 'ঢাকা ও অন্যান্য বিশ্ববিদ্যালয়', icon: School, path: '/academic/admission/varsity-a', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
-    { title: 'গুচ্ছ (GST)', subtitle: 'গুচ্ছভুক্ত ২২টি বিশ্ববিদ্যালয়', icon: LayoutDashboard, path: '/academic/admission/gst', color: 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20' },
-    { title: 'কৃষি গুচ্ছ', subtitle: 'কৃষি বিশ্ববিদ্যালয়সমূহ', icon: Globe, path: '/academic/admission/agri', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-    { title: 'বিশ্ববিদ্যালয় (খ, গ)', subtitle: 'মানবিক ও বাণিজ্য শাখা', icon: BookOpen, path: '/academic/admission/varsity-others', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-  ];
+  const [categories, setCategories] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'admin_settings', 'subjects'));
+        if (snap.exists() && snap.data().list) {
+          const presets = [
+            'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20',
+            'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20',
+            'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20',
+            'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 hover:bg-fuchsia-500/20',
+            'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
+            'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
+          ];
+
+          const admissionCategories = snap.data().list.filter(s => s.level === 'Admission').map((s, idx) => {
+            let path = '/academic/admission/' + s.id.replace('admission-', '');
+            
+            return {
+              id: s.id,
+              title: s.label,
+              subtitle: s.chapters?.length ? s.chapters.length + ' টি বিষয়' : 'বিস্তারিত দেখুন',
+              emoji: s.emoji,
+              path: path,
+              color: presets[idx % presets.length]
+            };
+          });
+          setCategories(admissionCategories);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const studyTools = [
-    { title: 'সিলেবাস', icon: BookOpen, path: '/academic/syllabus' },
-    { title: 'রুটিন', icon: CalendarDays, path: '/academic/routine' },
-    { title: 'রেজাল্ট', icon: Trophy, path: '/academic/result' },
-    { title: 'স্টাডি টাইমার', icon: Clock, path: '/academic/timer' },
+    { title: 'পর্যায় সারণি', icon: FlaskConical, path: '/academic/periodic-table' },
   ];
 
   return (
@@ -104,26 +134,30 @@ export default function AdmissionDashboard() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            {categories.map((category, idx) => (
-              <Link 
-                key={idx} 
-                to={category.path}
-                className="group flex items-center gap-4 bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl transition-all hover:bg-slate-800 hover:border-slate-600 active:scale-[0.98]"
-              >
-                <div className={`p-3 rounded-xl border ${category.color}`}>
-                  <category.icon className="h-6 w-6" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-slate-200 font-bold text-sm sm:text-base group-hover:text-white transition-colors">{category.title}</h3>
-                  <p className="text-slate-500 text-[11px] sm:text-xs font-medium mt-0.5">{category.subtitle}</p>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-400 group-hover:bg-rose-500/20 group-hover:text-rose-400 transition-colors">
-                  <ChevronRight className="h-4 w-4" />
-                </div>
-              </Link>
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-rose-500" /></div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {categories.map((category, idx) => (
+                <Link 
+                  key={idx} 
+                  to={category.path}
+                  className="group flex items-center gap-4 bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl transition-all hover:bg-slate-800 hover:border-slate-600 active:scale-[0.98]"
+                >
+                  <div className={`p-3 rounded-xl border flex items-center justify-center text-2xl ${category.color}`}>
+                    {category.emoji || <Target className="h-6 w-6" />}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-slate-200 font-bold text-sm sm:text-base group-hover:text-white transition-colors">{category.title}</h3>
+                    <p className="text-slate-500 text-[11px] sm:text-xs font-medium mt-0.5">{category.subtitle}</p>
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-400 group-hover:bg-rose-500/20 group-hover:text-rose-400 transition-colors">
+                    <ChevronRight className="h-4 w-4" />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Study Tools (Horizontal Scroll for Mobile) */}

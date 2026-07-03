@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BrainCircuit, Menu, Search, X, PanelLeft, Bookmark } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getAllWords } from '../data/wordsIndex';
+import NotificationBell from '../components/Navigation/NotificationBell';
+import { useAuth } from '../contexts/AuthContext';
 
 const navLinks = [
   { label: 'হোম', path: '/' },
@@ -22,6 +24,7 @@ export default function Navbar({ onMenuClick, isScrollingDown }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const { currentUser } = useAuth();
 
   const showSidebarButton = location.pathname === '/dashboard' || location.pathname.startsWith('/word/');
   const searchResults = useMemo(() => {
@@ -139,6 +142,8 @@ export default function Navbar({ onMenuClick, isScrollingDown }) {
           >
             <Bookmark size={18} />
           </Link>
+          
+          {currentUser && <NotificationBell />}
 
           <button
             type="button"

@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom';
 import { 
   BookOpen, Calculator, CalendarDays, ChevronRight, FileText, 
   GraduationCap, LayoutDashboard, Library, Lightbulb, 
-  Settings, Target, Trophy, Clock, Search, Zap, Microscope, Globe
+  Settings, Target, Trophy, Clock, Search, Zap, Microscope, Globe, Loader2, FlaskConical
 } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../config/firebase';
+import { getSubjectPath } from '../../../utils/academicRoutes';
 
 export default function SSCDashboard() {
   useEffect(() => {
@@ -18,20 +21,47 @@ export default function SSCDashboard() {
     { title: 'শর্টকাট', icon: Zap, path: '/academic/shortcut/all/all/all', color: 'from-emerald-400 to-teal-500', shadow: 'shadow-emerald-500/20' },
   ];
 
-  const subjects = [
-    { title: 'সাধারণ গণিত', subtitle: 'বীজগণিত ও জ্যামিতি', icon: Calculator, path: '/academic/ssc/math', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
-    { title: 'উচ্চতর গণিত', subtitle: 'স্থানাঙ্ক জ্যামিতি ও সম্ভাবনা', icon: Calculator, path: '/academic/ssc/higher-math', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-    { title: 'পদার্থবিজ্ঞান', subtitle: 'গতি ও বল', icon: Zap, path: '/academic/ssc/physics', color: 'bg-rose-500/10 text-rose-400 border-rose-500/20' },
-    { title: 'রসায়ন', subtitle: 'পর্যায় সারণি ও বিক্রিয়া', icon: Microscope, path: '/academic/ssc/chemistry', color: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
-    { title: 'জীববিজ্ঞান', subtitle: 'কোষ ও জেনেটিক্স', icon: BookOpen, path: '/academic/ssc/biology', color: 'bg-lime-500/10 text-lime-400 border-lime-500/20' },
-    { title: 'English', subtitle: 'Grammar & Writing', icon: Globe, path: '/academic/ssc/english', color: 'bg-sky-500/10 text-sky-400 border-sky-500/20' },
-  ];
+  const [subjects, setSubjects] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'admin_settings', 'subjects'));
+        if (snap.exists() && snap.data().list) {
+          const presets = [
+            'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20',
+            'bg-purple-500/10 text-purple-400 border-purple-500/20 hover:bg-purple-500/20',
+            'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20',
+            'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
+            'bg-lime-500/10 text-lime-400 border-lime-500/20 hover:bg-lime-500/20',
+            'bg-sky-500/10 text-sky-400 border-sky-500/20 hover:bg-sky-500/20',
+            'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
+          ];
+
+          const sscSubjects = snap.data().list.filter(s => s.level === 'SSC').map((s, idx) => {
+            return {
+              id: s.id,
+              title: s.label,
+              subtitle: s.chapters?.length + ' টি অধ্যায়',
+              emoji: s.emoji,
+              path: getSubjectPath(s),
+              color: presets[idx % presets.length]
+            };
+          });
+          setSubjects(sscSubjects);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSubjects();
+  }, []);
 
   const studyTools = [
-    { title: 'সিলেবাস', icon: BookOpen, path: '/academic/syllabus' },
-    { title: 'রুটিন', icon: CalendarDays, path: '/academic/routine' },
-    { title: 'রেজাল্ট', icon: Trophy, path: '/academic/result' },
-    { title: 'স্টাডি টাইমার', icon: Clock, path: '/academic/timer' },
+    { title: 'পর্যায় সারণি', icon: FlaskConical, path: '/academic/periodic-table' },
   ];
 
   return (
@@ -102,26 +132,30 @@ export default function SSCDashboard() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            {subjects.map((subject, idx) => (
-              <Link 
-                key={idx} 
-                to={subject.path}
-                className="group flex items-center gap-4 bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl transition-all hover:bg-slate-800 hover:border-slate-600 active:scale-[0.98]"
-              >
-                <div className={`p-3 rounded-xl border ${subject.color}`}>
-                  <subject.icon className="h-6 w-6" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-slate-200 font-bold text-sm sm:text-base group-hover:text-white transition-colors">{subject.title}</h3>
-                  <p className="text-slate-500 text-[11px] sm:text-xs font-medium mt-0.5">{subject.subtitle}</p>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-400 group-hover:bg-emerald-500/20 group-hover:text-emerald-400 transition-colors">
-                  <ChevronRight className="h-4 w-4" />
-                </div>
-              </Link>
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {subjects.map((subject, idx) => (
+                <Link 
+                  key={idx} 
+                  to={subject.path}
+                  className="group flex items-center gap-4 bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl transition-all hover:bg-slate-800 hover:border-slate-600 active:scale-[0.98]"
+                >
+                  <div className={`p-3 rounded-xl border flex items-center justify-center text-2xl ${subject.color}`}>
+                    {subject.emoji}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-slate-200 font-bold text-sm sm:text-base group-hover:text-white transition-colors">{subject.title}</h3>
+                    <p className="text-slate-500 text-[11px] sm:text-xs font-medium mt-0.5">{subject.subtitle}</p>
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-400 group-hover:bg-emerald-500/20 group-hover:text-emerald-400 transition-colors">
+                    <ChevronRight className="h-4 w-4" />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Study Tools (Horizontal Scroll for Mobile) */}

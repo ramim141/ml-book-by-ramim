@@ -1,10 +1,14 @@
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { Trophy, CheckCircle2, XCircle, Clock, ArrowRight, RotateCcw } from 'lucide-react';
+import { Trophy, CheckCircle2, XCircle, Clock, ArrowRight, RotateCcw, AlertTriangle, Send, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import 'katex/dist/katex.min.css';
+import { useAuth } from '../../../contexts/AuthContext';
+import { doc, getDoc, setDoc, updateDoc, arrayUnion, increment, collection, addDoc } from 'firebase/firestore';
+import { db } from '../../../config/firebase'; // Added db import
 
 const enToBnNumber = (numStr) => {
   if (!numStr) return numStr;
@@ -26,7 +30,13 @@ const MarkdownRenderer = ({ content }) => (
 export default function ModelTestResult() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const { questions, answers, totalTime, timeTaken, subjectTitle } = location.state || {};
+  const [reportingQ, setReportingQ] = useState(null);
+  const [reportType, setReportType] = useState('wrong_answer');
+  const [reportMsg, setReportMsg] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportedSet, setReportedSet] = useState(new Set());
 
   if (!questions) {
     return <Navigate to="/academic/model-test" replace />;
@@ -54,6 +64,130 @@ export default function ModelTestResult() {
   });
 
   const percentage = Math.round((correctCount / questions.length) * 100);
+
+  // Save result to Firestore
+  useEffect(() => {
+    if (!currentUser || !questions) return;
+    const saveResult = async () => {
+      const result = {
+        id: Date.now(),
+        subjectTitle: subjectTitle || 'মডেল টেস্ট',
+        date: new Date().toISOString(),
+        totalQuestions: questions.length,
+        correct: correctCount,
+        wrong: wrongCount,
+        skipped: skippedCount,
+        percentage,
+        timeTaken: timeTaken || 0,
+      };
+
+      // Detect subject key for progress tracking
+      const title = (subjectTitle || '').toLowerCase();
+      let subjectKey = 'other';
+      if (title.includes('পদার্থ') || title.includes('physics')) subjectKey = 'physics';
+      else if (title.includes('রসায়') || title.includes('chemistry')) subjectKey = 'chemistry';
+      else if (title.includes('জীব') || title.includes('biology')) subjectKey = 'biology';
+      else if (title.includes('গণিত') || title.includes('math')) subjectKey = 'math';
+      else if (title.includes('তথ্য') || title.includes('ict')) subjectKey = 'ict';
+
+      // Fetch dynamic gamification settings
+      let baseXp = 10;
+      let xpPerCorrect = 2;
+      try {
+        const settingsSnap = await getDoc(doc(db, 'admin_settings', 'gamification'));
+        if (settingsSnap.exists()) {
+          const data = settingsSnap.data();
+          if (data.baseXp !== undefined) baseXp = Number(data.baseXp);
+          if (data.xpPerCorrect !== undefined) xpPerCorrect = Number(data.xpPerCorrect);
+        }
+      } catch (err) {
+        console.error("Failed to fetch gamification settings", err);
+      }
+
+      // XP earned dynamically
+      const xpEarned = baseXp + (correctCount * xpPerCorrect);
+
+      // Calculate Chapter Stats for Weakness Analyzer
+      const chapterUpdates = {};
+      questions.forEach((q, idx) => {
+        const chapter = q.chapterName || 'অন্যান্য';
+        if (!chapterUpdates[chapter]) {
+          chapterUpdates[chapter] = { attempted: 0, correct: 0, wrong: 0 };
+        }
+        
+        if (answers[idx] !== undefined) {
+          chapterUpdates[chapter].attempted += 1;
+          if (answers[idx] === q.correctAnswer) {
+            chapterUpdates[chapter].correct += 1;
+          } else {
+            chapterUpdates[chapter].wrong += 1;
+          }
+        }
+      });
+
+      try {
+        const docRef = doc(db, 'users', currentUser.uid);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const existingData = snap.data();
+          const existingChapterStats = existingData.chapterStats || {};
+          
+          const mergedChapterStats = { ...existingChapterStats };
+          Object.keys(chapterUpdates).forEach(chapter => {
+            if (!mergedChapterStats[chapter]) {
+              mergedChapterStats[chapter] = { attempted: 0, correct: 0, wrong: 0 };
+            }
+            mergedChapterStats[chapter].attempted += chapterUpdates[chapter].attempted;
+            mergedChapterStats[chapter].correct += chapterUpdates[chapter].correct;
+            mergedChapterStats[chapter].wrong += chapterUpdates[chapter].wrong;
+          });
+
+          await updateDoc(docRef, {
+            examHistory: arrayUnion(result),
+            xp: increment(xpEarned),
+            [`questionsBySubject.${subjectKey}`]: increment(correctCount),
+            chapterStats: mergedChapterStats
+          });
+        } else {
+          await setDoc(docRef, {
+            examHistory: [result],
+            xp: xpEarned,
+            questionsBySubject: { [subjectKey]: correctCount },
+            chapterStats: chapterUpdates
+          }, { merge: true });
+        }
+      } catch (err) {
+        console.error('Failed to save exam result', err);
+      }
+    };
+    saveResult();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleReportSubmit = async (q, qIdx) => {
+    if (!currentUser) return alert('লগইন প্রয়োজন!');
+    setReportLoading(true);
+    try {
+      await addDoc(collection(db, 'feedback_reports'), {
+        userId: currentUser.uid,
+        userName: currentUser.displayName || 'Unknown',
+        questionText: q.question,
+        subject: subjectTitle,
+        chapter: q.chapterName || '',
+        reportType,
+        message: reportMsg,
+        status: 'pending',
+        date: new Date().toISOString()
+      });
+      setReportedSet(new Set([...reportedSet, qIdx]));
+      setReportingQ(null);
+      setReportMsg('');
+    } catch (err) {
+      console.error(err);
+      alert('রিপোর্ট সাবমিট করতে সমস্যা হয়েছে।');
+    }
+    setReportLoading(false);
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0f1c] pt-16 sm:pt-24 pb-16 sm:pb-24 px-3 sm:px-6 lg:px-8 font-bangla selection:bg-fuchsia-500/30">
@@ -162,6 +296,11 @@ export default function ModelTestResult() {
                     <div className="flex-1 mt-1 sm:mt-0 w-full">
                       <div className="text-slate-200 text-sm sm:text-base font-semibold leading-relaxed mb-1">
                         <MarkdownRenderer content={q.question} />
+                        {q.imageUrl && (
+                          <div className="mt-3 mb-2 rounded-xl overflow-hidden border border-slate-700/50 bg-slate-900/50 flex justify-center max-h-[300px]">
+                            <img src={q.imageUrl} alt="Question figure" className="max-w-full h-auto object-contain" />
+                          </div>
+                        )}
                       </div>
                       <div className="text-xs font-bold text-slate-500">{q.chapterName}</div>
                     </div>
@@ -204,6 +343,39 @@ export default function ModelTestResult() {
                       </div>
                     </div>
                   )}
+
+                  <div className="sm:ml-12 mt-4 flex justify-end">
+                    {reportedSet.has(idx) ? (
+                      <span className="text-emerald-400 text-xs font-bold flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> রিপোর্ট সাবমিট হয়েছে</span>
+                    ) : (
+                      reportingQ === idx ? (
+                        <div className="bg-slate-900 border border-slate-700 p-4 rounded-xl w-full max-w-sm">
+                          <h4 className="text-slate-200 font-bold text-sm mb-3">সমস্যাটি রিপোর্ট করুন</h4>
+                          <select value={reportType} onChange={e => setReportType(e.target.value)} className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-200 mb-3 outline-none focus:border-amber-500">
+                            <option value="wrong_answer">ভুল উত্তর দেওয়া আছে</option>
+                            <option value="typo">বানান ভুল / টাইপো</option>
+                            <option value="out_of_syllabus">সিলেবাসের বাইরের প্রশ্ন</option>
+                            <option value="other">অন্যান্য</option>
+                          </select>
+                          <textarea 
+                            placeholder="বিস্তারিত লিখুন (অপশনাল)..." 
+                            value={reportMsg} onChange={e => setReportMsg(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm text-slate-200 mb-3 outline-none focus:border-amber-500 resize-none h-20"
+                          />
+                          <div className="flex gap-2 justify-end">
+                            <button onClick={() => setReportingQ(null)} className="px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-slate-300">বাতিল</button>
+                            <button onClick={() => handleReportSubmit(q, idx)} disabled={reportLoading} className="px-3 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-900 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-50">
+                              {reportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />} সাবমিট
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setReportingQ(idx); setReportType('wrong_answer'); setReportMsg(''); }} className="text-slate-500 hover:text-amber-400 text-xs font-bold flex items-center gap-1 transition-colors">
+                          <AlertTriangle className="w-4 h-4" /> প্রশ্নে ভুল আছে?
+                        </button>
+                      )
+                    )}
+                  </div>
                 </div>
               );
             })}

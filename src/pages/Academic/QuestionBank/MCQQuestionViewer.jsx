@@ -1,29 +1,12 @@
 import { useState, useEffect, useMemo, memo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, Navigate } from 'react-router-dom';
-import { HelpCircle, ChevronDown, ChevronUp, CheckCircle2, Circle, ArrowLeft, Loader2, Search, SlidersHorizontal, LayoutGrid, Filter } from 'lucide-react';
+import { HelpCircle, ChevronDown, ChevronUp, CheckCircle2, Circle, ArrowLeft, Loader2, Search, SlidersHorizontal, LayoutGrid, Filter, Flag } from 'lucide-react';
 import FilterSelect from '../../../components/UI/FilterSelect';
-import ReactMarkdown from 'react-markdown';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-import remarkGfm from 'remark-gfm';
-import 'katex/dist/katex.min.css';
-
-// Import chapters lists
-import chaptersIct from '../../../components/Academic/HSC/ICT/ICT_data/chapters.json';
-import chaptersChemistry from '../../../components/Academic/HSC/Chemistry/Chemistry_data/chapters.json';
-
-const subjectConfigs = {
-  'hsc-ict': {
-    title: 'এইচএসসি আইসিটি (ICT)',
-    chapters: chaptersIct.chapters,
-    mcqs: import.meta.glob('../../../components/Academic/HSC/ICT/ICT_data/chapter_*_Json/chapter_*_MCQs.json'),
-  },
-  'hsc-chemistry': {
-    title: 'এইচএসসি রসায়ন ১ম পত্র',
-    chapters: chaptersChemistry.chapters,
-    mcqs: import.meta.glob('../../../components/Academic/HSC/Chemistry/Chemistry_data/chapter_*_Json/chapter_*_MCQs.json'),
-  }
-};
+import SharedMCQItem from '../../../components/Academic/SharedMCQItem';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../../../config/firebase';
+import { resolveSubjectFromRoute } from '../../../utils/academicRoutes';
 
 const enToBnNumber = (numStr) => {
   if (!numStr) return numStr;
@@ -40,141 +23,11 @@ const normalizeYear = (yearStr) => {
   }
   return enYear;
 };
-
-const MarkdownRenderer = ({ content }) => (
-  <span className="prose prose-invert max-w-none prose-p:inline prose-p:leading-relaxed">
-    <ReactMarkdown
-      remarkPlugins={[remarkMath, remarkGfm]}
-      rehypePlugins={[rehypeKatex]}
-      components={{
-        table: ({ node, ...props }) => (
-          <div className="overflow-x-auto w-full pb-4 block my-4">
-            <table className="min-w-max w-full" {...props} />
-          </div>
-        )
-      }}
-    >
-      {content}
-    </ReactMarkdown>
-  </span>
-);
-
-const MCQItem = memo(({ mcq, index }) => {
-  const [selectedOption, setSelectedOption] = useState(null);
-  const [showAnswer, setShowAnswer] = useState(false);
-
-  const handleOptionClick = (optIdx) => {
-    if (showAnswer) return;
-    setSelectedOption(optIdx);
-    setShowAnswer(true); // Instantly show correct/wrong
-  };
-
-  const handleRetry = () => {
-    setShowAnswer(false);
-    setSelectedOption(null);
-  };
-
-  return (
-    <div className={`bg-slate-850/40 border border-slate-700/40 rounded-2xl p-4 sm:p-5 transition-all duration-300`}>
-      <div className="flex items-start gap-3 sm:gap-4 mb-4">
-        <div className={`font-bold w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center shrink-0 text-sm bg-indigo-500/10 text-indigo-400`}>
-          {enToBnNumber(index + 1)}
-        </div>
-        <div className="flex-1 mt-1 min-w-0">
-          <div className="text-slate-200 text-sm sm:text-base font-semibold leading-relaxed mb-2.5">
-            <MarkdownRenderer content={mcq.question} />
-          </div>
-
-          {/* Tags */}
-          <div className="flex flex-wrap gap-1.5">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-              {mcq.chapterName}
-            </span>
-            {mcq.boards?.map((board, idx) => (
-              <span key={`board-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                {board.name} {board.year}
-              </span>
-            ))}
-            {mcq.institutions?.map((inst, idx) => (
-              <span key={`inst-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                {inst.name} {inst.year}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-4 sm:ml-12">
-        {mcq.options.map((option, optIdx) => {
-          let optionClass = "border-slate-700/50 bg-slate-900/40 hover:bg-slate-800/50 hover:border-slate-600 text-slate-300 cursor-pointer";
-          let Icon = Circle;
-
-          if (showAnswer) {
-            if (optIdx === mcq.answer) {
-              optionClass = "border-emerald-500/50 bg-emerald-500/10 text-emerald-400";
-              Icon = CheckCircle2;
-            } else if (optIdx === selectedOption) {
-              optionClass = "border-red-500/50 bg-red-500/10 text-red-400";
-            }
-          } else if (selectedOption === optIdx) {
-            optionClass = "border-indigo-500 bg-indigo-500/10 text-indigo-300";
-            Icon = CheckCircle2;
-          }
-
-          return (
-            <div
-              key={optIdx}
-              onClick={() => handleOptionClick(optIdx)}
-              className={`flex items-center gap-2.5 p-2.5 sm:p-3 rounded-xl border transition-all ${optionClass} ${showAnswer && optIdx !== mcq.answer && optIdx !== selectedOption ? 'opacity-50' : ''}`}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              <span className="text-xs sm:text-sm"><MarkdownRenderer content={option} /></span>
-            </div>
-          );
-        })}
-      </div>
-
-      {showAnswer && (
-        <div className="sm:ml-12 space-y-3">
-          {mcq.explanation && (
-            <div className="bg-slate-900/30 border border-slate-800 p-3.5 rounded-xl animate-in fade-in slide-in-from-top-4 duration-300">
-              <h4 className="text-emerald-400 font-bold text-xs mb-1.5 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5" /> ব্যাখ্যা:
-              </h4>
-              <div className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-                <MarkdownRenderer content={mcq.explanation} />
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-end border-t border-slate-700/20 pt-3">
-            <button
-              onClick={handleRetry}
-              className="px-5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-white transition-all"
-            >
-              পুনরায় চেষ্টা করুন
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-});
-MCQItem.displayName = 'MCQItem';
-
 export default function MCQQuestionViewer({ educationLevel: propEdu, subject: propSub } = {}) {
   const { educationLevel: paramEdu, subject: paramSub } = useParams();
   const educationLevel = propEdu || paramEdu;
   const subject = propSub || paramSub;
-  const configKey = `${educationLevel}-${subject}`;
-  const config = subjectConfigs[configKey];
-
-  if (!config) {
-    return <Navigate to="/academic/question-bank" replace />;
-  }
-
-  const [allQuestions, setAllQuestions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('all');
   const [selectedBoard, setSelectedBoard] = useState('all');
@@ -189,46 +42,53 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
     setVisibleCount(15);
   }, [searchQuery, selectedChapter, selectedBoard, selectedYear, selectedTopic, selectedInstitution]);
 
-  // Load all MCQs
-  useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
+  const { data = { config: null, questions: [] }, isLoading: loading, isError, error } = useQuery({
+    queryKey: ['mcqQuestions', educationLevel, subject],
+    queryFn: async () => {
+      const subjectsSnap = await getDoc(doc(db, 'admin_settings', 'subjects'));
+      const subjects = subjectsSnap.exists() ? subjectsSnap.data().list || [] : [];
+      const resolved = resolveSubjectFromRoute(subjects, educationLevel, subject);
 
-    const loadAll = async () => {
-      try {
-        const promises = Object.entries(config.mcqs).map(async ([path, loader]) => {
-          const match = path.match(/chapter_(\d+)/);
-          const num = match ? parseInt(match[1]) : 1;
-          const chapterId = `chapter-${num}`;
-
-          const module = await loader();
-          const data = module.default ?? module ?? [];
-
-          return data.map(mcq => ({
-            ...mcq,
-            chapterId,
-            chapterName: config.chapters.find(c => c.id === chapterId)?.title || `অধ্যায় ${num}`
-          }));
-        });
-
-        const results = await Promise.all(promises);
-        if (isMounted) {
-          setAllQuestions(results.flat().filter(Boolean));
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error("Error loading MCQ questions:", err);
-        if (isMounted) setLoading(false);
+      if (!resolved) {
+        throw new Error('NotFound');
       }
-    };
 
-    loadAll();
-    return () => { isMounted = false; };
-  }, [config]);
+      const contentSnap = await getDocs(query(
+        collection(db, 'academic_content'),
+        where('subject', '==', resolved.id),
+        where('type', '==', 'mcq')
+      ));
+
+      const chapters = resolved.chapters || [];
+      const questions = contentSnap.docs.map((docSnap) => {
+        const data = docSnap.data();
+        const chapter = chapters.find((item) => item.id === data.chapterId);
+        return {
+          firebaseId: docSnap.id,
+          id: docSnap.id,
+          ...data,
+          chapterName: chapter?.title || chapter?.name || data.chapterName || data.chapterId,
+        };
+      });
+
+      return { config: resolved, questions };
+    },
+    retry: false
+  });
+
+  const subjectConfig = data?.config;
+  const allQuestions = data?.questions || [];
+  
+  // NotFound logic
+  useEffect(() => {
+    if (isError && error?.message === 'NotFound') {
+      setNotFound(true);
+    }
+  }, [isError, error]);
 
   // Extract filter options dynamically
   const filterOptions = useMemo(() => {
-    const chapters = config.chapters.map(c => ({ value: c.id, label: c.title }));
+    const chapters = (subjectConfig?.chapters || []).map(c => ({ value: c.id, label: c.title || c.name || c.id }));
 
     const boardsSet = new Set();
     const yearsSet = new Set();
@@ -261,7 +121,7 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
     const institutions = Array.from(institutionsSet).map(i => ({ value: i, label: i }));
 
     return { chapters, boards, years, topics, institutions };
-  }, [allQuestions, config]);
+  }, [allQuestions, subjectConfig]);
 
   // Apply filters & search
   const filteredQuestions = useMemo(() => {
@@ -334,6 +194,10 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
     </>
   );
 
+  if (notFound) {
+    return <Navigate to="/academic/question-bank" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-[#0b0f19] py-6 sm:py-8 text-slate-200">
       {/* Header */}
@@ -348,7 +212,7 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              {config.title} বহুনির্বাচনী (MCQ) প্রশ্নব্যাংক
+              {subjectConfig?.label || 'লোডিং...'} বহুনির্বাচনী (MCQ) প্রশ্নব্যাংক
             </h1>
             <p className="text-slate-400 text-xs sm:text-sm mt-1">
               সকল অধ্যায়ের বিগত সালের গুরুত্বপূর্ণ বোর্ড ও কলেজ প্রশ্ন সমাধান একসাথে।
@@ -421,7 +285,7 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
         ) : filteredQuestions.length > 0 ? (
           <div className="flex flex-col gap-4 pb-8">
             {filteredQuestions.slice(0, visibleCount).map((mcq, idx) => (
-              <MCQItem key={mcq.id} mcq={mcq} index={idx} />
+              <SharedMCQItem key={mcq.firebaseId || idx} mcq={mcq} index={idx} />
             ))}
 
             {visibleCount < filteredQuestions.length && (

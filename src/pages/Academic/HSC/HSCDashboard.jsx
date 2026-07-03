@@ -1,10 +1,14 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../config/firebase';
 import { 
-  BookOpen, Calculator, CalendarDays, ChevronRight, FileText, 
-  GraduationCap, LayoutDashboard, Library, Lightbulb, 
-  Settings, Target, Trophy, Clock, Search, Zap, Microscope, Globe
+  BookOpen, CalendarDays, ChevronRight, 
+  GraduationCap, Library, Lightbulb, 
+  Settings, Target, Trophy, Clock, Search, Zap, Loader2, FlaskConical, Cpu, Activity, Sigma
 } from 'lucide-react';
+import { getSubjectPath } from '../../../utils/academicRoutes';
+let cachedSubjects = null;
 
 export default function HSCDashboard() {
   useEffect(() => {
@@ -18,20 +22,53 @@ export default function HSCDashboard() {
     { title: 'শর্টকাট', icon: Zap, path: '/academic/shortcut/all/all/all', color: 'from-emerald-400 to-teal-500', shadow: 'shadow-emerald-500/20' },
   ];
 
-  const subjects = [
-    { title: 'তথ্য ও যোগাযোগ প্রযুক্তি', subtitle: 'আইসিটি (ICT)', icon: LayoutDashboard, path: '/academic/hsc/ict', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
-    { title: 'রসায়ন ১ম পত্র', subtitle: 'গুণগত রসায়ন ও অন্যান্য', icon: Microscope, path: '/academic/hsc/chemistry', color: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
-    { title: 'পদার্থবিজ্ঞান', subtitle: 'ভেক্টর ও বলবিদ্যা', icon: Zap, path: '/academic/hsc/physics', color: 'bg-rose-500/10 text-rose-400 border-rose-500/20' },
-    { title: 'উচ্চতর গণিত', subtitle: 'ম্যাট্রিক্স ও ক্যালকুলাস', icon: Calculator, path: '/academic/hsc/math', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-    { title: 'জীববিজ্ঞান', subtitle: 'উদ্ভিদ ও প্রাণিবিজ্ঞান', icon: BookOpen, path: '/academic/hsc/biology', color: 'bg-lime-500/10 text-lime-400 border-lime-500/20' },
-    { title: 'English', subtitle: 'Grammar & Writing', icon: Globe, path: '/academic/hsc/english', color: 'bg-sky-500/10 text-sky-400 border-sky-500/20' },
-  ];
+  const [subjects, setSubjects] = React.useState(cachedSubjects || []);
+  const [loading, setLoading] = React.useState(!cachedSubjects);
+
+  useEffect(() => {
+    if (cachedSubjects) return;
+
+    const fetchSubjects = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'admin_settings', 'subjects'));
+        if (snap.exists() && snap.data().list) {
+          const presets = [
+            'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20',
+            'bg-purple-500/10 text-purple-400 border-purple-500/20 hover:bg-purple-500/20',
+            'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20',
+            'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
+            'bg-lime-500/10 text-lime-400 border-lime-500/20 hover:bg-lime-500/20',
+            'bg-sky-500/10 text-sky-400 border-sky-500/20 hover:bg-sky-500/20',
+            'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
+          ];
+
+          const hscSubjects = snap.data().list.filter(s => s.level === 'HSC').map((s, idx) => {
+            return {
+              id: s.id,
+              title: s.label,
+              subtitle: s.chapters?.length + ' টি অধ্যায়',
+              emoji: s.emoji,
+              path: getSubjectPath(s),
+              color: presets[idx % presets.length]
+            };
+          });
+          cachedSubjects = hscSubjects;
+          setSubjects(hscSubjects);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSubjects();
+  }, []);
 
   const studyTools = [
-    { title: 'সিলেবাস', icon: BookOpen, path: '/academic/syllabus' },
-    { title: 'রুটিন', icon: CalendarDays, path: '/academic/routine' },
-    { title: 'রেজাল্ট', icon: Trophy, path: '/academic/result' },
-    { title: 'স্টাডি টাইমার', icon: Clock, path: '/academic/timer' },
+    { title: 'পর্যায় সারণি', icon: FlaskConical, path: '/academic/periodic-table' },
+    { title: 'বেইজ কনভার্টার', icon: Settings, path: '/academic/base-converter' },
+    { title: 'লজিক গেইট', icon: Cpu, path: '/academic/logic-gate' },
+    { title: 'ফর্মুলা শিট', icon: Sigma, path: '/academic/formula-sheet' },
   ];
 
   return (
@@ -104,15 +141,18 @@ export default function HSCDashboard() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            {subjects.map((subject, idx) => (
+          {loading ? (
+            <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {subjects.map((subject, idx) => (
               <Link 
                 key={idx} 
                 to={subject.path}
                 className="group flex items-center gap-4 bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl transition-all hover:bg-slate-800 hover:border-slate-600 active:scale-[0.98]"
               >
-                <div className={`p-3 rounded-xl border ${subject.color}`}>
-                  <subject.icon className="h-6 w-6" />
+                <div className={`p-3 rounded-xl border flex items-center justify-center text-2xl ${subject.color}`}>
+                  {subject.emoji}
                 </div>
                 <div className="flex-1">
                   <h3 className="text-slate-200 font-bold text-sm sm:text-base group-hover:text-white transition-colors">{subject.title}</h3>
@@ -123,7 +163,8 @@ export default function HSCDashboard() {
                 </div>
               </Link>
             ))}
-          </div>
+            </div>
+          )}
         </section>
 
         {/* Study Tools (Horizontal Scroll for Mobile) */}

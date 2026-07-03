@@ -10,23 +10,11 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import 'katex/dist/katex.min.css';
+import { collection, doc, query, where, getDoc, getDocs } from 'firebase/firestore';
+import { db } from '../../../config/firebase';
+import { resolveSubjectFromRoute } from '../../../utils/academicRoutes';
 
-// Import chapter lists
-import chaptersIct from '../../../components/Academic/HSC/ICT/ICT_data/chapters.json';
-import chaptersChemistry from '../../../components/Academic/HSC/Chemistry/Chemistry_data/chapters.json';
 
-const subjectConfigs = {
-  'hsc-ict': {
-    title: 'এইচএসসি আইসিটি (ICT)',
-    chapters: chaptersIct.chapters,
-    shortcuts: import.meta.glob('../../../components/Academic/ShortcutsData/HSC/ICT/chapter_*_shortcuts.json'),
-  },
-  'hsc-chemistry': {
-    title: 'এইচএসসি রসায়ন ১ম পত্র',
-    chapters: chaptersChemistry.chapters,
-    shortcuts: import.meta.glob('../../../components/Academic/ShortcutsData/HSC/Chemistry/chapter_*_shortcuts.json'),
-  }
-};
 
 const MarkdownRenderer = ({ content }) => (
   <div className="prose-sm prose prose-invert sm:prose-base max-w-none prose-p:leading-relaxed prose-pre:bg-slate-900/80 prose-pre:border prose-pre:border-slate-700/50 prose-pre:shadow-lg prose-pre:rounded-xl prose-ul:my-2 prose-li:my-1 prose-p:my-2">
@@ -187,46 +175,73 @@ export default function ChapterShortcutViewer({ educationLevel: propEdu, subject
   const subject = propSub || paramSub;
   const isGlobalAll = educationLevel === 'all' && subject === 'all';
   const configKey = `${educationLevel}-${subject}`;
-  const config = subjectConfigs[configKey];
 
+  const [dynamicConfig, setDynamicConfig] = useState(null);
+  const [notFound, setNotFound] = useState(false);
   const [shortcuts, setShortcuts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
-  if (!isGlobalAll && !config) return <Navigate to="/academic/shortcut" />;
-  const currentChapter = !isGlobalAll ? config.chapters.find(c => c.id === chapterId) : null;
+  const config = dynamicConfig;
+  const currentChapter = !isGlobalAll ? config?.chapters?.find(c => c.id === chapterId) : null;
   const isAllChapters = chapterId === 'all';
 
   useEffect(() => {
+    let isMounted = true;
     const loadShortcuts = async () => {
       setLoading(true);
       try {
         let loadedData = [];
-        const configsToLoad = isGlobalAll ? Object.values(subjectConfigs) : [config];
-        for (const c of configsToLoad) {
-          const files = c.shortcuts;
-          for (const path in files) {
-            const match = path.match(/chapter_(\d+)_shortcuts\.json/);
-            if (match) {
-              const chapNum = match[1].replace(/^0+/, '');
-              if (isGlobalAll || isAllChapters || chapNum === currentChapter?.id) {
-                const module = await files[path]();
-                loadedData = [...loadedData, ...(module.default || [])];
-              }
-            }
+        
+        if (isGlobalAll) {
+          const q = query(collection(db, "academic_content"), where("type", "==", "shortcut"));
+          const snapshot = await getDocs(q);
+          loadedData = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
+        } else {
+          let resolvedConfig = config;
+          if (!dynamicConfig) {
+            const subjectsSnap = await getDoc(doc(db, 'admin_settings', 'subjects'));
+            const subjects = subjectsSnap.exists() ? subjectsSnap.data().list || [] : [];
+            resolvedConfig = resolveSubjectFromRoute(subjects, educationLevel, subject);
+            if (resolvedConfig && isMounted) setDynamicConfig(resolvedConfig);
           }
+
+          if (!resolvedConfig) {
+            if (isMounted) setNotFound(true);
+            return;
+          }
+
+          const q = query(
+            collection(db, "academic_content"), 
+            where("subject", "==", resolvedConfig.id || configKey),
+            where("type", "==", "shortcut")
+          );
+          const snapshot = await getDocs(q);
+          let results = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
+          
+          if (!isAllChapters) {
+             const chapterNumber = String(chapterId || '').replace(/\D/g, '').padStart(2, '0');
+             results = results.filter(s => s.chapterId === chapterId || s.chapterId === `chapter_${chapterNumber}`);
+          }
+          loadedData = results;
         }
-        setShortcuts(loadedData);
+
+        if (isMounted) {
+          setShortcuts(loadedData);
+          setLoading(false);
+        }
       } catch (error) {
         console.error("Error loading shortcuts:", error);
-      } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     loadShortcuts();
-  }, [configKey, chapterId]);
+    return () => { isMounted = false; };
+  }, [configKey, educationLevel, subject, chapterId, isGlobalAll, isAllChapters, dynamicConfig]);
+
+  if (notFound) return <Navigate to="/academic/shortcut" replace />;
 
   const tabs = [
     { id: 'all', label: 'সব শর্টকাট', icon: <Sparkles className="w-4 h-4" /> },
@@ -265,10 +280,10 @@ export default function ChapterShortcutViewer({ educationLevel: propEdu, subject
               <div className="flex-1 min-w-0">
                 <h1 className="flex items-center gap-2 text-lg font-black text-transparent sm:text-2xl md:text-3xl bg-clip-text bg-gradient-to-r from-white to-slate-400 sm:gap-3">
                   <Zap className="w-5 h-5 sm:h-7 sm:w-7 text-amber-400 shrink-0 drop-shadow-md" />
-                  <span className="truncate">{isGlobalAll ? 'সকল বিষয়ের শর্টকাট' : (isAllChapters ? 'সকল অধ্যায়ের শর্টকাট' : currentChapter?.name)}</span>
+                  <span className="truncate">{isGlobalAll ? 'সকল বিষয়ের শর্টকাট' : (isAllChapters ? 'সকল অধ্যায়ের শর্টকাট' : (currentChapter?.title || currentChapter?.name || 'শর্টকাট'))}</span>
                 </h1>
                 <p className="text-indigo-400/80 text-xs sm:text-sm font-semibold tracking-wide mt-0.5 sm:mt-1 truncate">
-                  {isGlobalAll ? 'সকল একাডেমিক বিষয় একসাথে' : config.title}
+                  {isGlobalAll ? 'সকল একাডেমিক বিষয় একসাথে' : (config?.label || config?.title || 'লোড হচ্ছে...')}
                 </p>
               </div>
             </div>
@@ -400,4 +415,3 @@ export default function ChapterShortcutViewer({ educationLevel: propEdu, subject
     </div>
   );
 }
-

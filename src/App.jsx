@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate, Outlet } from 'react-router-dom';
 import Sidebar from './layout/Sidebar';
 import Navbar from './layout/Navbar';
 import Footer from './layout/Footer';
@@ -7,6 +7,13 @@ import ReadModeWidget from './components/UI/ReadModeWidget';
 
 
 import PageLoader from './components/UI/PageLoader';
+import ProtectedRoute from './components/Auth/ProtectedRoute';
+
+const Login = lazy(() => import('./pages/Auth/Login'));
+const Register = lazy(() => import('./pages/Auth/Register'));
+const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
+const ProfileDashboard = lazy(() => import('./pages/Profile/ProfileDashboard'));
+const Leaderboard = lazy(() => import('./pages/Leaderboard/Leaderboard'));
 
 const Home = lazy(() => import('./pages/Home/Home'));
 const LandingPage = lazy(() => import('./pages/Landing/LandingPage'));
@@ -26,6 +33,10 @@ const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 
 const AcademicLayout = lazy(() => import('./layout/Academic/AcademicLayout'));
 const AcademicHome = lazy(() => import('./pages/Academic/AcademicHome'));
+const DynamicAcademicSubjectHome = lazy(() => import('./pages/Academic/DynamicAcademicSubjectHome'));
+const DynamicAcademicChapterDetails = lazy(() => import('./pages/Academic/DynamicAcademicChapterDetails'));
+const DynamicBoardQuestionsList = lazy(() => import('./pages/Academic/DynamicBoardQuestionsList'));
+const DynamicBoardQuestionViewer = lazy(() => import('./pages/Academic/DynamicBoardQuestionViewer'));
 const SSCDashboard = lazy(() => import('./pages/Academic/SSC/SSCDashboard'));
 const AdmissionDashboard = lazy(() => import('./pages/Academic/Admission/AdmissionDashboard'));
 const MedicalDashboard = lazy(() => import('./pages/Academic/Admission/Medical/MedicalDashboard'));
@@ -62,6 +73,17 @@ const ModelTestConfig = lazy(() => import('./pages/Academic/ModelTest/ModelTestC
 const ModelTestExam = lazy(() => import('./pages/Academic/ModelTest/ModelTestExam'));
 const ModelTestResult = lazy(() => import('./pages/Academic/ModelTest/ModelTestResult'));
 
+const LiveExamList = lazy(() => import('./pages/Academic/ModelTest/LiveExamList'));
+const LiveExamEngine = lazy(() => import('./pages/Academic/ModelTest/LiveExamEngine'));
+const LiveExamResult = lazy(() => import('./pages/Academic/ModelTest/LiveExamResult'));
+const LiveExamLeaderboard = lazy(() => import('./pages/Academic/ModelTest/LiveExamLeaderboard'));
+
+const PeriodicTable = lazy(() => import('./pages/Academic/Tools/PeriodicTable'));
+const BaseConverter = lazy(() => import('./pages/Academic/Tools/BaseConverter'));
+const LogicGateSimulator = lazy(() => import('./pages/Academic/Tools/LogicGateSimulator'));
+const GraphingTool = lazy(() => import('./pages/Academic/Tools/GraphingTool'));
+const SmartFormulaSheet = lazy(() => import('./pages/Academic/Tools/SmartFormulaSheet'));
+
 function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -69,8 +91,8 @@ function App() {
 
   const showSidebar = location.pathname === '/dashboard' || location.pathname.startsWith('/word/');
   const isAcademic = location.pathname.startsWith('/academic');
-  const showNavbar = !isAcademic;
-  const showFooter = !isAcademic && !showSidebar && !location.pathname.startsWith('/word/');
+  const showNavbar = !isAcademic && location.pathname !== '/login' && location.pathname !== '/register' && location.pathname !== '/admin';
+  const showFooter = !isAcademic && !showSidebar && !location.pathname.startsWith('/word/') && location.pathname !== '/login' && location.pathname !== '/register' && location.pathname !== '/admin';
 
   const [isScrollingDown, setIsScrollingDown] = useState(false);
   const lastScrollY = useRef(0);
@@ -117,7 +139,7 @@ function App() {
         <Navbar onMenuClick={() => setIsMobileMenuOpen(true)} isScrollingDown={isScrollingDown} />
       )}
 
-      <div className={`relative flex flex-1 ${isAcademic ? '' : 'pt-16 sm:pt-18 lg:pt-20'} ${showSidebar ? 'min-h-0 overflow-hidden' : ''}`}>
+      <div className={`relative flex flex-1 ${showNavbar ? 'pt-16 sm:pt-18 lg:pt-20' : ''} ${showSidebar ? 'min-h-0 overflow-hidden' : ''}`}>
 
         {showSidebar && (
           <Sidebar
@@ -136,6 +158,14 @@ function App() {
                 <Route path="/ml-topics" element={<MLTopics />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/about" element={<About />} />
+                
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/admin" element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } />
 
 
                 <Route path="/start" element={<BookStart />} />
@@ -151,46 +181,51 @@ function App() {
                 {/* Academic Sub-website */}
                 <Route path="/academic" element={<AcademicLayout />}>
                   <Route index element={<AcademicHome />} />
-                  <Route path="shortcut" element={<ShortcutDashboard />} />
-                  <Route path="shortcut/:educationLevel/:subject/:chapterId" element={<ChapterShortcutViewer />} />
-                  <Route path="question-bank" element={<QuestionBankDashboard />} />
-                  <Route path="question-builder" element={<QuestionBuilder />} />
                   
-                  {/* Model Test */}
-                  <Route path="model-test" element={<ModelTestConfig />} />
-                  <Route path="model-test/exam" element={<ModelTestExam />} />
-                  <Route path="model-test/result" element={<ModelTestResult />} />
+                  <Route element={<ProtectedRoute><Outlet /></ProtectedRoute>}>
+                    <Route path="profile" element={<ProfileDashboard />} />
+                    <Route path="leaderboard" element={<Leaderboard />} />
+                    <Route path="shortcut" element={<ShortcutDashboard />} />
+                    <Route path="shortcut/:educationLevel/:subject/:chapterId" element={<ChapterShortcutViewer />} />
+                    <Route path="question-bank" element={<QuestionBankDashboard />} />
+                    <Route path="question-builder" element={<QuestionBuilder />} />
+                    
+                    {/* Model Test */}
+                    <Route path="model-test" element={<ModelTestConfig />} />
+                    <Route path="model-test/exam" element={<ModelTestExam />} />
+                    <Route path="model-test/result" element={<ModelTestResult />} />
+                    
+                    {/* Live Exams */}
+                    <Route path="live-exams" element={<LiveExamList />} />
+                    <Route path="live-exam/:examId" element={<LiveExamEngine />} />
+                    <Route path="live-exam/:examId/result" element={<LiveExamResult />} />
+                    <Route path="live-exam/:examId/leaderboard" element={<LiveExamLeaderboard />} />
 
-                  <Route path="ssc" element={<SSCDashboard />} />
-                  <Route path="ssc/physics" element={<SSCPhysicsSubjectHome />} />
-                  <Route path="ssc/chemistry" element={<SSCChemistrySubjectHome />} />
-                  <Route path="ssc/math" element={<SSCMathSubjectHome />} />
-                  <Route path="ssc/higher-math" element={<SSCHigherMathSubjectHome />} />
-                  <Route path="ssc/biology" element={<SSCBiologySubjectHome />} />
-                  
-                  <Route path="hsc" element={<HSCDashboard />} />
-                  <Route path="admission" element={<AdmissionDashboard />} />
-                  <Route path="admission/medical" element={<MedicalDashboard />} />
-                  <Route path="admission/engineering" element={<EngineeringDashboard />} />
-                  <Route path="admission/varsity-a" element={<VarsityADashboard />} />
-                  <Route path="admission/gst" element={<GSTDashboard />} />
-                  <Route path="admission/agri" element={<AgriDashboard />} />
-                  <Route path="admission/varsity-others" element={<VarsityOthersDashboard />} />
-                  <Route path="hsc/ict" element={<ICTSubjectHome />} />
-                  <Route path="hsc/ict/cq" element={<CQQuestionViewer educationLevel="hsc" subject="ict" />} />
-                  <Route path="hsc/ict/mcq" element={<MCQQuestionViewer educationLevel="hsc" subject="ict" />} />
-                  <Route path="hsc/ict/knowledge" element={<KnowledgeQuestionViewer educationLevel="hsc" subject="ict" />} />
-                  <Route path="hsc/ict/board-questions" element={<BoardQuestionsList />} />
-                  <Route path="hsc/ict/board-questions/:boardName/:year" element={<BoardQuestionViewer />} />
-                  <Route path="hsc/ict/:chapterId" element={<ChapterDetails />} />
+                    <Route path="ssc" element={<SSCDashboard />} />
+                    
+                    <Route path="hsc" element={<HSCDashboard />} />
+                    <Route path="admission" element={<AdmissionDashboard />} />
+                    <Route path="admission/medical" element={<MedicalDashboard />} />
+                    <Route path="admission/engineering" element={<EngineeringDashboard />} />
+                    <Route path="admission/varsity-a" element={<VarsityADashboard />} />
+                    <Route path="admission/gst" element={<GSTDashboard />} />
+                    <Route path="admission/agri" element={<AgriDashboard />} />
+                    <Route path="admission/varsity-others" element={<VarsityOthersDashboard />} />
 
-                  <Route path="hsc/chemistry" element={<ChemistrySubjectHome />} />
-                  <Route path="hsc/chemistry/cq" element={<CQQuestionViewer educationLevel="hsc" subject="chemistry" />} />
-                  <Route path="hsc/chemistry/mcq" element={<MCQQuestionViewer educationLevel="hsc" subject="chemistry" />} />
-                  <Route path="hsc/chemistry/knowledge" element={<KnowledgeQuestionViewer educationLevel="hsc" subject="chemistry" />} />
-                  <Route path="hsc/chemistry/board-questions" element={<ChemistryBoardQuestionsList />} />
-                  <Route path="hsc/chemistry/board-questions/:boardName/:year" element={<ChemistryBoardQuestionViewer />} />
-                  <Route path="hsc/chemistry/:chapterId" element={<ChemistryChapterDetails />} />
+                    <Route path=":educationLevel/:subject/cq" element={<CQQuestionViewer />} />
+                    <Route path=":educationLevel/:subject/mcq" element={<MCQQuestionViewer />} />
+                    <Route path=":educationLevel/:subject/knowledge" element={<KnowledgeQuestionViewer />} />
+                    <Route path=":educationLevel/:subject/board-questions" element={<DynamicBoardQuestionsList />} />
+                    <Route path=":educationLevel/:subject/board-questions/:boardName/:year" element={<DynamicBoardQuestionViewer />} />
+                    <Route path=":educationLevel/:subject/:chapterId" element={<DynamicAcademicChapterDetails />} />
+                    <Route path=":educationLevel/:subject" element={<DynamicAcademicSubjectHome />} />
+
+                    <Route path="periodic-table" element={<PeriodicTable />} />
+                    <Route path="base-converter" element={<BaseConverter />} />
+                    <Route path="logic-gate" element={<LogicGateSimulator />} />
+                    <Route path="graphing-tool" element={<GraphingTool />} />
+                    <Route path="formula-sheet" element={<SmartFormulaSheet />} />
+                  </Route>
                 </Route>
 
 
