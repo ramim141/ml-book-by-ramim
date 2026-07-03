@@ -1,65 +1,60 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Search, Database, FlaskConical, Filter, BookOpen, Calculator, GraduationCap, FileText, CheckSquare, BrainCircuit, LayoutGrid, SlidersHorizontal } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../config/firebase';
+import { Search, Database, BookOpen, GraduationCap, FileText, CheckSquare, BrainCircuit, LayoutGrid, SlidersHorizontal, Loader2, FlaskConical, Calculator, Dna, FileDigit, Globe, Coins, PenTool } from 'lucide-react';
+import { getSubjectPath } from '../../../utils/academicRoutes';
 
-const questionBanks = [
-  {
-    id: 1,
-    title: 'এইচএসসি আইসিটি (ICT)',
-    category: 'HSC',
-    description: 'বিগত সালের সকল বোর্ড প্রশ্ন ও উত্তর এবং অধ্যায়ভিত্তিক এমসিকিউ (MCQ)।',
-    icon: Database,
-    baseRoute: '/academic/hsc/ict',
-    gradient: 'from-pink-500/10 to-rose-500/10',
-    iconBg: 'bg-pink-500/20',
-    iconColor: 'text-pink-400',
-    borderColor: 'border-pink-500/20',
-    hoverBorder: 'hover:border-pink-500/50'
-  },
-  {
-    id: 2,
-    title: 'এইচএসসি রসায়ন ১ম পত্র',
-    category: 'HSC',
-    description: 'অধ্যায়ভিত্তিক বিগত সালের বোর্ড সৃজনশীল প্রশ্ন ও সমাধান।',
-    icon: FlaskConical,
-    baseRoute: '/academic/hsc/chemistry',
-    gradient: 'from-blue-500/10 to-cyan-500/10',
-    iconBg: 'bg-blue-500/20',
-    iconColor: 'text-blue-400',
-    borderColor: 'border-blue-500/20',
-    hoverBorder: 'hover:border-blue-500/50'
-  },
-  {
-    id: 3,
-    title: 'এসএসসি পদার্থবিজ্ঞান',
-    category: 'SSC',
-    description: 'সকল বোর্ডের বিগত সালের প্রশ্ন ও গাণিতিক সমস্যা সমাধান।',
-    icon: Calculator,
-    baseRoute: '/academic/ssc/physics',
-    gradient: 'from-emerald-500/10 to-teal-500/10',
-    iconBg: 'bg-emerald-500/20',
-    iconColor: 'text-emerald-400',
-    borderColor: 'border-emerald-500/20',
-    hoverBorder: 'hover:border-emerald-500/50'
-  },
-  {
-    id: 4,
-    title: 'এসএসসি বাংলা ১ম পত্র',
-    category: 'SSC',
-    description: 'গদ্য ও পদ্যের গুরুত্বপূর্ণ সৃজনশীল প্রশ্ন ও উত্তর।',
-    icon: BookOpen,
-    baseRoute: '/academic/ssc/bangla-1',
-    gradient: 'from-purple-500/10 to-fuchsia-500/10',
-    iconBg: 'bg-purple-500/20',
-    iconColor: 'text-purple-400',
-    borderColor: 'border-purple-500/20',
-    hoverBorder: 'hover:border-purple-500/50'
-  }
-];
 
 const categories = ['All', 'HSC', 'SSC', 'Admission'];
 
+const getIcon = (id) => {
+  if (!id) return BookOpen;
+  const safeId = String(id).toLowerCase();
+  if (safeId.includes('ict')) return Database;
+  if (safeId.includes('chemistry')) return FlaskConical;
+  if (safeId.includes('physics') || safeId.includes('math')) return Calculator;
+  if (safeId.includes('biology')) return Dna;
+  if (safeId.includes('accounting') || safeId.includes('finance')) return Coins;
+  if (safeId.includes('geography')) return Globe;
+  if (safeId.includes('art') || safeId.includes('bangla')) return PenTool;
+  return BookOpen;
+};
+
 const QuestionBankDashboard = () => {
+  const { data: questionBanks = [], isLoading: loading } = useQuery({
+    queryKey: ['questionBanks', 'subjects'],
+    queryFn: async () => {
+      const snap = await getDoc(doc(db, 'admin_settings', 'subjects'));
+      if (snap.exists() && snap.data().list) {
+        const presets = [
+          { gradient: 'from-pink-500/10 to-rose-500/10', iconBg: 'bg-pink-500/20', iconColor: 'text-pink-400', borderColor: 'border-pink-500/20', hoverBorder: 'hover:border-pink-500/50' },
+          { gradient: 'from-blue-500/10 to-cyan-500/10', iconBg: 'bg-blue-500/20', iconColor: 'text-blue-400', borderColor: 'border-blue-500/20', hoverBorder: 'hover:border-blue-500/50' },
+          { gradient: 'from-emerald-500/10 to-teal-500/10', iconBg: 'bg-emerald-500/20', iconColor: 'text-emerald-400', borderColor: 'border-emerald-500/20', hoverBorder: 'hover:border-emerald-500/50' },
+          { gradient: 'from-purple-500/10 to-fuchsia-500/10', iconBg: 'bg-purple-500/20', iconColor: 'text-purple-400', borderColor: 'border-purple-500/20', hoverBorder: 'hover:border-purple-500/50' },
+          { gradient: 'from-amber-500/10 to-orange-500/10', iconBg: 'bg-amber-500/20', iconColor: 'text-amber-400', borderColor: 'border-amber-500/20', hoverBorder: 'hover:border-amber-500/50' },
+        ];
+
+        return snap.data().list.map((s, idx) => {
+          const path = getSubjectPath(s);
+          const preset = presets[idx % presets.length];
+          
+          return {
+            id: idx + 1,
+            title: s.label,
+            category: s.level,
+            description: `${s.chapters?.length || 0} টি অধ্যায়ের প্রশ্ন ও উত্তর।`,
+            emoji: s.emoji,
+            iconId: s.id,
+            baseRoute: path,
+            ...preset
+          };
+        });
+      }
+      return [];
+    }
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [showFilters, setShowFilters] = useState(false);
@@ -171,10 +166,12 @@ const QuestionBankDashboard = () => {
       </div>
 
       {/* Results Grid */}
-      {filteredBanks.length > 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-indigo-500" /></div>
+      ) : filteredBanks.length > 0 ? (
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
           {filteredBanks.map((bank) => {
-            const Icon = bank.icon;
+            const Icon = getIcon(bank.iconId);
             return (
               <div
                 key={bank.id}

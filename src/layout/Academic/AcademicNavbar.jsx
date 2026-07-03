@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ArrowLeft, GraduationCap, Menu, X } from 'lucide-react';
+import { ArrowLeft, GraduationCap, Menu, X, LogIn, UserPlus, LogOut, ShieldCheck, User, Globe, Trophy, CalendarClock } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { isAdmin } from '../../config/roles';
+import NotificationBell from '../../components/Navigation/NotificationBell';
 
 const navLinks = [
   { to: '/academic', label: 'হোম' },
@@ -8,12 +11,15 @@ const navLinks = [
   { to: '/academic/hsc', label: 'এইচএসসি' },
   { to: '/academic/admission', label: 'এডমিশন' },
   { to: '/academic/question-bank', label: 'প্রশ্নব্যাংক' },
+  { to: '/academic/live-exams', label: 'লাইভ এক্সাম', icon: CalendarClock },
+  { to: '/academic/leaderboard', label: 'লিডারবোর্ড', icon: Trophy },
   { to: '/academic/shortcut/all/all/all', label: 'শর্টকাট' },
 ];
 
 const AcademicNavbar = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const location = useLocation();
+  const { currentUser, logout } = useAuth();
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -52,23 +58,72 @@ const AcademicNavbar = () => {
               <Link
                 key={link.to}
                 to={link.to}
-                className="text-sm font-bold text-slate-300 hover:text-white transition-colors"
+                className="flex items-center gap-1.5 text-sm font-bold text-slate-300 hover:text-white transition-colors"
               >
+                {link.icon && <link.icon className="w-4 h-4 text-amber-400" />}
                 {link.label}
               </Link>
             ))}
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-1 sm:gap-4 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <Link
               to="/"
-              className="flex items-center gap-1.5 sm:gap-2 text-sm font-medium text-indigo-300 hover:text-indigo-100 bg-indigo-500/10 hover:bg-indigo-500/20 px-2.5 sm:px-4 py-2 rounded-lg transition-all border border-indigo-500/20"
-              aria-label="মেইন সাইটে ফিরে যান"
+              title="মেইন সাইটে ফিরে যান"
+              className="hidden md:flex items-center justify-center w-9 h-9 rounded-full text-slate-300 bg-slate-800/50 hover:bg-indigo-500/20 hover:text-indigo-300 border border-slate-700/50 hover:border-indigo-500/30 transition-all group"
             >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline font-bold">মেইন সাইট</span>
+              <Globe className="h-4 w-4 group-hover:scale-110 transition-transform" />
             </Link>
+
+            {/* Auth Buttons */}
+            {currentUser ? (
+              <div className="flex items-center gap-2">
+                <div className="hidden md:flex items-center gap-2">
+                  {isAdmin(currentUser.email) && (
+                    <Link
+                      to="/admin"
+                      title="অ্যাডমিন প্যানেল"
+                      className="flex items-center justify-center w-9 h-9 rounded-full text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 hover:text-amber-200 border border-amber-500/20 transition-all group"
+                    >
+                      <ShieldCheck className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                    </Link>
+                  )}
+                  <Link
+                    to="/academic/profile"
+                    title="প্রোফাইল"
+                    className="flex items-center justify-center w-9 h-9 rounded-full text-white bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-600/20 transition-all group"
+                  >
+                    <User className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                  </Link>
+                  <button
+                    onClick={() => logout()}
+                    title="লগআউট"
+                    className="flex items-center justify-center w-9 h-9 rounded-full text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 hover:text-rose-200 border border-rose-500/20 transition-all group"
+                  >
+                    <LogOut className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                  </button>
+                </div>
+                <NotificationBell />
+              </div>
+            ) : (
+              <div className="hidden md:flex items-center gap-2">
+                <Link
+                  to="/login"
+                  title="লগইন"
+                  className="flex items-center justify-center w-9 h-9 rounded-full text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 hover:text-indigo-200 border border-indigo-500/20 transition-all group"
+                >
+                  <LogIn className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                </Link>
+                <Link
+                  to="/register"
+                  title="সাইন আপ"
+                  className="flex items-center justify-center w-9 h-9 rounded-full text-white bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-600/20 transition-all group"
+                >
+                  <UserPlus className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                </Link>
+              </div>
+            )}
 
             {/* Mobile Hamburger */}
             <button
@@ -87,7 +142,7 @@ const AcademicNavbar = () => {
 
       {/* Mobile Menu Drawer */}
       <div
-        className={`md:hidden overflow-hidden border-t border-indigo-500/10 transition-[max-height,opacity] duration-300 ease-out ${isMobileOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+        className={`md:hidden border-t border-indigo-500/10 transition-[max-height,opacity] duration-300 ease-out custom-scrollbar ${isMobileOpen ? 'max-h-[calc(100vh-70px)] opacity-100 overflow-y-auto' : 'max-h-0 opacity-0 overflow-hidden'
           }`}
       >
         <div className="px-4 sm:px-6 py-3 bg-[#0f172a]/95 backdrop-blur-xl space-y-1">
@@ -102,11 +157,83 @@ const AcademicNavbar = () => {
                   : 'text-slate-200 hover:bg-slate-800/70 border border-transparent'
                   }`}
               >
-                <span>{link.label}</span>
+                <div className="flex items-center gap-2">
+                  {link.icon && <link.icon className={`w-4 h-4 ${isActive ? 'text-indigo-400' : 'text-amber-400'}`} />}
+                  <span>{link.label}</span>
+                </div>
                 <span className="text-indigo-400/70">›</span>
               </Link>
             );
           })}
+
+          {/* Mobile Auth Links */}
+          <div className="pt-2 mt-2 border-t border-slate-700/50">
+            <Link
+              to="/"
+              className="flex items-center justify-between px-3 py-3 rounded-xl text-sm font-bold transition-colors text-slate-300 hover:bg-slate-800/70"
+            >
+              <div className="flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                <span>মেইন সাইটে ফিরে যান</span>
+              </div>
+            </Link>
+            
+            {!currentUser && (
+              <>
+                <Link
+                  to="/login"
+                  className="flex items-center justify-between px-3 py-3 rounded-xl text-sm font-bold transition-colors text-indigo-300 hover:bg-slate-800/70 mt-1"
+                >
+                  <div className="flex items-center gap-2">
+                    <LogIn className="h-4 w-4" />
+                    <span>লগইন করুন</span>
+                  </div>
+                </Link>
+                <Link
+                  to="/register"
+                  className="flex items-center justify-between px-3 py-3 rounded-xl text-sm font-bold transition-colors text-fuchsia-300 hover:bg-slate-800/70 mt-1"
+                >
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    <span>নতুন অ্যাকাউন্ট খুলুন</span>
+                  </div>
+                </Link>
+              </>
+            )}
+            {currentUser && (
+              <>
+                <Link
+                  to="/academic/profile"
+                  className="flex items-center justify-between px-3 py-3 rounded-xl text-sm font-bold transition-colors text-indigo-300 hover:bg-slate-800/70 mt-1"
+                >
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    <span>প্রোফাইল</span>
+                  </div>
+                </Link>
+                {isAdmin(currentUser.email) && (
+                  <Link
+                    to="/admin"
+                    className="flex items-center justify-between px-3 py-3 rounded-xl text-sm font-bold transition-colors text-amber-300 hover:bg-slate-800/70 mt-1"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>অ্যাডমিন প্যানেল</span>
+                    </div>
+                  </Link>
+                )}
+                <button
+                  onClick={() => logout()}
+                  className="w-full flex items-center justify-between px-3 py-3 rounded-xl text-sm font-bold transition-colors text-red-300 hover:bg-slate-800/70 mt-1 text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <LogOut className="h-4 w-4" />
+                    <span>লগআউট</span>
+                  </div>
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </nav>

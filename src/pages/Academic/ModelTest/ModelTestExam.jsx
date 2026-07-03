@@ -123,6 +123,11 @@ export default function ModelTestExam() {
                 </div>
                 <div className="text-base sm:text-xl font-medium text-slate-200 mt-0.5 sm:mt-1 leading-relaxed w-full">
                   <MarkdownRenderer content={q.question} />
+                  {q.imageUrl && (
+                    <div className="mt-4 mb-2 rounded-xl overflow-hidden border border-slate-700/50 bg-slate-900/50 flex justify-center max-h-[300px]">
+                      <img src={q.imageUrl} alt="Question figure" className="max-w-full h-auto object-contain" />
+                    </div>
+                  )}
                 </div>
               </div>
 
