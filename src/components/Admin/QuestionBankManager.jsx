@@ -196,7 +196,8 @@ function QuestionBankUpload() {
         } else if (type === 'mcq' || type === 'knowledge') {
           isDuplicate = existingItems.some(ex => ex.question && item.question && ex.question === item.question);
         } else {
-          isDuplicate = existingItems.some(ex => ex.title && item.title && ex.title === item.title);
+          // As requested, do not check duplicates for other types (like video, note, etc.)
+          isDuplicate = false;
         }
 
         if (isDuplicate) {
