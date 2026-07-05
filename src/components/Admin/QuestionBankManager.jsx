@@ -191,10 +191,12 @@ function QuestionBankUpload() {
           if (idx !== -1) item.answer = idx;
         }
 
-        if (type === 'mcq' || type === 'cq' || type === 'knowledge') {
-          isDuplicate = existingItems.some(ex => ex.question === item.question);
+        if (type === 'cq') {
+          isDuplicate = existingItems.some(ex => ex.stem && item.stem && ex.stem === item.stem);
+        } else if (type === 'mcq' || type === 'knowledge') {
+          isDuplicate = existingItems.some(ex => ex.question && item.question && ex.question === item.question);
         } else {
-          isDuplicate = existingItems.some(ex => ex.title === item.title);
+          isDuplicate = existingItems.some(ex => ex.title && item.title && ex.title === item.title);
         }
 
         if (isDuplicate) {
