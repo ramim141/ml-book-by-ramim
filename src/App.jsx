@@ -5,9 +5,9 @@ import Navbar from './layout/Navbar';
 import Footer from './layout/Footer';
 import ReadModeWidget from './components/UI/ReadModeWidget';
 
-
 import PageLoader from './components/UI/PageLoader';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
+import { Toaster } from 'react-hot-toast';
 
 const Login = lazy(() => import('./pages/Auth/Login'));
 const Register = lazy(() => import('./pages/Auth/Register'));
@@ -242,6 +242,8 @@ function App() {
 
       {/* গ্লোবাল রিডিং মোড ফ্লোটিং বাটন */}
       <ReadModeWidget isScrollingDown={isScrollingDown} />
+      
+      <Toaster position="top-center" />
     </div>
   );
 }

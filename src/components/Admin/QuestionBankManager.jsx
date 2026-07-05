@@ -3,6 +3,8 @@ import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, addDoc, query, 
 import { db } from '../../config/firebase';
 import { Database, Search, Edit2, Trash2, X, Check, Loader2, UploadCloud, Eye } from 'lucide-react';
 import MarkdownRenderer from '../UI/MarkdownRenderer';
+import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function QuestionBankManager() {
   const [mode, setMode] = useState('manage'); // 'manage' | 'upload'
@@ -21,12 +23,12 @@ export default function QuestionBankManager() {
 }
 
 function QuestionBankUpload() {
+  const queryClient = useQueryClient();
   const [jsonText, setJsonText] = useState('');
   const [level, setLevel] = useState('HSC');
   const [subject, setSubject] = useState('');
   const [chapterId, setChapterId] = useState('');
   const [type, setType] = useState('mcq');
-  const [status, setStatus] = useState({ type: '', message: '' });
   const [loading, setLoading] = useState(false);
   const [existingCount, setExistingCount] = useState(null); 
   const [checkingCount, setCheckingCount] = useState(false);
@@ -126,17 +128,17 @@ function QuestionBankUpload() {
       const content = event.target.result;
       if (file.name.endsWith('.json')) {
         setJsonText(content);
-        setStatus({ type: 'success', message: 'JSON ফাইল লোড হয়েছে! নিচের বক্সে ডাটা চেক করে সেভ করুন ক্লিক করুন।' });
+        toast.success('JSON ফাইল লোড হয়েছে! নিচের বক্সে ডাটা চেক করে সেভ করুন ক্লিক করুন।');
       } else if (file.name.endsWith('.csv')) {
         try {
           const jsonArr = parseCSV(content);
           setJsonText(JSON.stringify(jsonArr, null, 2));
-          setStatus({ type: 'success', message: 'CSV ফাইল কনভার্ট হয়ে JSON বক্সে লোড হয়েছে! এবার সেভ করুন ক্লিক করুন।' });
+          toast.success('CSV ফাইল কনভার্ট হয়ে JSON বক্সে লোড হয়েছে! এবার সেভ করুন ক্লিক করুন।');
         } catch (err) {
-          setStatus({ type: 'error', message: 'CSV পার্স করতে সমস্যা হয়েছে: ' + err.message });
+          toast.error('CSV পার্স করতে সমস্যা হয়েছে: ' + err.message);
         }
       } else {
-        setStatus({ type: 'error', message: 'শুধুমাত্র .json এবং .csv ফাইল সাপোর্ট করে।' });
+        toast.error('শুধুমাত্র .json এবং .csv ফাইল সাপোর্ট করে।');
       }
     };
     reader.readAsText(file);
@@ -144,32 +146,62 @@ function QuestionBankUpload() {
   };
 
   const handleUpload = async () => {
-    setStatus({ type: '', message: '' });
-    if (!subject || !chapterId || !type) return setStatus({ type: 'error', message: 'বিষয়, অধ্যায় এবং ধরন সিলেক্ট করুন।' });
+    if (!subject || !chapterId || !type) return toast.error('বিষয়, অধ্যায় এবং ধরন সিলেক্ট করুন।');
     
     let docsToAdd = [];
 
     if (type === 'video') {
-      if (!title || !url) return setStatus({ type: 'error', message: 'Title and URL are required.' });
+      if (!title || !url) return toast.error('Title and URL are required.');
       docsToAdd.push({ title, url });
     } else if (type === 'note') {
-      if (!title || !content) return setStatus({ type: 'error', message: 'Title and Content are required.' });
+      if (!title || !content) return toast.error('Title and Content are required.');
       docsToAdd.push({ title, content });
     } else {
-      if (!jsonText.trim()) return setStatus({ type: 'error', message: 'JSON ডেটা পেস্ট করুন।' });
+      if (!jsonText.trim()) return toast.error('JSON ডেটা পেস্ট করুন।');
       try {
         docsToAdd = JSON.parse(jsonText);
-        if (!Array.isArray(docsToAdd)) return setStatus({ type: 'error', message: 'JSON ডেটা অবশ্যই একটি Array হতে হবে' });
+        if (!Array.isArray(docsToAdd)) return toast.error('JSON ডেটা অবশ্যই একটি Array হতে হবে');
       } catch (e) {
-        return setStatus({ type: 'error', message: 'JSON ফরম্যাট সঠিক নয়।' });
+        return toast.error('JSON ফরম্যাট সঠিক নয়।');
       }
     }
 
     setLoading(true);
     let successCount = 0;
+    let duplicateCount = 0;
     try {
       const colRef = collection(db, "academic_content");
+      
+      // Fetch existing docs to prevent duplicates
+      const q = query(colRef, where("level", "==", level), where("subject", "==", subject), where("chapterId", "==", chapterId), where("type", "==", type));
+      const querySnapshot = await getDocs(q);
+      const existingItems = querySnapshot.docs.map(doc => doc.data());
+      
       for (const item of docsToAdd) {
+        let isDuplicate = false;
+        
+        // Normalize 'text' to 'question' if uploaded JSON uses legacy format
+        if (item.text && !item.question) {
+          item.question = item.text;
+          delete item.text;
+        }
+        // Normalize string 'answer' to index
+        if (item.options && typeof item.answer === 'string') {
+          const idx = item.options.indexOf(item.answer);
+          if (idx !== -1) item.answer = idx;
+        }
+
+        if (type === 'mcq' || type === 'cq' || type === 'knowledge') {
+          isDuplicate = existingItems.some(ex => ex.question === item.question);
+        } else {
+          isDuplicate = existingItems.some(ex => ex.title === item.title);
+        }
+
+        if (isDuplicate) {
+          duplicateCount++;
+          continue;
+        }
+
         await addDoc(colRef, {
           ...item,
           level,
@@ -179,26 +211,24 @@ function QuestionBankUpload() {
           createdAt: new Date()
         });
         successCount++;
+        existingItems.push(item);
       }
       const prevCount = existingCount ?? 0;
       const newTotal = prevCount + successCount;
-      setStatus({ type: 'success', message: `✅ ${successCount} টি নতুন আইটেম append হয়েছে! (আগে ছিল: ${prevCount}, এখন মোট: ${newTotal}টি)` });
+      
+      queryClient.invalidateQueries();
+      toast.success(`সফলভাবে আপলোড হয়েছে!\nনতুন যোগ করা হয়েছে: ${successCount}টি\nডুপ্লিকেট স্কিপ করা হয়েছে: ${duplicateCount}টি`);
       setExistingCount(newTotal);
       setJsonText('');
       setTitle(''); setUrl(''); setContent('');
     } catch (error) {
-      setStatus({ type: 'error', message: 'আপলোড করার সময় একটি সমস্যা হয়েছে।' });
+      toast.error('আপলোড করার সময় একটি সমস্যা হয়েছে।');
     }
     setLoading(false);
   };
 
   return (
     <div>
-      {status.message && (
-        <div className={`mb-6 p-4 rounded-xl border flex items-start gap-3 ${status.type === 'error' ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'}`}>
-          <div className="text-sm font-bold">{status.message}</div>
-        </div>
-      )}
 
       <div className="space-y-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -304,6 +334,7 @@ function QuestionBankUpload() {
 }
 
 function QuestionBankList() {
+  const queryClient = useQueryClient();
   const [level, setLevel] = useState('HSC');
   const [subject, setSubject] = useState('');
   const [chapterId, setChapterId] = useState('');
@@ -366,7 +397,7 @@ function QuestionBankList() {
       );
       
       const snap = await getDocs(qRef); 
-      setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setItems(snap.docs.map(d => ({ ...d.data(), id: d.id })));
 
       if (snap.docs.length > 0) {
         setLastVisible(snap.docs[snap.docs.length - 1]);
@@ -403,7 +434,7 @@ function QuestionBankList() {
       
       if (snap.docs.length > 0) {
         setLastVisible(snap.docs[snap.docs.length - 1]);
-        setItems(prev => [...prev, ...snap.docs.map(d => ({ id: d.id, ...d.data() }))]);
+        setItems(prev => [...prev, ...snap.docs.map(d => ({ ...d.data(), id: d.id }))]);
       }
       if (snap.docs.length < ITEMS_PER_PAGE) {
         setHasMore(false);
@@ -419,6 +450,7 @@ function QuestionBankList() {
     try {
       await deleteDoc(doc(db, 'academic_content', id));
       setItems(items.filter(q => q.id !== id));
+      queryClient.invalidateQueries();
     } catch(e) {
       console.error(e);
     }
@@ -478,6 +510,7 @@ function QuestionBankList() {
       await updateDoc(qRef, updateData);
       setItems(items.map(q => q.id === editingQ.id ? editingQ : q));
       setEditingQ(null);
+      queryClient.invalidateQueries();
     } catch(e) {
       console.error(e);
       alert("Error saving: " + e.message);
@@ -549,7 +582,20 @@ function QuestionBankList() {
 
                   {['mcq', 'cq', 'knowledge', 'shortcut'].includes(type) && (
                     <div>
-                      <p className="text-sm text-slate-200 font-medium mb-3">{q.question}</p>
+                      {type === 'cq' ? (
+                        <div className="mb-3">
+                          <p className="text-sm text-slate-200 font-medium mb-2">{q.stem || q.question || q.text || 'No stem provided'}</p>
+                          {q.questions && (
+                            <div className="pl-4 border-l-2 border-slate-700 space-y-1">
+                              {Object.entries(q.questions).map(([k, v]) => (
+                                <p key={k} className="text-xs text-slate-300"><span className="text-indigo-400 font-bold">{k}:</span> {v}</p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-200 font-medium mb-3">{q.question || q.text || 'No question text provided'}</p>
+                      )}
                       {type === 'mcq' && q.options && (
                         <div className="grid grid-cols-2 gap-2 mb-3">
                           {q.options.map((opt, i) => (
@@ -628,18 +674,45 @@ function QuestionBankList() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs text-slate-400 mb-1 flex items-center justify-between">
-                        <span>প্রশ্ন (Markdown/LaTeX)</span>
+                        <span>{editingQ.type === 'cq' ? 'উদ্দীপক (Stem - Markdown/LaTeX)' : 'প্রশ্ন (Markdown/LaTeX)'}</span>
                       </label>
-                      <textarea value={editingQ.question || ''} onChange={e => setEditingQ({...editingQ, question: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm min-h-[80px] outline-none focus:border-indigo-500" />
+                      <textarea 
+                        value={editingQ.type === 'cq' ? (editingQ.stem || editingQ.question || '') : (editingQ.question || editingQ.text || '')} 
+                        onChange={e => {
+                          if (editingQ.type === 'cq') {
+                            setEditingQ({...editingQ, stem: e.target.value});
+                          } else {
+                            setEditingQ({...editingQ, question: e.target.value});
+                          }
+                        }} 
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm min-h-[80px] outline-none focus:border-indigo-500" 
+                      />
                     </div>
                     <div className="bg-slate-950 border border-slate-800 rounded-lg p-3">
                       <label className="text-xs text-indigo-400 mb-1 flex items-center gap-1"><Eye className="w-3 h-3" /> প্রিভিউ</label>
                       <div className="text-sm text-slate-200">
-                        <MarkdownRenderer content={editingQ.question || '...'} />
+                        <MarkdownRenderer content={editingQ.type === 'cq' ? (editingQ.stem || '...') : (editingQ.question || '...')} />
                       </div>
                     </div>
                   </div>
-                  <div>
+                  {editingQ.type === 'cq' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      {['ka', 'kha', 'ga', 'gha'].map(k => (
+                        <div key={k}>
+                          <label className="text-xs text-slate-400 mb-1 block">প্রশ্ন ({k === 'ka' ? 'ক' : k === 'kha' ? 'খ' : k === 'ga' ? 'গ' : 'ঘ'})</label>
+                          <textarea 
+                            value={editingQ.questions?.[k] || ''} 
+                            onChange={e => setEditingQ({
+                              ...editingQ, 
+                              questions: { ...(editingQ.questions || {}), [k]: e.target.value }
+                            })} 
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm min-h-[60px]" 
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-4">
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-xs text-slate-400 block">ইমেজ (ঐচ্ছিক)</label>
                       <label className="cursor-pointer bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 border border-indigo-500/30 px-3 py-1 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5">

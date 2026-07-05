@@ -40,10 +40,9 @@ const persister = createAsyncStoragePersister({
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 60 * 24, // 24 hours (super aggressive caching)
+      staleTime: 1000 * 60 * 5, // 5 minutes (reasonable caching)
       gcTime: 1000 * 60 * 60 * 24 * 7, // Garbage collect after 7 days
       refetchOnWindowFocus: false, // Don't refetch automatically when switching tabs
-      refetchOnMount: false, // Don't refetch on component mount if data exists
     },
   },
 });
