@@ -192,9 +192,9 @@ function QuestionBankUpload() {
         }
 
         if (type === 'cq') {
-          isDuplicate = existingItems.some(ex => ex.stem && item.stem && ex.stem === item.stem);
+          isDuplicate = existingItems.some(ex => ex.stem && item.stem && ex.stem.trim() === item.stem.trim());
         } else if (type === 'mcq' || type === 'knowledge') {
-          isDuplicate = existingItems.some(ex => ex.question && item.question && ex.question === item.question);
+          isDuplicate = existingItems.some(ex => ex.question && item.question && ex.question.trim() === item.question.trim());
         } else {
           // As requested, do not check duplicates for other types (like video, note, etc.)
           isDuplicate = false;
