@@ -192,9 +192,19 @@ function QuestionBankUpload() {
         }
 
         if (type === 'cq') {
-          isDuplicate = existingItems.some(ex => ex.stem && item.stem && ex.stem.trim() === item.stem.trim());
+          isDuplicate = existingItems.some(ex => {
+            const exStem = (ex.stem || '').trim();
+            const itemStem = (item.stem || '').trim();
+            if (exStem && itemStem) return exStem === itemStem;
+            if (!exStem && !itemStem && ex.questions && item.questions) return (ex.questions.ka || '').trim() === (item.questions.ka || '').trim();
+            return false;
+          });
         } else if (type === 'mcq' || type === 'knowledge') {
-          isDuplicate = existingItems.some(ex => ex.question && item.question && ex.question.trim() === item.question.trim());
+          isDuplicate = existingItems.some(ex => {
+            const exQ = (ex.question || '').trim();
+            const itemQ = (item.question || '').trim();
+            return exQ && itemQ && exQ === itemQ;
+          });
         } else {
           // As requested, do not check duplicates for other types (like video, note, etc.)
           isDuplicate = false;
