@@ -441,13 +441,13 @@ export default function GenericChapterDetails({ subjectId, chaptersData, backLin
       <ChevronRight className='w-3 h-3 sm:w-4 sm:h-4 shrink-0' />
       <Link to={backLink} className='hover:text-white transition-colors whitespace-nowrap'>{subjectLabel}</Link>
       <ChevronRight className='w-3 h-3 sm:w-4 sm:h-4 shrink-0' />
-      <span className='text-indigo-400 whitespace-nowrap'>{chapter.chapterNo || chapterId}</span>
+      <span className='text-indigo-400 whitespace-nowrap'>{chapter.chapterNo || chapter.name || chapter.title || chapterId}</span>
     </nav>
     <div className='flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 mb-6 sm:mb-10'>
       <div className='min-w-0'>
         <div className='flex items-center gap-2 sm:gap-3 mb-2'>
           <Link to={backLink} className='p-1.5 sm:p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors'><ArrowLeft className='w-4 h-4 sm:w-5 sm:h-5' /></Link>
-          <span className='text-indigo-400 font-bold bg-indigo-500/10 px-2 py-0.5 sm:px-3 sm:py-1 rounded-md border border-indigo-500/20 text-xs sm:text-sm'>{chapter.chapterNo || chapterId}</span>
+          <span className='text-indigo-400 font-bold bg-indigo-500/10 px-2 py-0.5 sm:px-3 sm:py-1 rounded-md border border-indigo-500/20 text-xs sm:text-sm'>{chapter.chapterNo || chapter.name || chapter.title || chapterId}</span>
         </div>
         <h1 className='text-xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight'>{chapter.title || chapter.name || 'লোড হচ্ছে...'}</h1>
       </div>
