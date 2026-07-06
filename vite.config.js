@@ -9,6 +9,11 @@ export default defineConfig({
     viteCompression({ algorithm: 'gzip', ext: '.gz' }),
     viteCompression({ algorithm: 'brotliCompress', ext: '.br' })
   ],
+  server: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+    },
+  },
   base: '/',
   build: {
     rollupOptions: {
