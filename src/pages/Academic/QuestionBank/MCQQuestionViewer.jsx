@@ -108,7 +108,7 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
           if (i.year) yearsSet.add(normalizeYear(i.year));
         });
       }
-      if (mcq.topic) {
+      if (mcq.topic && (selectedChapter === 'all' || mcq.chapterId === selectedChapter)) {
         topicsSet.add(mcq.topic);
       }
     });
@@ -121,7 +121,7 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
     const institutions = Array.from(institutionsSet).map(i => ({ value: i, label: i }));
 
     return { chapters, boards, years, topics, institutions };
-  }, [allQuestions, subjectConfig]);
+  }, [allQuestions, subjectConfig, selectedChapter]);
 
   // Apply filters & search
   const filteredQuestions = useMemo(() => {

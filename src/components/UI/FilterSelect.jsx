@@ -62,7 +62,7 @@ export default function FilterSelect({
       {open && (
         <ul
           role="listbox"
-          className="absolute z-50 mt-1 left-0 right-0 max-h-60 overflow-y-auto rounded-xl border border-slate-700/60 bg-slate-900 shadow-2xl shadow-slate-950/40 py-1 animate-in fade-in zoom-in-95 duration-150"
+          className="absolute z-50 mt-1 left-0 min-w-full w-max max-w-[320px] max-h-60 overflow-y-auto rounded-xl border border-slate-700/60 bg-slate-900 shadow-2xl shadow-slate-950/40 py-1 animate-in fade-in zoom-in-95 duration-150"
         >
           {options.map((opt) => {
             const isActive = opt.value === value;

@@ -92,7 +92,9 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
         if (parts.length > 1) boards.add(parts.slice(0, -1).join(' '));
         else boards.add(board);
       });
-      if (kq.topic) topics.add(kq.topic);
+      if (kq.topic && (selectedChapter === 'all' || kq.chapterId === selectedChapter)) {
+        topics.add(kq.topic);
+      }
     });
 
     return {
@@ -105,7 +107,7 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
       years: Array.from(years).filter(Boolean).sort((a, b) => Number(b) - Number(a)).map((year) => ({ value: year, label: year })),
       topics: Array.from(topics).map((topic) => ({ value: topic, label: topic })),
     };
-  }, [allQuestions, subjectConfig]);
+  }, [allQuestions, subjectConfig, selectedChapter]);
 
   const filteredQuestions = useMemo(() => {
     const search = searchQuery.toLowerCase();

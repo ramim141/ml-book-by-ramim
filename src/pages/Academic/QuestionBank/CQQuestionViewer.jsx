@@ -79,7 +79,9 @@ export default function CQQuestionViewer({ educationLevel: propEdu, subject: pro
         if (board.name) boards.add(board.name);
         if (board.year) years.add(normalizeYear(board.year));
       });
-      if (cq.topic) topics.add(cq.topic);
+      if (cq.topic && (selectedChapter === 'all' || cq.chapterId === selectedChapter)) {
+        topics.add(cq.topic);
+      }
     });
 
     return {
@@ -88,7 +90,24 @@ export default function CQQuestionViewer({ educationLevel: propEdu, subject: pro
       years: Array.from(years).sort((a, b) => Number(b) - Number(a)).map((year) => ({ value: year, label: year })),
       topics: Array.from(topics).map((topic) => ({ value: topic, label: topic })),
     };
-  }, [allQuestions, subjectConfig]);
+  }, [allQuestions, subjectConfig, selectedChapter]);
+
+  const renderFilters = () => (
+    <>
+      <div className="w-[180px]">
+        <FilterSelect value={selectedChapter} onChange={setSelectedChapter} options={[{ value: 'all', label: 'সব অধ্যায়' }, ...filterOptions.chapters]} />
+      </div>
+      <div className="w-[150px]">
+        <FilterSelect value={selectedBoard} onChange={setSelectedBoard} options={[{ value: 'all', label: 'সব বোর্ড' }, ...filterOptions.boards]} />
+      </div>
+      <div className="w-[120px]">
+        <FilterSelect value={selectedYear} onChange={setSelectedYear} options={[{ value: 'all', label: 'সব সাল' }, ...filterOptions.years]} />
+      </div>
+      <div className="w-[200px]">
+        <FilterSelect value={selectedTopic} onChange={setSelectedTopic} options={[{ value: 'all', label: 'সব টপিক' }, ...filterOptions.topics]} />
+      </div>
+    </>
+  );
 
   const filteredQuestions = useMemo(() => {
     const search = searchQuery.toLowerCase();
@@ -107,15 +126,6 @@ export default function CQQuestionViewer({ educationLevel: propEdu, subject: pro
       return matchesSearch && matchesChapter && matchesBoard && matchesYear && matchesTopic;
     });
   }, [allQuestions, searchQuery, selectedChapter, selectedBoard, selectedYear, selectedTopic]);
-
-  const renderFilters = () => (
-    <>
-      <FilterSelect value={selectedChapter} onChange={setSelectedChapter} options={[{ value: 'all', label: 'সব অধ্যায়' }, ...filterOptions.chapters]} />
-      <FilterSelect value={selectedBoard} onChange={setSelectedBoard} options={[{ value: 'all', label: 'সব বোর্ড' }, ...filterOptions.boards]} />
-      <FilterSelect value={selectedYear} onChange={setSelectedYear} options={[{ value: 'all', label: 'সব সাল' }, ...filterOptions.years]} />
-      <FilterSelect value={selectedTopic} onChange={setSelectedTopic} options={[{ value: 'all', label: 'সব টপিক' }, ...filterOptions.topics]} />
-    </>
-  );
 
   if (notFound) return <Navigate to="/academic/question-bank" replace />;
 
