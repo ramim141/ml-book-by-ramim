@@ -193,10 +193,17 @@ function QuestionBankUpload() {
 
         if (type === 'cq') {
           isDuplicate = existingItems.some(ex => {
-            const exStem = (ex.stem || '').trim();
-            const itemStem = (item.stem || '').trim();
-            if (exStem && itemStem) return exStem === itemStem;
-            if (!exStem && !itemStem && ex.questions && item.questions) return (ex.questions.ka || '').trim() === (item.questions.ka || '').trim();
+            const exQ = ex.questions || {};
+            const itemQ = item.questions || {};
+            const hasAnyQuestion = itemQ.ka || itemQ.kha || itemQ.ga || itemQ.gha;
+            
+            if (hasAnyQuestion) {
+              const kaMatch = (exQ.ka || '').trim() === (itemQ.ka || '').trim();
+              const khaMatch = (exQ.kha || '').trim() === (itemQ.kha || '').trim();
+              const gaMatch = (exQ.ga || '').trim() === (itemQ.ga || '').trim();
+              const ghaMatch = (exQ.gha || '').trim() === (itemQ.gha || '').trim();
+              return kaMatch && khaMatch && gaMatch && ghaMatch;
+            }
             return false;
           });
         } else if (type === 'mcq' || type === 'knowledge') {
