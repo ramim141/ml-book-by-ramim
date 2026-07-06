@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { LogOut, Database, Quote, BookOpen, Swords, LayoutDashboard, Users, Star, MessageSquareWarning, Megaphone, Bell, CalendarClock, ChevronRight } from 'lucide-react';
+import { LogOut, Database, Quote, BookOpen, Swords, LayoutDashboard, Users, Star, MessageSquareWarning, Megaphone, Bell, CalendarClock, ChevronRight, Activity } from 'lucide-react';
 
 // Import all modularized components
 import OverviewManager from '../../components/Admin/OverviewManager';
@@ -16,6 +16,7 @@ import DatabaseMigrationHelper from './DatabaseMigrationHelper';
 import NotificationManager from '../../components/Admin/NotificationManager';
 import LiveExamManager from '../../components/Admin/LiveExamManager';
 import FormulaManager from '../../components/Admin/FormulaManager';
+import AdminActivityFeed from '../../components/Admin/AdminActivityFeed';
 
 export default function AdminDashboard() {
   const { logout } = useAuth();
@@ -64,6 +65,7 @@ export default function AdminDashboard() {
     {
       title: 'সিস্টেম',
       tabs: [
+        { id: 'activity_feed', label: 'অ্যাক্টিভিটি ফিড', icon: Activity },
         { id: 'reports', label: 'রিপোর্টস', icon: MessageSquareWarning },
         { id: 'migration', label: 'ডাটা মাইগ্রেশন', icon: Database },
       ]
@@ -187,10 +189,11 @@ export default function AdminDashboard() {
               {activeTab === 'subjects' && <SubjectsManager />}
               {activeTab === 'challenges' && <DailyChallengeManager />}
               {activeTab === 'gamification' && <GamificationManager />}
-              {activeTab === 'reports' && <FeedbackManager />}
               {activeTab === 'announcements' && <AnnouncementManager />}
               {activeTab === 'notifications' && <NotificationManager />}
               {activeTab === 'formulas' && <FormulaManager />}
+              {activeTab === 'activity_feed' && <AdminActivityFeed />}
+              {activeTab === 'reports' && <FeedbackManager />}
               {activeTab === 'migration' && <DatabaseMigrationHelper />}
             </div>
           </div>

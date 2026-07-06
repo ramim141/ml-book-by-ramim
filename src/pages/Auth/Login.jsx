@@ -19,9 +19,25 @@ export default function Login() {
       setError('');
       setLoading(true);
       const userCredential = await login(email, password);
+      
       if (isAdmin(userCredential.user.email)) {
         navigate('/admin');
       } else {
+        // Log the student login to admin_activity
+        try {
+          const { getFirestore, addDoc, collection, serverTimestamp } = await import('firebase/firestore');
+          const db = getFirestore();
+          await addDoc(collection(db, 'admin_activity'), {
+            type: 'login',
+            message: 'স্টুডেন্ট লগইন করেছেন',
+            userEmail: userCredential.user.email,
+            timestamp: serverTimestamp(),
+            read: false
+          });
+        } catch (logError) {
+          console.error("Failed to log activity:", logError);
+        }
+        
         navigate('/academic');
       }
     } catch (err) {
@@ -124,9 +140,25 @@ export default function Login() {
                 setError('');
                 setLoading(true);
                 const userCredential = await loginWithGoogle();
+                
                 if (isAdmin(userCredential.user.email)) {
                   navigate('/admin');
                 } else {
+                  // Log the student login to admin_activity
+                  try {
+                    const { getFirestore, addDoc, collection, serverTimestamp } = await import('firebase/firestore');
+                    const db = getFirestore();
+                    await addDoc(collection(db, 'admin_activity'), {
+                      type: 'login',
+                      message: 'স্টুডেন্ট গুগল দিয়ে লগইন করেছেন',
+                      userEmail: userCredential.user.email,
+                      timestamp: serverTimestamp(),
+                      read: false
+                    });
+                  } catch (logError) {
+                    console.error("Failed to log activity:", logError);
+                  }
+                  
                   navigate('/academic');
                 }
               } catch (err) {
