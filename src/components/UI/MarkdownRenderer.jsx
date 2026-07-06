@@ -23,6 +23,9 @@ const MarkdownRenderer = ({ content }) => {
           ),
           td: ({ node, ...props }) => (
             <td className="border border-slate-700 px-4 py-2 text-slate-300" {...props} />
+          ),
+          img: ({ node, ...props }) => (
+            <img className="max-w-full h-auto rounded-lg my-2 block" alt={props.alt || ''} {...props} />
           )
         }}
       >
