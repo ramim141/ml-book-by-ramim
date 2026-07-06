@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, addDoc, query, where, limit, startAfter } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { Database, Search, Edit2, Trash2, X, Check, Loader2, UploadCloud, Eye } from 'lucide-react';
@@ -661,7 +662,7 @@ function QuestionBankList() {
         </div>
       )}
 
-      {editingQ && (
+      {editingQ && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-[#0f172a] border border-slate-700 p-6 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
@@ -723,20 +724,43 @@ function QuestionBankList() {
                     </div>
                   </div>
                   {editingQ.type === 'cq' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                      {['ka', 'kha', 'ga', 'gha'].map(k => (
-                        <div key={k}>
-                          <label className="text-xs text-slate-400 mb-1 block">প্রশ্ন ({k === 'ka' ? 'ক' : k === 'kha' ? 'খ' : k === 'ga' ? 'গ' : 'ঘ'})</label>
-                          <textarea 
-                            value={editingQ.questions?.[k] || ''} 
-                            onChange={e => setEditingQ({
-                              ...editingQ, 
-                              questions: { ...(editingQ.questions || {}), [k]: e.target.value }
-                            })} 
-                            className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm min-h-[60px]" 
-                          />
+                    <div className="mt-4 space-y-6">
+                      <div>
+                        <h4 className="text-sm font-bold text-indigo-400 mb-3 border-b border-slate-700 pb-2">প্রশ্নসমূহ</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {['ka', 'kha', 'ga', 'gha'].map(k => (
+                            <div key={k}>
+                              <label className="text-xs text-slate-400 mb-1 block">প্রশ্ন ({k === 'ka' ? 'ক' : k === 'kha' ? 'খ' : k === 'ga' ? 'গ' : 'ঘ'})</label>
+                              <textarea 
+                                value={editingQ.questions?.[k] || ''} 
+                                onChange={e => setEditingQ({
+                                  ...editingQ, 
+                                  questions: { ...(editingQ.questions || {}), [k]: e.target.value }
+                                })} 
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm min-h-[60px]" 
+                              />
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-emerald-400 mb-3 border-b border-slate-700 pb-2">উত্তরসমূহ</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {['ka', 'kha', 'ga', 'gha'].map(k => (
+                            <div key={k}>
+                              <label className="text-xs text-slate-400 mb-1 block">উত্তর ({k === 'ka' ? 'ক' : k === 'kha' ? 'খ' : k === 'ga' ? 'গ' : 'ঘ'})</label>
+                              <textarea 
+                                value={editingQ.answers?.[k] || ''} 
+                                onChange={e => setEditingQ({
+                                  ...editingQ, 
+                                  answers: { ...(editingQ.answers || {}), [k]: e.target.value }
+                                })} 
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm min-h-[100px]" 
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   )}
                   <div className="mt-4">
@@ -759,11 +783,30 @@ function QuestionBankList() {
                       <p>💡 <b>Upload Image</b> বাটনে ক্লিক করে সরাসরি পিসি থেকে ছবি যুক্ত করতে পারেন।</p>
                     </div>
                     {editingQ.imageUrl && (
-                      <div className="mt-2 relative inline-block border border-slate-700 rounded bg-slate-900/50 p-1">
-                        <img src={editingQ.imageUrl} alt="preview" className="h-16 object-contain rounded" onError={e => e.target.style.display='none'} />
-                        <button onClick={() => setEditingQ({...editingQ, imageUrl: ''})} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600">
-                          <X className="w-3 h-3" />
-                        </button>
+                      <div className="mt-2 flex items-center gap-3 bg-slate-900/50 border border-slate-700 p-2 rounded-lg">
+                        <div className="relative inline-block bg-slate-950 p-1 rounded">
+                          <img src={editingQ.imageUrl} alt="preview" className="h-16 object-contain rounded" onError={e => e.target.style.display='none'} />
+                          <button onClick={() => setEditingQ({...editingQ, imageUrl: ''})} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-[10px] text-slate-400 mb-1">যেকোনো টেক্সটবক্সে (যেমন: উত্তর) ছবি দিতে এই মার্কডাউনটি কপি করে পেস্ট করুন:</p>
+                          <div className="flex items-center gap-2">
+                            <code className="text-[11px] bg-slate-950 px-2 py-1.5 rounded border border-slate-800 flex-1 truncate text-indigo-300">
+                              ![image]({editingQ.imageUrl})
+                            </code>
+                            <button 
+                              onClick={() => {
+                                navigator.clipboard.writeText(`![image](${editingQ.imageUrl})`);
+                                toast.success("Markdown কপি হয়েছে! যেকোনো টেক্সটবক্সে পেস্ট করুন।");
+                              }}
+                              className="bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-300 px-3 py-1.5 rounded text-xs font-bold transition-colors border border-indigo-500/30 whitespace-nowrap"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -814,7 +857,7 @@ function QuestionBankList() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }
