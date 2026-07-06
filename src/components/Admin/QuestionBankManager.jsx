@@ -604,17 +604,24 @@ function QuestionBankList() {
                     <div>
                       {type === 'cq' ? (
                         <div className="mb-3">
-                          <p className="text-sm text-slate-200 font-medium mb-2">{q.stem || q.question || q.text || 'No stem provided'}</p>
+                          <div className="text-sm text-slate-200 font-medium mb-2">
+                            <MarkdownRenderer content={q.stem || q.question || q.text || 'No stem provided'} />
+                          </div>
                           {q.questions && (
                             <div className="pl-4 border-l-2 border-slate-700 space-y-1">
                               {Object.entries(q.questions).map(([k, v]) => (
-                                <p key={k} className="text-xs text-slate-300"><span className="text-indigo-400 font-bold">{k}:</span> {v}</p>
+                                <div key={k} className="text-xs text-slate-300 flex items-start gap-2">
+                                  <span className="text-indigo-400 font-bold shrink-0">{k}:</span> 
+                                  <div className="flex-1 overflow-x-auto"><MarkdownRenderer content={v} /></div>
+                                </div>
                               ))}
                             </div>
                           )}
                         </div>
                       ) : (
-                        <p className="text-sm text-slate-200 font-medium mb-3">{q.question || q.text || 'No question text provided'}</p>
+                        <div className="text-sm text-slate-200 font-medium mb-3">
+                          <MarkdownRenderer content={q.question || q.text || 'No question text provided'} />
+                        </div>
                       )}
                       {type === 'mcq' && q.options && (
                         <div className="grid grid-cols-2 gap-2 mb-3">
