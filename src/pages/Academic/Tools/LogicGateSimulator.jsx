@@ -151,7 +151,7 @@ export default function LogicGateSimulator() {
           <div className="inline-flex items-center justify-center p-3 sm:p-4 bg-indigo-500/10 rounded-2xl mb-4 border border-indigo-500/20 shadow-inner">
             <Cpu className="w-8 h-8 sm:w-10 sm:h-10 text-indigo-400" />
           </div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-indigo-400 drop-shadow-sm mb-4">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-indigo-400 drop-shadow-sm mb-4 py-2">
             লজিক গেইট সিমুলেটর
           </h1>
           <p className="text-slate-400 text-sm sm:text-base font-medium max-w-lg mx-auto">
