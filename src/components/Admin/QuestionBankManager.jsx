@@ -31,7 +31,6 @@ function QuestionBankUpload() {
   const [chapterId, setChapterId] = useState('');
   const [type, setType] = useState('mcq');
   const [loading, setLoading] = useState(false);
-  const [localSearch, setLocalSearch] = useState('');
   const [existingCount, setExistingCount] = useState(null); 
   const [checkingCount, setCheckingCount] = useState(false);
   
@@ -365,6 +364,7 @@ function QuestionBankList() {
   const [dbSubjects, setDbSubjects] = useState([]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [localSearch, setLocalSearch] = useState('');
   const [editingQ, setEditingQ] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
