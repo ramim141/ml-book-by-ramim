@@ -724,6 +724,7 @@ function QuestionBankList() {
                     </div>
                   </div>
                   {editingQ.type === 'cq' && (
+                    // ... existing cq code
                     <div className="mt-4 space-y-6">
                       <div>
                         <h4 className="text-sm font-bold text-indigo-400 mb-3 border-b border-slate-700 pb-2">প্রশ্নসমূহ</h4>
@@ -763,6 +764,73 @@ function QuestionBankList() {
                       </div>
                     </div>
                   )}
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <label className="text-xs text-slate-400 mb-1 block">টপিক (Topic)</label>
+                      <input 
+                        type="text" 
+                        value={editingQ.topic || ''} 
+                        onChange={e => setEditingQ({...editingQ, topic: e.target.value})} 
+                        placeholder="যেমন: number-system" 
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-400 mb-1 flex justify-between items-center">
+                        <span>বোর্ড / প্রতিষ্ঠান (Board/Institution)</span>
+                        <button 
+                          onClick={() => setEditingQ({
+                            ...editingQ, 
+                            institutions: [...(editingQ.institutions || editingQ.boards || []), { name: '', year: '' }]
+                          })}
+                          className="text-[10px] bg-slate-800 hover:bg-slate-700 px-2 py-0.5 rounded text-indigo-400"
+                        >+ যুক্ত করুন</button>
+                      </label>
+                      <div className="space-y-2">
+                        {((editingQ.institutions || editingQ.boards) || []).map((inst, idx) => (
+                          <div key={idx} className="flex gap-2">
+                            <input 
+                              type="text" 
+                              value={inst.name || ''} 
+                              onChange={e => {
+                                const newInsts = [...(editingQ.institutions || editingQ.boards || [])];
+                                newInsts[idx] = { ...newInsts[idx], name: e.target.value };
+                                setEditingQ({...editingQ, institutions: newInsts});
+                              }} 
+                              placeholder="বোর্ডের নাম (Dhaka Board)" 
+                              className="w-2/3 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-indigo-500 outline-none" 
+                            />
+                            <input 
+                              type="text" 
+                              value={inst.year || ''} 
+                              onChange={e => {
+                                const newInsts = [...(editingQ.institutions || editingQ.boards || [])];
+                                newInsts[idx] = { ...newInsts[idx], year: e.target.value };
+                                setEditingQ({...editingQ, institutions: newInsts});
+                              }} 
+                              placeholder="সাল (2023)" 
+                              className="w-1/3 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-indigo-500 outline-none" 
+                            />
+                            <button 
+                              onClick={() => {
+                                const newInsts = [...(editingQ.institutions || editingQ.boards || [])];
+                                newInsts.splice(idx, 1);
+                                setEditingQ({...editingQ, institutions: newInsts});
+                              }}
+                              className="p-1.5 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white rounded-lg transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                        {((editingQ.institutions || editingQ.boards) || []).length === 0 && (
+                          <p className="text-[10px] text-slate-500 italic">কোনো বোর্ড যুক্ত করা নেই।</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-xs text-slate-400 block">ইমেজ (ঐচ্ছিক)</label>
