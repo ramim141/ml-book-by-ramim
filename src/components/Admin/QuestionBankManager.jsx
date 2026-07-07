@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, addDoc, query, where, limit, startAfter } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -539,6 +539,18 @@ function QuestionBankList() {
     }
   };
 
+  const uniqueFilters = useMemo(() => {
+    const filters = new Set();
+    items.forEach(q => {
+      if (q.topic) filters.add(q.topic);
+      const allBoards = [...(q.institutions || []), ...(q.boards || [])];
+      allBoards.forEach(b => {
+        if (b.name) filters.add(`${b.name} ${b.year || ''}`.trim());
+      });
+    });
+    return Array.from(filters).sort();
+  }, [items]);
+
   return (
     <div>
       <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl mb-6 grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -582,11 +594,17 @@ function QuestionBankList() {
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input 
                   type="text" 
+                  list="filter-options"
                   value={localSearch} 
                   onChange={e => setLocalSearch(e.target.value)} 
                   placeholder="প্রশ্ন, টপিক বা বোর্ড খুঁজুন..." 
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 focus:border-indigo-500 outline-none" 
                 />
+                <datalist id="filter-options">
+                  {uniqueFilters.map((filter, i) => (
+                    <option key={i} value={filter} />
+                  ))}
+                </datalist>
               </div>
             </div>
           )}
@@ -594,7 +612,8 @@ function QuestionBankList() {
           {items.filter(q => {
             if (!localSearch) return true;
             const ls = localSearch.toLowerCase();
-            const textToSearch = `${q.question || ''} ${q.text || ''} ${q.stem || ''} ${q.title || ''} ${q.topic || ''} ${(q.institutions || q.boards || []).map(b => b.name + ' ' + b.year).join(' ')}`.toLowerCase();
+            const allBoards = [...(q.institutions || []), ...(q.boards || [])];
+            const textToSearch = `${q.question || ''} ${q.text || ''} ${q.stem || ''} ${q.title || ''} ${q.topic || ''} ${allBoards.map(b => b.name + ' ' + b.year).join(' ')}`.toLowerCase();
             return textToSearch.includes(ls);
           }).map((q, idx) => (
             <div key={q.id} className="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
@@ -603,8 +622,9 @@ function QuestionBankList() {
                   <div className="flex flex-wrap gap-2 items-center mb-2">
                     <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-xs font-bold">#{idx+1}</span>
                     <span className="text-slate-500 text-xs">{q.chapterId}</span>
+                    <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase">{q.type || type}</span>
                     {q.topic && <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded text-[10px]">{q.topic}</span>}
-                    {(q.institutions || q.boards || []).map((b, i) => (
+                    {[...(q.institutions || []), ...(q.boards || [])].map((b, i) => (
                       <span key={i} className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px]">
                         {b.name} {b.year}
                       </span>
@@ -805,22 +825,23 @@ function QuestionBankList() {
                         <span>বোর্ড / প্রতিষ্ঠান (Board/Institution)</span>
                         <button 
                           onClick={() => setEditingQ({
-                            ...editingQ, 
-                            institutions: [...(editingQ.institutions || editingQ.boards || []), { name: '', year: '' }]
+                            ...editingQ,
+                            institutions: [...(editingQ.institutions || []), ...(editingQ.boards || []), { name: '', year: '' }],
+                            boards: []
                           })}
                           className="text-[10px] bg-slate-800 hover:bg-slate-700 px-2 py-0.5 rounded text-indigo-400"
                         >+ যুক্ত করুন</button>
                       </label>
                       <div className="space-y-2">
-                        {((editingQ.institutions || editingQ.boards) || []).map((inst, idx) => (
+                        {[...(editingQ.institutions || []), ...(editingQ.boards || [])].map((inst, idx) => (
                           <div key={idx} className="flex gap-2">
                             <input 
                               type="text" 
                               value={inst.name || ''} 
                               onChange={e => {
-                                const newInsts = [...(editingQ.institutions || editingQ.boards || [])];
+                                const newInsts = [...(editingQ.institutions || []), ...(editingQ.boards || [])];
                                 newInsts[idx] = { ...newInsts[idx], name: e.target.value };
-                                setEditingQ({...editingQ, institutions: newInsts});
+                                setEditingQ({...editingQ, institutions: newInsts, boards: []});
                               }} 
                               placeholder="বোর্ডের নাম (Dhaka Board)" 
                               className="w-2/3 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-indigo-500 outline-none" 
@@ -829,18 +850,18 @@ function QuestionBankList() {
                               type="text" 
                               value={inst.year || ''} 
                               onChange={e => {
-                                const newInsts = [...(editingQ.institutions || editingQ.boards || [])];
+                                const newInsts = [...(editingQ.institutions || []), ...(editingQ.boards || [])];
                                 newInsts[idx] = { ...newInsts[idx], year: e.target.value };
-                                setEditingQ({...editingQ, institutions: newInsts});
+                                setEditingQ({...editingQ, institutions: newInsts, boards: []});
                               }} 
                               placeholder="সাল (2023)" 
                               className="w-1/3 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-indigo-500 outline-none" 
                             />
                             <button 
                               onClick={() => {
-                                const newInsts = [...(editingQ.institutions || editingQ.boards || [])];
+                                const newInsts = [...(editingQ.institutions || []), ...(editingQ.boards || [])];
                                 newInsts.splice(idx, 1);
-                                setEditingQ({...editingQ, institutions: newInsts});
+                                setEditingQ({...editingQ, institutions: newInsts, boards: []});
                               }}
                               className="p-1.5 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white rounded-lg transition-colors"
                             >
@@ -848,7 +869,7 @@ function QuestionBankList() {
                             </button>
                           </div>
                         ))}
-                        {((editingQ.institutions || editingQ.boards) || []).length === 0 && (
+                        {[...(editingQ.institutions || []), ...(editingQ.boards || [])].length === 0 && (
                           <p className="text-[10px] text-slate-500 italic">কোনো বোর্ড যুক্ত করা নেই।</p>
                         )}
                       </div>
