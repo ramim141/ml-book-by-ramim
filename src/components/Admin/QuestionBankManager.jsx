@@ -31,6 +31,7 @@ function QuestionBankUpload() {
   const [chapterId, setChapterId] = useState('');
   const [type, setType] = useState('mcq');
   const [loading, setLoading] = useState(false);
+  const [localSearch, setLocalSearch] = useState('');
   const [existingCount, setExistingCount] = useState(null); 
   const [checkingCount, setCheckingCount] = useState(false);
   
@@ -575,16 +576,39 @@ function QuestionBankList() {
           {items.length === 0 ? (
             <div className="text-center py-10 text-slate-500">কোনো ডাটা পাওয়া যায়নি।</div>
           ) : (
-            <p className="text-sm font-bold text-slate-400 mb-2">এই পেজে {items.length} টি আইটেম দেখাচ্ছে</p>
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-2">
+              <p className="text-sm font-bold text-slate-400">এই পেজে {items.length} টি আইটেম দেখাচ্ছে</p>
+              <div className="relative w-full sm:w-64">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input 
+                  type="text" 
+                  value={localSearch} 
+                  onChange={e => setLocalSearch(e.target.value)} 
+                  placeholder="প্রশ্ন বা টপিক খুঁজুন..." 
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 focus:border-indigo-500 outline-none" 
+                />
+              </div>
+            </div>
           )}
           
-          {items.map((q, idx) => (
+          {items.filter(q => {
+            if (!localSearch) return true;
+            const ls = localSearch.toLowerCase();
+            const textToSearch = `${q.question || ''} ${q.text || ''} ${q.stem || ''} ${q.title || ''} ${q.topic || ''} ${(q.institutions || q.boards || []).map(b => b.name + ' ' + b.year).join(' ')}`.toLowerCase();
+            return textToSearch.includes(ls);
+          }).map((q, idx) => (
             <div key={q.id} className="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
               <div className="flex justify-between items-start gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="flex gap-2 items-center mb-2">
+                  <div className="flex flex-wrap gap-2 items-center mb-2">
                     <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-xs font-bold">#{idx+1}</span>
                     <span className="text-slate-500 text-xs">{q.chapterId}</span>
+                    {q.topic && <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded text-[10px]">{q.topic}</span>}
+                    {(q.institutions || q.boards || []).map((b, i) => (
+                      <span key={i} className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px]">
+                        {b.name} {b.year}
+                      </span>
+                    ))}
                   </div>
                   
                   {type === 'video' && (
