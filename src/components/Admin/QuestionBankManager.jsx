@@ -584,7 +584,7 @@ function QuestionBankList() {
                   type="text" 
                   value={localSearch} 
                   onChange={e => setLocalSearch(e.target.value)} 
-                  placeholder="প্রশ্ন বা টপিক খুঁজুন..." 
+                  placeholder="প্রশ্ন, টপিক বা বোর্ড খুঁজুন..." 
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 focus:border-indigo-500 outline-none" 
                 />
               </div>
