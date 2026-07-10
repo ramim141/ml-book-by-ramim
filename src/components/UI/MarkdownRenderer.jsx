@@ -5,10 +5,10 @@ import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import 'katex/dist/katex.min.css';
 
-const MarkdownRenderer = ({ content }) => {
+const MarkdownRenderer = ({ content, className = '' }) => {
   if (!content) return null;
   return (
-    <span className="prose prose-invert max-w-none prose-p:inline prose-p:leading-relaxed">
+    <div className={`prose prose-invert max-w-none prose-p:leading-relaxed ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkMath, remarkGfm]}
         rehypePlugins={[rehypeKatex]}
@@ -31,7 +31,7 @@ const MarkdownRenderer = ({ content }) => {
       >
         {content}
       </ReactMarkdown>
-    </span>
+    </div>
   );
 };
 

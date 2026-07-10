@@ -22,7 +22,7 @@ export const cleanPrefix = (text) => {
 };
 
 export const MarkdownRenderer = ({ content }) => (
-  <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-p:my-0 text-slate-300 text-[13px] sm:text-sm">
+  <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-p:my-2 text-slate-300 text-[13px] sm:text-sm">
     <ReactMarkdown
       remarkPlugins={[remarkMath, remarkGfm]}
       rehypePlugins={[rehypeKatex]}
