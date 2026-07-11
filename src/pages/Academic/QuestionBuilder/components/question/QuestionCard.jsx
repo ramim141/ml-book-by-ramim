@@ -90,6 +90,11 @@ const QuestionCard = ({ q, qIndex, isAdded, onAdd, onRemove, expandedCQs, setExp
             <div className="flex-1 min-w-0">
               <div className="text-slate-200 text-[13px] sm:text-sm font-semibold leading-relaxed mb-2">
                 <MarkdownRenderer content={q.question} />
+                { (q.imageUrl || q.image || q.image_url) && (
+                  <div className="mt-3 mb-2 rounded-xl overflow-hidden border border-slate-700/50 bg-slate-900/50 inline-block">
+                    <img src={q.imageUrl || q.image || q.image_url} alt="Question Diagram" className="max-w-full h-auto max-h-48 object-contain" loading="lazy" />
+                  </div>
+                )}
               </div>
             </div>
           </div>

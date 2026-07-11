@@ -36,9 +36,9 @@ const SharedMCQItem = memo(({ mcq, index, chapterName }) => {
         <div className="flex-1 mt-1 min-w-0">
           <div className="text-slate-200 text-sm sm:text-base font-semibold leading-relaxed mb-2.5 pr-10 relative">
             <MarkdownRenderer content={mcq.question} />
-            {mcq.imageUrl && (
+            {(mcq.imageUrl || mcq.image || mcq.image_url) && (
               <div className="mt-4 mb-4 rounded-xl overflow-hidden border border-slate-700/50 bg-slate-900/50 inline-block">
-                <img src={mcq.imageUrl} alt="Question Diagram" className="max-w-full h-auto max-h-64 object-contain" loading="lazy" />
+                <img src={mcq.imageUrl || mcq.image || mcq.image_url} alt="Question Diagram" className="max-w-full h-auto max-h-64 object-contain" loading="lazy" />
               </div>
             )}
             <div className="absolute top-0 -right-2 flex flex-col items-center gap-1">

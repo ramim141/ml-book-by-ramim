@@ -55,7 +55,7 @@ export const QuestionMetaBadge = React.memo(({ label, value, className = '' }) =
 });
 
 export const ExpandedQuestionDetails = React.memo(({ q }) => {
-  const imageSrc = q.image || q.image_url;
+  const imageSrc = q.imageUrl || q.image || q.image_url;
   const cqLabels = { ka: 'ক', kha: 'খ', ga: 'গ', gha: 'ঘ' };
 
   if (q.type === 'mcq') {
