@@ -91,9 +91,9 @@ const SharedKQItem = memo(({ kq, chapterName }) => {
                   <img src={kq.imageUrl} alt="Question Image" className="max-w-full h-auto max-h-48 object-contain" loading="lazy" />
                 </div>
               )}
-              <h3 className="text-lg sm:text-xl font-bold text-slate-100 leading-relaxed">
-                {kq.question || "প্রশ্ন"}
-              </h3>
+              <div className="text-lg sm:text-xl font-bold text-slate-100 leading-relaxed">
+                <MarkdownRenderer content={kq.question || "প্রশ্ন"} />
+              </div>
             </div>
 
             {/* Bottom Row: Metadata & Hint */}
