@@ -69,7 +69,7 @@ const SharedCQItem = memo(({ cq, index }) => {
         <div className="px-4 pt-2 pb-4 sm:px-5 sm:pb-5 sm:pt-3 border-t border-slate-700/30">
           {/* Stem / Uddipok */}
           {(cq.image || cq.image_url || cq.imageUrl || cq.stem) && (
-            <div className="p-4 mb-5 text-xs leading-relaxed whitespace-pre-wrap border bg-slate-900/40 rounded-xl sm:p-5 border-slate-800/80 text-slate-300 sm:text-base">
+            <div className="p-4 mb-5 text-xs leading-relaxed border bg-slate-900/40 rounded-xl sm:p-5 border-slate-800/80 text-slate-300 sm:text-base">
               {(cq.image || cq.image_url || cq.imageUrl) && (
                 <div className="mb-4">
                   <img src={cq.imageUrl || cq.image || cq.image_url} alt="উদ্দীপকের চিত্র" className="object-contain h-auto max-w-full p-1 border rounded-lg max-h-64 border-slate-700/50 bg-slate-800/50" />
