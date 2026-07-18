@@ -56,7 +56,7 @@ export default function ModelTestResult() {
   questions.forEach((q, idx) => {
     if (answers[idx] === undefined) {
       skippedCount++;
-    } else if (answers[idx] === q.correctAnswer) {
+    } else if (answers[idx] === q.answer) {
       correctCount++;
     } else {
       wrongCount++;
@@ -117,7 +117,7 @@ export default function ModelTestResult() {
         
         if (answers[idx] !== undefined) {
           chapterUpdates[chapter].attempted += 1;
-          if (answers[idx] === q.correctAnswer) {
+          if (answers[idx] === q.answer) {
             chapterUpdates[chapter].correct += 1;
           } else {
             chapterUpdates[chapter].wrong += 1;
@@ -275,7 +275,7 @@ export default function ModelTestResult() {
           <div className="space-y-6">
             {questions.map((q, idx) => {
               const userAnswer = answers[idx];
-              const isCorrect = userAnswer === q.correctAnswer;
+              const isCorrect = userAnswer === q.answer;
               const isSkipped = userAnswer === undefined;
               
               let statusBorder = isSkipped ? 'border-slate-700' : (isCorrect ? 'border-emerald-500/50' : 'border-rose-500/50');
@@ -312,7 +312,7 @@ export default function ModelTestResult() {
 
                   <div className="space-y-2 sm:ml-12 mt-4 sm:mt-0">
                     {q.options.map((opt, optIdx) => {
-                      const isOptionCorrect = optIdx === q.correctAnswer;
+                      const isOptionCorrect = optIdx === q.answer;
                       const isOptionSelected = optIdx === userAnswer;
                       
                       let optClass = "border-slate-700/50 bg-slate-900/30 text-slate-400";

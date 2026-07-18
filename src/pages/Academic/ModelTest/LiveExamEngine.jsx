@@ -114,7 +114,7 @@ export default function LiveExamEngine() {
       questions.forEach((q, idx) => {
         if (answers[idx] === undefined) {
           unanswered++;
-        } else if (answers[idx] === q.correctOption) {
+        } else if (answers[idx] === q.answer) {
           correct++;
         } else {
           wrong++;

@@ -229,7 +229,7 @@ export default function LiveExamResult() {
         <div className="space-y-6">
           {questions.map((q, qIdx) => {
             const userAnswer = submission.answers[qIdx];
-            const isCorrect = userAnswer === q.correctOption;
+            const isCorrect = userAnswer === q.answer;
             const isUnanswered = userAnswer === undefined;
             
             return (
@@ -255,7 +255,7 @@ export default function LiveExamResult() {
                 <div className="space-y-3 pl-0 sm:pl-16">
                   {q.options.map((opt, optIdx) => {
                     const isSelected = optIdx === userAnswer;
-                    const isRightAnswer = optIdx === q.correctOption;
+                    const isRightAnswer = optIdx === q.answer;
                     
                     let bgClass = "bg-slate-800/50 border-slate-700/50";
                     let icon = <Circle className="w-5 h-5 text-slate-600" />;
