@@ -111,7 +111,7 @@ const QuestionCard = ({ q, qIndex, isAdded, onAdd, onRemove, expandedCQs, setExp
           </div>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:ml-12">
-          {q.options?.map((opt, oi) => (
+          {(Array.isArray(q.options) ? q.options : (typeof q.options === 'object' && q.options !== null ? Object.values(q.options) : [])).map((opt, oi) => (
             <div key={oi} className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-700/50 bg-slate-900/40 text-slate-300 text-xs sm:text-sm hover:border-slate-600 transition">
               <Circle className="w-4 h-4 shrink-0 text-slate-500" />
               <span className="flex-1"><MarkdownRenderer content={opt} /></span>

@@ -253,7 +253,7 @@ export default function LiveExamResult() {
                 </div>
 
                 <div className="space-y-3 pl-0 sm:pl-16">
-                  {q.options.map((opt, optIdx) => {
+                  {(Array.isArray(q.options) ? q.options : (typeof q.options === 'object' && q.options !== null ? Object.values(q.options) : [])).map((opt, optIdx) => {
                     const isSelected = optIdx === userAnswer;
                     const isRightAnswer = optIdx === q.answer;
                     

@@ -311,7 +311,7 @@ export default function ModelTestResult() {
                   </div>
 
                   <div className="space-y-2 sm:ml-12 mt-4 sm:mt-0">
-                    {q.options.map((opt, optIdx) => {
+                    {(Array.isArray(q.options) ? q.options : (typeof q.options === 'object' && q.options !== null ? Object.values(q.options) : [])).map((opt, optIdx) => {
                       const isOptionCorrect = optIdx === q.answer;
                       const isOptionSelected = optIdx === userAnswer;
                       

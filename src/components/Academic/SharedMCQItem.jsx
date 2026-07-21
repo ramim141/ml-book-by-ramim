@@ -83,7 +83,7 @@ const SharedMCQItem = memo(({ mcq, index, chapterName }) => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-4 sm:ml-12">
-        {(mcq.options || []).map((option, optIdx) => {
+        {(Array.isArray(mcq.options) ? mcq.options : (typeof mcq.options === 'object' && mcq.options !== null ? Object.values(mcq.options) : [])).map((option, optIdx) => {
           let optionClass = "border-slate-700/50 bg-slate-800/40 hover:bg-slate-800/80 hover:border-slate-600 text-slate-300 cursor-pointer";
           let Icon = Circle;
 

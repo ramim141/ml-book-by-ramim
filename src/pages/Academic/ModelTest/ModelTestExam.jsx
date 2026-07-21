@@ -132,7 +132,7 @@ export default function ModelTestExam() {
               </div>
 
               <div className="space-y-2.5 sm:space-y-3">
-                {q.options.map((option, optIdx) => {
+                {(Array.isArray(q.options) ? q.options : (typeof q.options === 'object' && q.options !== null ? Object.values(q.options) : [])).map((option, optIdx) => {
                   const isSelected = answers[qIdx] === optIdx;
                   return (
                     <button
