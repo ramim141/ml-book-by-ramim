@@ -52,7 +52,7 @@ export default function MLTopics() {
       <SEO 
         title="টপিকসমূহ | Topics" 
         description="বইয়ের সবগুলো মেশিন লার্নিং শব্দ এক জায়গায়। আপনার পছন্দের শব্দ খুঁজে নিয়ে পড়া শুরু করুন। Explore all Machine Learning topics and keywords from the Bengali ML book." 
-        canonical="https://learnwithramim.com/ml-topics"
+        canonical="https://learnwithramim.com/ml/topics"
       />
       <motion.div
         initial="hidden"
@@ -228,7 +228,7 @@ function TopicCard({ word, index, viewMode }) {
       className="h-full"
     >
       <Link
-        to={`/word/${word.path}`}
+        to={`/ml/word/${word.path}`}
         className={`group flex h-full rounded-lg border border-cyan-100/[0.08] bg-[#071521] p-5 transition hover:-translate-y-0.5 hover:border-teal-300/30 hover:bg-[#081927] ${
           isList ? 'flex-col gap-4 md:flex-row md:items-center md:justify-between' : 'flex-col'
         }`}

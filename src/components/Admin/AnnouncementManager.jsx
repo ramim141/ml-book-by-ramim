@@ -3,9 +3,12 @@ import { collection, addDoc, getDocs, query, orderBy, deleteDoc, doc, updateDoc 
 import { db } from '../../config/firebase';
 import { Megaphone, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import { useConfirm } from '../../hooks/useConfirm';
 
 export default function AnnouncementManager() {
   const queryClient = useQueryClient();
+  const [confirm, confirmDialog] = useConfirm();
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [type, setType] = useState('info');
@@ -30,7 +33,7 @@ export default function AnnouncementManager() {
     },
     onError: (e) => {
       console.error(e);
-      alert("Error posting announcement");
+      toast.error('নোটিশ পাবলিশ করা যায়নি।');
       setSaving(false);
     }
   });
@@ -46,14 +49,14 @@ export default function AnnouncementManager() {
   });
 
   const handlePost = () => {
-    if (!title || !message) return alert("Title and Message are required!");
+    if (!title || !message) return toast.error('শিরোনাম ও মেসেজ দুটোই দিন।');
     setSaving(true);
     const newDoc = { title, message, type, createdAt: new Date(), active: true };
     addMutation.mutate(newDoc);
   };
 
-  const handleDelete = (id) => {
-    if (!confirm("Are you sure?")) return;
+  const handleDelete = async (id) => {
+    if (!(await confirm({ title: 'নোটিশ মুছে ফেলবেন?', message: 'মুছে ফেললে এটি আর ফিরে পাওয়া যাবে না।' }))) return;
     deleteMutation.mutate(id);
   };
 
@@ -69,12 +72,13 @@ export default function AnnouncementManager() {
 
   return (
     <div className="max-w-3xl">
-      <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><Megaphone className="text-amber-400" /> নোটিশ বোর্ড ম্যানেজমেন্ট</h2>
+      {confirmDialog}
+      {/* শিরোনাম প্যানেল হেডারেই আছে — এখানে রাখলে ডেস্কটপে দুবার দেখাত */}
 
       <div className="bg-slate-950 border border-slate-800 p-5 rounded-xl mb-8 space-y-4">
         <div>
           <label className="text-xs text-slate-400 mb-1 block">নোটিশের ধরন</label>
-          <select value={type} onChange={e => setType(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none">
+          <select value={type} onChange={e => setType(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-base sm:text-sm focus:border-indigo-500 outline-none">
             <option value="info">Info (সাধারণ নোটিশ)</option>
             <option value="warning">Warning (সতর্কতা / গুরুত্বপূর্ণ)</option>
             <option value="success">Success (সাফল্য / অফার)</option>
@@ -82,11 +86,11 @@ export default function AnnouncementManager() {
         </div>
         <div>
           <label className="text-xs text-slate-400 mb-1 block">শিরোনাম (Title)</label>
-          <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. কালকে নতুন মডেল টেস্ট" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none" />
+          <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. কালকে নতুন মডেল টেস্ট" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-base sm:text-sm focus:border-indigo-500 outline-none" />
         </div>
         <div>
           <label className="text-xs text-slate-400 mb-1 block">মেসেজ (Message)</label>
-          <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="বিস্তারিত..." className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm min-h-[80px] focus:border-indigo-500 outline-none" />
+          <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="বিস্তারিত..." className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-base sm:text-sm min-h-[80px] focus:border-indigo-500 outline-none" />
         </div>
         <button onClick={handlePost} disabled={saving} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold flex items-center gap-2 transition-colors disabled:opacity-50">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Megaphone className="w-4 h-4" />} নোটিশ পাবলিশ করুন

@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, orderBy, limit, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import toast from 'react-hot-toast';
+import { useConfirm } from '../../hooks/useConfirm';
 import { Bell, Send, Trash2, Globe, Users, Loader2, AlertTriangle, Check } from 'lucide-react';
 
 export default function NotificationManager() {
+  const [confirm, confirmDialog] = useConfirm();
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [type, setType] = useState('info');
@@ -37,10 +40,10 @@ export default function NotificationManager() {
   const handleSendGlobal = async (e) => {
     e.preventDefault();
     if (!title.trim() || !message.trim()) {
-      alert("দয়া করে টাইটেল এবং মেসেজ দিন।");
+      toast.error('দয়া করে টাইটেল এবং মেসেজ দিন।');
       return;
     }
-    if (!confirm("আপনি কি নিশ্চিত যে আপনি সকল ইউজারকে এই নোটিফিকেশন পাঠাতে চান?")) return;
+    if (!(await confirm({ title: 'সবাইকে পাঠাবেন?', message: 'এই নোটিফিকেশনটি সব ব্যবহারকারীর কাছে চলে যাবে।', confirmLabel: 'হ্যাঁ, পাঠান', tone: 'default' }))) return;
 
     setLoading(true);
     try {
@@ -52,32 +55,33 @@ export default function NotificationManager() {
         createdAt: serverTimestamp(),
         readBy: []
       });
-      alert("সফলভাবে গ্লোবাল নোটিফিকেশন পাঠানো হয়েছে!");
+      toast.success('সবাইকে নোটিফিকেশন পাঠানো হয়েছে।');
       setTitle('');
       setMessage('');
       setType('info');
       fetchRecent();
     } catch (error) {
       console.error(error);
-      alert("নোটিফিকেশন পাঠাতে সমস্যা হয়েছে।");
+      toast.error('নোটিফিকেশন পাঠাতে সমস্যা হয়েছে।');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this notification?")) return;
+    if (!(await confirm({ title: 'নোটিফিকেশন মুছে ফেলবেন?', message: 'এটি আর ফিরে পাওয়া যাবে না।' }))) return;
     try {
       await deleteDoc(doc(db, 'notifications', id));
       setRecentNotifications(prev => prev.filter(n => n.id !== id));
     } catch (error) {
       console.error(error);
-      alert("Failed to delete.");
+      toast.error('মুছে ফেলা যায়নি।');
     }
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
+      {confirmDialog}
       <div className="flex items-center gap-3 border-b border-slate-700/50 pb-5">
         <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
           <Globe className="w-5 h-5" />
@@ -89,7 +93,7 @@ export default function NotificationManager() {
       </div>
 
       <div className="grid md:grid-cols-5 gap-8">
-        <div className="md:col-span-3">
+        <div className="md:col-span-3 min-w-0">
           <div className="bg-slate-900/50 border border-slate-700 rounded-2xl p-6 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-[50px] rounded-full"></div>
             
@@ -101,7 +105,7 @@ export default function NotificationManager() {
                   value={title} 
                   onChange={e => setTitle(e.target.value)}
                   placeholder="e.g., System Update, New Feature Added!"
-                  className="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-4 py-3 text-slate-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" 
+                  className="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-4 py-3 text-base sm:text-sm text-slate-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" 
                 />
               </div>
               
@@ -112,7 +116,7 @@ export default function NotificationManager() {
                   onChange={e => setMessage(e.target.value)}
                   placeholder="Write the detailed message here..."
                   rows="4"
-                  className="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-4 py-3 text-slate-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all custom-scrollbar resize-none" 
+                  className="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-4 py-3 text-base sm:text-sm text-slate-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all custom-scrollbar resize-none" 
                 ></textarea>
               </div>
 
@@ -120,15 +124,15 @@ export default function NotificationManager() {
                 <label className="block text-sm font-bold text-slate-300 mb-3">Notification Type</label>
                 <div className="flex gap-4">
                   <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${type === 'info' ? 'bg-blue-500/20 border-blue-500 text-blue-400 font-bold' : 'bg-[#0b1120] border-slate-700 text-slate-400 hover:border-slate-500'}`}>
-                    <input type="radio" name="type" value="info" checked={type === 'info'} onChange={() => setType('info')} className="hidden" />
+                    <input type="radio" name="type" value="info" checked={type === 'info'} onChange={() => setType('info')} className="hidden text-base sm:text-sm" />
                     <Bell className="w-4 h-4" /> Info
                   </label>
                   <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${type === 'success' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 font-bold' : 'bg-[#0b1120] border-slate-700 text-slate-400 hover:border-slate-500'}`}>
-                    <input type="radio" name="type" value="success" checked={type === 'success'} onChange={() => setType('success')} className="hidden" />
+                    <input type="radio" name="type" value="success" checked={type === 'success'} onChange={() => setType('success')} className="hidden text-base sm:text-sm" />
                     <Check className="w-4 h-4" /> Success
                   </label>
                   <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${type === 'warning' ? 'bg-amber-500/20 border-amber-500 text-amber-400 font-bold' : 'bg-[#0b1120] border-slate-700 text-slate-400 hover:border-slate-500'}`}>
-                    <input type="radio" name="type" value="warning" checked={type === 'warning'} onChange={() => setType('warning')} className="hidden" />
+                    <input type="radio" name="type" value="warning" checked={type === 'warning'} onChange={() => setType('warning')} className="hidden text-base sm:text-sm" />
                     <AlertTriangle className="w-4 h-4" /> Warning
                   </label>
                 </div>
@@ -148,7 +152,7 @@ export default function NotificationManager() {
           </div>
         </div>
 
-        <div className="md:col-span-2 space-y-4">
+        <div className="md:col-span-2 min-w-0 space-y-4">
           <h3 className="font-bold text-white flex items-center gap-2"><Bell className="w-4 h-4 text-slate-400" /> Recent Broadcasts</h3>
           {loadingHistory ? (
             <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-slate-500" /></div>

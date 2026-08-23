@@ -4,6 +4,7 @@ import { useParams, Link, Navigate } from 'react-router-dom';
 import { HelpCircle, ChevronDown, ChevronUp, CheckCircle2, Circle, ArrowLeft, Loader2, Search, SlidersHorizontal, LayoutGrid, Filter, Flag } from 'lucide-react';
 import FilterSelect from '../../../components/UI/FilterSelect';
 import SharedMCQItem from '../../../components/Academic/SharedMCQItem';
+import { SkeletonList } from '../../../components/UI/Skeleton';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { resolveSubjectFromRoute } from '../../../utils/academicRoutes';
@@ -278,9 +279,8 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
 
         {/* Loader or Questions Grid */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
-            <p className="text-slate-400 text-sm">প্রশ্ন লোড হচ্ছে...</p>
+          <div className="py-4">
+            <SkeletonList count={5} />
           </div>
         ) : filteredQuestions.length > 0 ? (
           <div className="flex flex-col gap-4 pb-8">

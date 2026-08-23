@@ -48,7 +48,7 @@ export default function Bookmarks() {
             <p className="text-slate-400 text-center max-w-md">
               আপনি এখনো কোনো আর্টিকেল বা পর্ব সেভ করেননি। পড়ার সময় বুকমার্ক আইকনে ক্লিক করে সেভ করুন।
             </p>
-            <Link to="/dashboard" className="mt-6 px-6 py-2.5 bg-teal-500/10 text-teal-400 font-bold rounded-full border border-teal-500/20 hover:bg-teal-500/20 transition-all">
+            <Link to="/ml/dashboard" className="mt-6 px-6 py-2.5 bg-teal-500/10 text-teal-400 font-bold rounded-full border border-teal-500/20 hover:bg-teal-500/20 transition-all">
               বই পড়তে শুরু করুন
             </Link>
           </div>

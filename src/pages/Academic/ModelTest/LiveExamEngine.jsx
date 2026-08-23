@@ -1,14 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { doc, getDoc, collection, query, where, getDocs, setDoc, Timestamp } from 'firebase/firestore';
+import { recordMistake } from '../../../lib/mistakes';
+import { recordExamProgress, normalizeChapterId } from '../../../lib/examProgress';
 import { db } from '../../../config/firebase';
 import { useAuth } from '../../../contexts/AuthContext';
-import { Clock, Loader2, CheckCircle2, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Clock, Loader2, CheckCircle2, AlertTriangle, ArrowLeft, WifiOff, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import 'katex/dist/katex.min.css';
+import { Skeleton, SkeletonList } from '../../../components/UI/Skeleton';
 
 const enToBnNumber = (numStr) => {
   if (!numStr) return numStr;
@@ -32,13 +35,49 @@ export default function LiveExamEngine() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  const [answers, setAnswers] = useState({});
+  // উত্তরগুলো প্রতিবার বদলালেই লোকালি রাখি। মোবাইল ডেটা কেটে গেলে বা
+  // ভুল করে ট্যাব বন্ধ হলে পুরো পরিশ্রম নষ্ট হওয়ার কথা নয় — ফিরে এলে
+  // যেখানে ছিল সেখান থেকেই শুরু হবে।
+  const answersKey = `live-exam-answers:${examId}:${currentUser?.uid || 'guest'}`;
+  const [answers, setAnswers] = useState(() => {
+    try {
+      const saved = localStorage.getItem(answersKey);
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+  const [restoredAnswers] = useState(() => {
+    try { return Object.keys(JSON.parse(localStorage.getItem(answersKey) || '{}')).length; }
+    catch { return 0; }
+  });
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [timeLeft, setTimeLeft] = useState(0);
+  // কত সময় লাগল তা হিসাব করতে — state এ রাখলে handleSubmit প্রতি সেকেন্ডে
+  // নতুন করে তৈরি হতো, আর তাতে টাইমারের ইফেক্টও বারবার রিসেট হতো
+  const startedAtRef = useRef(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // alert() পুরো ট্যাব আটকে রাখে আর কারণটাও বোঝায় না — বদলে পেজেই দেখাই
+  const [submitError, setSubmitError] = useState(null);
 
   useEffect(() => {
     fetchExamData();
   }, [examId]);
+
+  // উত্তর বদলালেই লোকালি সংরক্ষণ (বাইরের সিস্টেমে লেখা — ইফেক্টের সঠিক কাজ)
+  useEffect(() => {
+    try { localStorage.setItem(answersKey, JSON.stringify(answers)); } catch { /* কোটা শেষ হলে চুপচাপ চলুক */ }
+  }, [answers, answersKey]);
+
+  // সংযোগ আছে কি না — জমা দেওয়ার আগে জানা দরকার
+  useEffect(() => {
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
 
   const fetchExamData = async () => {
     try {
@@ -72,19 +111,45 @@ export default function LiveExamEngine() {
 
       setExamConfig({ id: examDoc.id, ...examData, endTime });
 
-      // Fetch questions (simplified: fetch by subject for now, ideally fetch by ID array)
-      const q = query(
-        collection(db, 'academic_content'),
-        where('subject', '==', examData.subject),
-        where('type', '==', 'mcq')
-      );
-      const snapshot = await getDocs(q);
-      let fetchedQuestions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      
+      // অ্যাডমিন সরাসরি JSON দিয়ে প্রশ্ন দিলে প্রশ্নব্যাংকে যাওয়ার দরকার নেই
+      const custom = examData.customQuestions || [];
+      let fetchedQuestions;
+
+      if (custom.length > 0) {
+        fetchedQuestions = custom.map((item, i) => ({ id: item.id || `custom-${i + 1}`, ...item }));
+      } else {
+        const q = query(
+          collection(db, 'academic_content'),
+          where('subject', '==', examData.subject),
+          where('type', '==', 'mcq')
+        );
+        const snapshot = await getDocs(q);
+        fetchedQuestions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      }
+
+      // অধ্যায় ফিল্টার শুধু প্রশ্নব্যাংকের ক্ষেত্রে। কাস্টম প্রশ্নে chapterId
+      // ঐচ্ছিক — সেখানেও ফিল্টার চালালে অধ্যায়হীন প্রশ্নগুলো বাদ পড়ে
+      // পরীক্ষা শূন্য হয়ে যেত।
+      const wantedChapters = custom.length > 0
+        ? []
+        : (examData.chapters || []).map(normalizeChapterId);
+      if (wantedChapters.length > 0) {
+        fetchedQuestions = fetchedQuestions.filter(
+          (item) => wantedChapters.includes(normalizeChapterId(item.chapterId))
+        );
+      }
+
+      if (fetchedQuestions.length === 0) {
+        setError('এই পরীক্ষার জন্য কোনো প্রশ্ন পাওয়া যায়নি। অ্যাডমিনকে জানান।');
+        setLoading(false);
+        return;
+      }
+
       // Shuffle and slice to totalQuestions
       fetchedQuestions = fetchedQuestions.sort(() => 0.5 - Math.random()).slice(0, examData.totalQuestions || 25);
-      
+
       setQuestions(fetchedQuestions);
+      startedAtRef.current = Date.now();
 
       // Calculate time left: minimum of duration or time until end time
       const secondsUntilEnd = Math.floor((endTime.getTime() - now.getTime()) / 1000);
@@ -125,11 +190,13 @@ export default function LiveExamEngine() {
       const negativeMark = examConfig.negativeMarking || 0;
       const totalScore = (correct * marksPerQ) - (wrong * negativeMark);
 
+      // লিডারবোর্ড ও রেজাল্ট পেজের জন্য যতটুকু দরকার ততটুকুই এখানে।
+      // `answers` ও `email` আগে এই ডকেই থাকত, অথচ নিয়ম অনুযায়ী লগইন করা
+      // যে কেউ অন্যের সাবমিশন পড়তে পারে — অর্থাৎ অন্যের উত্তর ও ইমেইল
+      // দেখা যেত। ওগুলো এখন self-only সাবডকুমেন্টে।
       const submissionData = {
         userId: currentUser.uid,
         userName: currentUser.displayName || 'Student',
-        email: currentUser.email,
-        answers,
         correct,
         wrong,
         unanswered,
@@ -137,22 +204,93 @@ export default function LiveExamEngine() {
         submittedAt: Timestamp.now(),
       };
 
+      // ── অপরিহার্য: পরীক্ষা জমা ─────────────────────────────────
+      // এটি সফল হলেই ছাত্রের পরীক্ষা জমা হয়ে গেছে। এর পরের লেখাগুলো
+      // (উত্তরপত্র, প্রগ্রেস, ইতিহাস) সহায়ক — কোনোটা ব্যর্থ হলেও জমা
+      // দেওয়া আটকানো যাবে না। আগে private/data লেখাটা এই একই try তে ছিল,
+      // ফলে ওটা permission-denied হলে জমা সফল হওয়া সত্ত্বেও ছাত্র এরর
+      // দেখে আটকে থাকত।
       await setDoc(submissionRef, submissionData);
-      
-      // Save exam snapshot in user's profile for result viewing
-      await setDoc(doc(db, 'users', currentUser.uid, 'live_exam_history', examId), {
-        examId,
-        title: examConfig.title,
-        subject: examConfig.subject,
-        submittedAt: Timestamp.now(),
-        totalScore,
-        questionsSnapshot: questions // store snapshot so result page can render them
+
+      // ── সহায়ক লেখা: প্রতিটি আলাদা, ব্যর্থ হলেও এগিয়ে যাই ──────────
+      const optional = [];
+
+      // নিজের উত্তরপত্র (শুধু নিজে পড়তে পারবে)
+      optional.push(
+        setDoc(doc(submissionRef, 'private', 'data'), {
+          email: currentUser.email,
+          answers,
+          submittedAt: Timestamp.now(),
+        }).catch((err) => console.error('উত্তরপত্র সেভ হয়নি', err))
+      );
+
+      // রেজাল্ট পেজ প্রশ্নগুলো এখান থেকেই দেখায়
+      optional.push(
+        setDoc(doc(db, 'users', currentUser.uid, 'live_exam_history', examId), {
+          examId,
+          title: examConfig.title,
+          subject: examConfig.subject,
+          submittedAt: Timestamp.now(),
+          totalScore,
+          questionsSnapshot: questions,
+        }).catch((err) => console.error('পরীক্ষার স্ন্যাপশট সেভ হয়নি', err))
+      );
+
+      // প্রগ্রেস/XP — মডেল টেস্টের সাথে একই হেল্পার, তাই দুটো একইভাবে গোনা হয়
+      optional.push(
+        recordExamProgress({
+          uid: currentUser.uid,
+          questions,
+          answers,
+          subjectId: examConfig.subject,
+          subjectTitle: examConfig.title || 'লাইভ এক্সাম',
+          timeTaken: startedAtRef.current
+            ? Math.round((Date.now() - startedAtRef.current) / 1000)
+            : 0,
+          source: 'live-exam',
+        }).catch((err) => console.error('প্রগ্রেস সেভ হয়নি', err))
+      );
+
+      // ভুলের খাতা — আগে থেকেই fire-and-forget
+      questions.forEach((q, idx) => {
+        if (answers[idx] !== undefined && answers[idx] !== q.answer) {
+          recordMistake(currentUser.uid, q, {
+            subjectId: examConfig.subject,
+            subjectTitle: examConfig.title || 'লাইভ এক্সাম',
+            userAnswer: answers[idx],
+          }).catch((err) => console.error('ভুলের খাতায় জমা হয়নি', err));
+        }
       });
+
+      await Promise.allSettled(optional);
+
+      // জমা হয়ে গেছে — লোকাল কপির আর দরকার নেই
+      try { localStorage.removeItem(answersKey); } catch { /* উপেক্ষা */ }
 
       navigate(`/academic/live-exam/${examId}/result`, { replace: true });
     } catch (err) {
       console.error('Error submitting exam:', err);
-      alert('Error submitting exam. Please try again.');
+
+      // নিয়ম অনুযায়ী একবার জমা দিলে আর বদলানো যায় না (create হ্যাঁ, update না)।
+      // তাই আগেই জমা হয়ে থাকলে এই লেখাটা permission-denied হয় — সেটা আসলে
+      // ভুল নয়, ছাত্রের পরীক্ষা জমা হয়েই আছে। এরর না দেখিয়ে ফলাফলে পাঠাই।
+      try {
+        const existing = await getDoc(
+          doc(db, 'live_exams', examId, 'submissions', currentUser.uid)
+        );
+        if (existing.exists()) {
+          navigate(`/academic/live-exam/${examId}/result`, { replace: true });
+          return;
+        }
+      } catch (checkErr) {
+        console.error('আগের জমা যাচাই করা যায়নি', checkErr);
+      }
+
+      setSubmitError(
+        err?.code === 'permission-denied'
+          ? 'জমা দেওয়ার অনুমতি পাওয়া যায়নি। শিক্ষক/অ্যাডমিনকে জানান — সার্ভারের নিয়ম (Firestore rules) হালনাগাদ করা প্রয়োজন।'
+          : 'পরীক্ষা জমা দেওয়া যায়নি। ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।'
+      );
       setIsSubmitting(false);
     }
   }, [answers, currentUser, examConfig, examId, isSubmitting, navigate, questions]);
@@ -185,9 +323,11 @@ export default function LiveExamEngine() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#050914] flex flex-col items-center justify-center pt-20">
-        <Loader2 className="h-12 w-12 text-emerald-500 animate-spin mb-4" />
-        <p className="text-emerald-400 font-medium animate-pulse">Loading Live Exam Engine...</p>
+      <div className="min-h-screen bg-[#0a0f1c] pt-16 sm:pt-20 pb-24 px-3 sm:px-6 lg:px-8 font-bangla">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Skeleton className="h-16 w-full rounded-2xl" />
+          <SkeletonList count={5} />
+        </div>
       </div>
     );
   }
@@ -315,6 +455,44 @@ export default function LiveExamEngine() {
             )}
           </button>
         </div>
+
+        {/* আগের উত্তর ফিরিয়ে আনা হয়েছে — না জানালে ছাত্র ভাববে সে আগেই দিয়েছিল কি না */}
+        {restoredAnswers > 0 && (
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-2.5">
+            <RotateCcw className="h-4 w-4 shrink-0 text-indigo-400" />
+            <p className="text-xs font-semibold text-indigo-200">
+              আগের {enToBnNumber(restoredAnswers)} টি উত্তর ফিরিয়ে আনা হয়েছে।
+            </p>
+          </div>
+        )}
+
+        {/* সংযোগ নেই — জমা দেওয়ার আগেই জানা দরকার */}
+        {!isOnline && (
+          <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+            <WifiOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-amber-200">ইন্টারনেট সংযোগ নেই</p>
+              <p className="mt-1 text-xs text-amber-300/80">
+                তোমার উত্তরগুলো এই ডিভাইসে সংরক্ষিত আছে। সংযোগ ফিরলে জমা দাও —
+                পাতা বন্ধ করলেও উত্তর হারাবে না।
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* জমা দিতে সমস্যা হলে কারণটা এখানেই দেখাই — উত্তরগুলো পাতায় থেকে
+            যায়, তাই ছাত্র আবার চেষ্টা করতে পারে */}
+        {submitError && (
+          <div className="mt-4 flex items-start gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-400" />
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-rose-200">{submitError}</p>
+              <p className="mt-1 text-xs text-rose-300/80">
+                তোমার উত্তরগুলো এখনো এই পাতায় আছে — পাতা বন্ধ কোরো না।
+              </p>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

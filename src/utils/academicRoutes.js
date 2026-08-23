@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { QK, STALE } from '../lib/queryConfig';
 
 export const normalizeAcademicLevel = (level = '') => String(level).trim().toLowerCase();
 
@@ -37,15 +38,19 @@ export const resolveSubjectFromRoute = (subjects = [], levelParam = '', subjectS
   }) || null;
 };
 
+/**
+ * বিষয়ের তালিকাটা এখানে আলাদা key-তে ক্যাশ করা হতো, ফলে একই ডকুমেন্টের
+ * দুইটা কপি ক্যাশে থাকত এবং রুট বদলালেই আবার পড়া হতো। এখন সবাই একই
+ * `QK.subjects()` ক্যাশ এন্ট্রি ভাগ করে; রুট অনুযায়ী বাছাইটা শুধু derive করা হয়।
+ */
 export const useResolvedSubject = (educationLevel, subjectSlug) => {
   return useQuery({
-    // Hook for resolving subject from route
-    queryKey: ['resolveSubject', educationLevel, subjectSlug],
+    queryKey: QK.subjects(),
     queryFn: async () => {
       const snap = await getDoc(doc(db, 'admin_settings', 'subjects'));
-      const list = snap.exists() ? snap.data().list || [] : [];
-      return resolveSubjectFromRoute(list, educationLevel, subjectSlug);
+      return snap.exists() ? snap.data().list || [] : [];
     },
-    staleTime: 1000 * 60 * 60 * 24, // 24 hours caching
+    staleTime: STALE.CONFIG,
+    select: (list) => resolveSubjectFromRoute(list, educationLevel, subjectSlug),
   });
 };

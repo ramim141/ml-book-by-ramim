@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import toast from 'react-hot-toast';
 import { Loader2, Check, Save, Edit2, AlertCircle, X } from 'lucide-react';
 import MarkdownRenderer from '../UI/MarkdownRenderer';
 
@@ -64,7 +65,7 @@ export default function ReportQuestionEditor({ report, onResolved }) {
       }
     } catch (err) {
       console.error(err);
-      alert('Error saving the question.');
+      toast.error('প্রশ্নটি সেভ করা যায়নি।');
     } finally {
       setSaving(false);
     }
@@ -84,26 +85,26 @@ export default function ReportQuestionEditor({ report, onResolved }) {
     <div className="space-y-4 mt-4">
       <div>
         <label className="text-xs text-slate-400 mb-1 block">Question</label>
-        <textarea value={formData.question || ''} onChange={e => setFormData({...formData, question: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm min-h-[80px] text-slate-200 outline-none focus:border-indigo-500" />
+        <textarea value={formData.question || ''} onChange={e => setFormData({...formData, question: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-base sm:text-sm min-h-[80px] text-slate-200 outline-none focus:border-indigo-500" />
       </div>
       <div>
         <label className="text-xs text-slate-400 mb-2 block">Options & Correct Answer</label>
         <div className="space-y-2">
           {(formData.options || ['', '', '', '']).map((opt, i) => (
             <div key={i} className="flex gap-3 items-center">
-              <input type="radio" checked={formData.answer === i} onChange={() => setFormData({...formData, answer: i})} className="w-4 h-4 accent-emerald-500 shrink-0" />
+              <input type="radio" checked={formData.answer === i} onChange={() => setFormData({...formData, answer: i})} className="w-4 h-4 accent-emerald-500 shrink-0 text-base sm:text-sm" />
               <input type="text" value={opt} onChange={e => {
                 const newOpts = [...(formData.options || ['', '', '', ''])];
                 newOpts[i] = e.target.value;
                 setFormData({...formData, options: newOpts});
-              }} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-indigo-500" />
+              }} className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-base sm:text-sm text-slate-200 outline-none focus:border-indigo-500" />
             </div>
           ))}
         </div>
       </div>
       <div>
         <label className="text-xs text-slate-400 mb-1 block">Explanation</label>
-        <textarea value={formData.explanation || ''} onChange={e => setFormData({...formData, explanation: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm min-h-[60px] text-slate-200 outline-none focus:border-indigo-500" />
+        <textarea value={formData.explanation || ''} onChange={e => setFormData({...formData, explanation: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-base sm:text-sm min-h-[60px] text-slate-200 outline-none focus:border-indigo-500" />
       </div>
     </div>
   );
@@ -112,11 +113,11 @@ export default function ReportQuestionEditor({ report, onResolved }) {
     <div className="space-y-4 mt-4">
       <div>
         <label className="text-xs text-slate-400 mb-1 block">Title</label>
-        <input type="text" value={formData.title || ''} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm text-slate-200 outline-none focus:border-indigo-500" />
+        <input type="text" value={formData.title || ''} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-base sm:text-sm text-slate-200 outline-none focus:border-indigo-500" />
       </div>
       <div>
         <label className="text-xs text-slate-400 mb-1 block">Stem (উদ্দীপক)</label>
-        <textarea value={formData.stem || ''} onChange={e => setFormData({...formData, stem: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm min-h-[100px] text-slate-200 outline-none focus:border-indigo-500" />
+        <textarea value={formData.stem || ''} onChange={e => setFormData({...formData, stem: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-base sm:text-sm min-h-[100px] text-slate-200 outline-none focus:border-indigo-500" />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {['ka', 'kha', 'ga', 'gha'].map(key => {
@@ -126,11 +127,11 @@ export default function ReportQuestionEditor({ report, onResolved }) {
               <h4 className="font-bold text-indigo-400">প্রশ্ন {labels[key]}</h4>
               <div>
                 <label className="text-xs text-slate-500 mb-1 block">Question</label>
-                <textarea value={formData.questions?.[key] || ''} onChange={e => setFormData({...formData, questions: {...(formData.questions || {}), [key]: e.target.value}})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-indigo-500 min-h-[60px]" />
+                <textarea value={formData.questions?.[key] || ''} onChange={e => setFormData({...formData, questions: {...(formData.questions || {}), [key]: e.target.value}})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-base sm:text-sm text-slate-200 outline-none focus:border-indigo-500 min-h-[60px]" />
               </div>
               <div>
                 <label className="text-xs text-slate-500 mb-1 block">Answer</label>
-                <textarea value={formData.answers?.[key] || ''} onChange={e => setFormData({...formData, answers: {...(formData.answers || {}), [key]: e.target.value}})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 outline-none focus:border-emerald-500 min-h-[60px]" />
+                <textarea value={formData.answers?.[key] || ''} onChange={e => setFormData({...formData, answers: {...(formData.answers || {}), [key]: e.target.value}})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-base sm:text-sm text-slate-200 outline-none focus:border-emerald-500 min-h-[60px]" />
               </div>
             </div>
           );
@@ -143,11 +144,11 @@ export default function ReportQuestionEditor({ report, onResolved }) {
     <div className="space-y-4 mt-4">
       <div>
         <label className="text-xs text-slate-400 mb-1 block">Question</label>
-        <textarea value={formData.question || ''} onChange={e => setFormData({...formData, question: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm min-h-[80px] text-slate-200 outline-none focus:border-indigo-500" />
+        <textarea value={formData.question || ''} onChange={e => setFormData({...formData, question: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-base sm:text-sm min-h-[80px] text-slate-200 outline-none focus:border-indigo-500" />
       </div>
       <div>
         <label className="text-xs text-slate-400 mb-1 block">Answer</label>
-        <textarea value={formData.answer || ''} onChange={e => setFormData({...formData, answer: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm min-h-[100px] text-slate-200 outline-none focus:border-emerald-500" />
+        <textarea value={formData.answer || ''} onChange={e => setFormData({...formData, answer: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-base sm:text-sm min-h-[100px] text-slate-200 outline-none focus:border-emerald-500" />
       </div>
     </div>
   );

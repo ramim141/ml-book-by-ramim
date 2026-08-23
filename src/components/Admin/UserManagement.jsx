@@ -1,11 +1,26 @@
 import { useState } from 'react';
 import { collection, getDocs, doc, updateDoc, deleteDoc, query, limit, startAfter, orderBy } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { Users, Search, Filter, ArrowUpDown, Eye, Ban, Plus, Trash2, Edit2, Save, X, Loader2, AlertTriangle, Send } from 'lucide-react';
+import { Users, Search, Filter, ArrowUpDown, Eye, Ban, Plus, Trash2, Edit2, Save, X, Loader2, AlertTriangle, Send, Download } from 'lucide-react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import { useAuth } from '../../contexts/AuthContext';
+import { logAdminAction, AUDIT } from '../../lib/adminAudit';
+import { downloadCSV, dateStamp } from '../../lib/adminExport';
+import { SkeletonList } from '../UI/Skeleton';
+
+/**
+ * পরীক্ষার সংখ্যা — নতুন ফল `examCount` কাউন্টারে গোনা হয় (ইতিহাস এখন
+ * সাবকালেকশনে), পুরনো অ্যাকাউন্টে এখনো `examHistory` অ্যারেটাই আছে।
+ * দুটোর মধ্যে যেটা বড়, সেটাই ধরি — মাইগ্রেশন ছাড়াই দুই ধরনের ডেটা চলে।
+ */
+const examCountOf = (user) => Math.max(user?.examCount || 0, user?.examHistory?.length || 0);
 
 export default function UserManagement() {
   const queryClient = useQueryClient();
+  const { currentUser } = useAuth();
+  const [confirm, confirmDialog] = useConfirm();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLevel, setFilterLevel] = useState('All');
   const [sortBy, setSortBy] = useState('xp_desc'); // Note: For complex combinations, firestore indexes are required.
@@ -46,13 +61,34 @@ export default function UserManagement() {
   const users = data?.pages.flatMap(page => page.users) || [];
 
   const mutation = useMutation({
-    mutationFn: async ({ uid, actionType }) => {
+    mutationFn: async ({ uid, actionType, userLabel }) => {
       const userRef = doc(db, 'users', uid);
       if (actionType === 'suspend') await updateDoc(userRef, { isSuspended: true });
       else if (actionType === 'unsuspend') await updateDoc(userRef, { isSuspended: false });
       else if (actionType === 'reset_xp') await updateDoc(userRef, { xp: 0 });
       else if (actionType === 'delete_data') await updateDoc(userRef, { examHistory: [], xp: 0, questionsBySubject: {} });
       else if (actionType === 'delete_user') await deleteDoc(userRef);
+
+      // কে কার উপর কী করল তার রেকর্ড — বিশেষ করে delete_data / delete_user
+      // এর মতো অপূরণীয় কাজে। লগ ব্যর্থ হলেও কাজটা আটকাবে না।
+      const meta = {
+        suspend: { action: AUDIT.UPDATE, text: 'সাসপেন্ড করা হয়েছে' },
+        unsuspend: { action: AUDIT.UPDATE, text: 'সাসপেন্ড তুলে নেওয়া হয়েছে' },
+        reset_xp: { action: AUDIT.RESET, text: 'XP শূন্য করা হয়েছে' },
+        delete_data: { action: AUDIT.RESET, text: 'পরীক্ষার ইতিহাস ও XP মুছে ফেলা হয়েছে' },
+        delete_user: { action: AUDIT.DELETE, text: 'ব্যবহারকারী মুছে ফেলা হয়েছে' },
+      }[actionType];
+
+      if (meta) {
+        logAdminAction({
+          action: meta.action,
+          area: 'ইউজার',
+          summary: `${userLabel || uid} — ${meta.text}`,
+          details: { uid, actionType },
+          actorEmail: currentUser?.email,
+        });
+      }
+
       return { uid, actionType };
     },
     onSuccess: () => {
@@ -61,16 +97,52 @@ export default function UserManagement() {
     },
     onError: (error) => {
       console.error(error);
-      alert("Error executing action");
+      toast.error('কাজটি সম্পন্ন করা যায়নি।');
       setActionLoading(null);
     }
   });
 
   const handleAction = async (uid, actionType, event) => {
     if (event) event.stopPropagation();
-    if (!confirm(`Are you sure you want to ${actionType} this user?`)) return;
+
+    // আগে ডায়ালগে কাঁচা কী (delete_data) দেখাত — কী হারাবে তা বোঝা যেত না
+    const WARN = {
+      suspend: { title: 'সাসপেন্ড করবেন?', message: 'এই ব্যবহারকারী আর লগইন করে ব্যবহার করতে পারবেন না।' },
+      unsuspend: { title: 'সাসপেন্ড তুলে নেবেন?', message: 'ব্যবহারকারী আবার স্বাভাবিকভাবে ব্যবহার করতে পারবেন।' },
+      reset_xp: { title: 'XP শূন্য করবেন?', message: 'অর্জিত সব XP ও লেভেল হারিয়ে যাবে। এটি ফেরানো যাবে না।' },
+      delete_data: { title: 'সব শেখার তথ্য মুছবেন?', message: 'পরীক্ষার ইতিহাস, XP ও বিষয়ভিত্তিক অগ্রগতি — সব স্থায়ীভাবে মুছে যাবে। এটি ফেরানো যাবে না।' },
+      delete_user: { title: 'ব্যবহারকারী মুছে ফেলবেন?', message: 'অ্যাকাউন্টটি স্থায়ীভাবে মুছে যাবে। এটি ফেরানো যাবে না।' },
+    }[actionType] || { title: 'নিশ্চিত?', message: 'কাজটি সম্পন্ন করা হবে।' };
+
+    if (!(await confirm(WARN))) return;
+
+    const target = users.find((u) => u.id === uid);
     setActionLoading(uid);
-    mutation.mutate({ uid, actionType });
+    mutation.mutate({ uid, actionType, userLabel: target?.name || target?.email || uid });
+  };
+
+  /** এখন পর্যন্ত লোড হওয়া ব্যবহারকারীদের CSV — Excel এ খুলে হিসাব করা যায় */
+  const handleExportUsers = () => {
+    downloadCSV(
+      users,
+      [
+        { key: 'name', label: 'নাম' },
+        { key: 'email', label: 'ইমেইল' },
+        { key: 'educationLevel', label: 'স্তর' },
+        { key: 'xp', label: 'XP', map: (u) => u.xp || 0 },
+        { key: 'exams', label: 'পরীক্ষা', map: examCountOf },
+        { key: 'streak', label: 'স্ট্রিক', map: (u) => u.streak || 0 },
+        { key: 'target', label: 'টার্গেট' },
+        { key: 'isSuspended', label: 'সাসপেন্ডেড', map: (u) => (u.isSuspended ? 'হ্যাঁ' : 'না') },
+      ],
+      `users-${dateStamp()}`
+    );
+    logAdminAction({
+      action: AUDIT.UPDATE,
+      area: 'ইউজার',
+      summary: `${users.length} জন ব্যবহারকারীর তালিকা রপ্তানি করা হয়েছে`,
+      actorEmail: currentUser?.email,
+    });
   };
 
   const handleSaveEdit = async () => {
@@ -85,14 +157,14 @@ export default function UserManagement() {
       setEditMode(false);
     } catch (err) {
       console.error(err);
-      alert("Failed to save user data.");
+      toast.error('ব্যবহারকারীর তথ্য সেভ করা যায়নি।');
     }
     setActionLoading(null);
   };
 
   const handleSendMessage = async () => {
     if (!messageModal.title.trim() || !messageModal.message.trim()) {
-      alert("Please enter both title and message.");
+      toast.error('টাইটেল ও মেসেজ দুটোই দিন।');
       return;
     }
     setMessageModal(prev => ({ ...prev, loading: true }));
@@ -106,19 +178,19 @@ export default function UserManagement() {
         type: 'info',
         readBy: []
       });
-      alert("Message sent successfully!");
+      toast.success('মেসেজ পাঠানো হয়েছে।');
       setMessageModal({ isOpen: false, user: null, title: '', message: '', loading: false });
     } catch (error) {
       // It's a new document, so we should use setDoc not updateDoc
       console.error(error);
-      alert("Failed to send message.");
+      toast.error('মেসেজ পাঠানো যায়নি।');
       setMessageModal(prev => ({ ...prev, loading: false }));
     }
   };
 
   const handleSendMessageFixed = async () => {
     if (!messageModal.title.trim() || !messageModal.message.trim()) {
-      alert("Please enter both title and message.");
+      toast.error('টাইটেল ও মেসেজ দুটোই দিন।');
       return;
     }
     setMessageModal(prev => ({ ...prev, loading: true }));
@@ -132,11 +204,11 @@ export default function UserManagement() {
         type: 'info',
         readBy: []
       });
-      alert("Message sent successfully!");
+      toast.success('মেসেজ পাঠানো হয়েছে।');
       setMessageModal({ isOpen: false, user: null, title: '', message: '', loading: false });
     } catch (error) {
       console.error(error);
-      alert("Failed to send message.");
+      toast.error('মেসেজ পাঠানো যায়নি।');
       setMessageModal(prev => ({ ...prev, loading: false }));
     }
   };
@@ -150,36 +222,48 @@ export default function UserManagement() {
   filteredUsers.sort((a, b) => {
     if (sortBy === 'xp_desc') return (b.xp || 0) - (a.xp || 0);
     if (sortBy === 'xp_asc') return (a.xp || 0) - (b.xp || 0);
-    if (sortBy === 'exams_desc') return (b.examHistory?.length || 0) - (a.examHistory?.length || 0);
+    if (sortBy === 'exams_desc') return examCountOf(b) - examCountOf(a);
     return 0;
   });
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><Users className="text-indigo-400" /> বিস্তারিত ইউজার ম্যানেজমেন্ট</h2>
+      {confirmDialog}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-xl font-bold"><Users className="text-indigo-400" /> বিস্তারিত ইউজার ম্যানেজমেন্ট</h2>
+        <button
+          type="button"
+          onClick={handleExportUsers}
+          disabled={users.length === 0}
+          title="এখন যতজন লোড হয়েছে তাদের তালিকা CSV তে"
+          className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-emerald-500/40 hover:text-emerald-300 disabled:opacity-40"
+        >
+          <Download className="h-4 w-4" /> CSV ডাউনলোড ({users.length})
+        </button>
+      </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <input type="text" placeholder="নাম বা ইমেইল দিয়ে খুঁজুন (বর্তমানে লোড করা ডেটার উপর)..." value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm focus:border-indigo-500 outline-none text-slate-200" />
+            className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-base sm:text-sm focus:border-indigo-500 outline-none text-slate-200" />
         </div>
-        <div className="flex gap-2">
-          <div className="relative">
+        <div className="flex flex-wrap gap-2">
+          <div className="relative min-w-0 flex-1">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <select value={filterLevel} onChange={e => setFilterLevel(e.target.value)}
-              className="pl-9 pr-8 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm focus:border-indigo-500 outline-none text-slate-200 appearance-none">
+              className="w-full pl-9 pr-8 py-2 bg-slate-900 border border-slate-700 rounded-xl text-base sm:text-sm focus:border-indigo-500 outline-none text-slate-200 appearance-none">
               <option value="All">সব লেভেল</option>
               <option value="SSC">SSC</option>
               <option value="HSC">HSC</option>
               <option value="Admission">Admission</option>
             </select>
           </div>
-          <div className="relative">
+          <div className="relative min-w-0 flex-1">
             <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <select value={sortBy} onChange={e => setSortBy(e.target.value)}
-              className="pl-9 pr-8 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm focus:border-indigo-500 outline-none text-slate-200 appearance-none">
+              className="w-full pl-9 pr-8 py-2 bg-slate-900 border border-slate-700 rounded-xl text-base sm:text-sm focus:border-indigo-500 outline-none text-slate-200 appearance-none">
               <option value="xp_desc">XP (বেশি থেকে কম)</option>
               <option value="xp_asc">XP (কম থেকে বেশি)</option>
               <option value="exams_desc">সবচেয়ে বেশি পরীক্ষা</option>
@@ -188,7 +272,7 @@ export default function UserManagement() {
         </div>
       </div>
 
-     {isLoading ? <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div> : isError ? <div className="flex justify-center p-12 text-rose-500"><AlertTriangle className="w-8 h-8" /> Error loading users.</div> : (
+     {isLoading ? <div className="p-4"><SkeletonList count={10} /></div> : isError ? <div className="flex justify-center p-12 text-rose-500"><AlertTriangle className="w-8 h-8" /> Error loading users.</div> : (
         <div className="space-y-4">
           <div className="overflow-x-auto rounded-xl border border-slate-700/50">
             <table className="w-full text-left text-sm whitespace-nowrap">
@@ -219,7 +303,7 @@ export default function UserManagement() {
                       </td>
                       <td className="px-4 py-3 text-slate-300">{user.educationLevel || 'N/A'}</td>
                       <td className="px-4 py-3 font-bold text-indigo-400">{user.xp || 0} XP</td>
-                      <td className="px-4 py-3 text-slate-400">🔥 {user.streak || 0} দিন • 📝 {user.examHistory?.length || 0} টি</td>
+                      <td className="px-4 py-3 text-slate-400">🔥 {user.streak || 0} দিন • 📝 {examCountOf(user)} টি</td>
                       <td className="px-4 py-3 text-right space-x-2">
                         <button onClick={(e) => { e.stopPropagation(); setMessageModal({ isOpen: true, user, title: '', message: '', loading: false }); }} className="p-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors" title="Send Message"><Send className="w-4 h-4" /></button>
                         <button onClick={(e) => { e.stopPropagation(); setSelectedUser(user); }} className="p-1.5 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 rounded-lg transition-colors"><Eye className="w-4 h-4" /></button>
@@ -264,7 +348,7 @@ export default function UserManagement() {
                   {!editMode ? (
                     <>
                       <div className="flex items-center justify-between">
-                        <h2 className="text-2xl font-black text-white">{selectedUser.name}</h2>
+                        <h2 className="text-xl font-semibold tracking-tight text-white">{selectedUser.name}</h2>
                         <button onClick={() => { setEditMode(true); setEditForm({ xp: selectedUser.xp || 0, level: selectedUser.educationLevel || 'HSC' }); }}
                           className="p-2 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 rounded-xl flex items-center gap-2 text-sm font-bold">
                           <Edit2 className="w-4 h-4" /> এডিট
@@ -275,7 +359,7 @@ export default function UserManagement() {
                         {[
                           { label: 'Education Level', val: selectedUser.educationLevel || 'N/A', cls: 'text-slate-200' },
                           { label: 'Total XP', val: selectedUser.xp || 0, cls: 'text-indigo-400' },
-                          { label: 'Exams Taken', val: selectedUser.examHistory?.length || 0, cls: 'text-emerald-400' },
+                          { label: 'Exams Taken', val: examCountOf(selectedUser), cls: 'text-emerald-400' },
                           { label: 'Target', val: selectedUser.target || 'None', cls: 'text-amber-400' },
                         ].map(({ label, val, cls }) => (
                           <div key={label} className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
@@ -291,11 +375,11 @@ export default function UserManagement() {
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div>
                           <label className="block text-xs font-medium text-slate-400 mb-1">XP</label>
-                          <input type="number" value={editForm.xp} onChange={e => setEditForm({ ...editForm, xp: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 outline-none focus:border-indigo-500" />
+                          <input type="number" value={editForm.xp} onChange={e => setEditForm({ ...editForm, xp: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 outline-none focus:border-indigo-500 text-base sm:text-sm" />
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-slate-400 mb-1">Level</label>
-                          <select value={editForm.level} onChange={e => setEditForm({ ...editForm, level: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 outline-none focus:border-indigo-500">
+                          <select value={editForm.level} onChange={e => setEditForm({ ...editForm, level: e.target.value })} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 outline-none focus:border-indigo-500 text-base sm:text-sm">
                             <option value="SSC">SSC</option>
                             <option value="HSC">HSC</option>
                             <option value="Admission">Admission</option>
@@ -379,7 +463,7 @@ export default function UserManagement() {
                   value={messageModal.title} 
                   onChange={e => setMessageModal({ ...messageModal, title: e.target.value })} 
                   placeholder="e.g., Warning, Congratulations!"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 outline-none focus:border-indigo-500" 
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 outline-none focus:border-indigo-500 text-base sm:text-sm" 
                 />
               </div>
               <div className="mb-6">
@@ -389,7 +473,7 @@ export default function UserManagement() {
                   onChange={e => setMessageModal({ ...messageModal, message: e.target.value })} 
                   placeholder="Type your message here..."
                   rows="4"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 outline-none focus:border-indigo-500 resize-none custom-scrollbar" 
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 outline-none focus:border-indigo-500 resize-none custom-scrollbar text-base sm:text-sm" 
                 ></textarea>
               </div>
               <div className="flex gap-3 justify-end">

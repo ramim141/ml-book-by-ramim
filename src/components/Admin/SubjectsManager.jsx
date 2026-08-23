@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import toast from 'react-hot-toast';
+import { useConfirm } from '../../hooks/useConfirm';
 import { BookOpen, RotateCcw, Plus, Loader2, Trash2 } from 'lucide-react';
 
 function LevelAccordion({ lvl, lvlSubjects, saving, handleDeleteSubject, handleAddChapter, handleDeleteChapter }) {
@@ -95,7 +97,7 @@ function SubjectAccordion({ subject, saving, onDelete, onAddChapter, onDeleteCha
               onChange={e => setNewChapter(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && submitChapter()}
               placeholder="নতুন চ্যাপ্টারের নাম লিখুন (Enter চাপুন)..."
-              className="flex-1 bg-slate-900 border border-slate-700 focus:border-emerald-500 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none transition-colors"
+              className="flex-1 bg-slate-900 border border-slate-700 focus:border-emerald-500 rounded-lg px-3 py-2 text-base sm:text-sm text-slate-200 outline-none transition-colors"
             />
             <button
               onClick={submitChapter}
@@ -135,6 +137,7 @@ function SubjectAccordion({ subject, saving, onDelete, onAddChapter, onDeleteCha
 }
 
 export default function SubjectsManager() {
+  const [confirm, confirmDialog] = useConfirm();
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -195,7 +198,7 @@ export default function SubjectsManager() {
   };
 
   const handleAdd = () => {
-    if (!level || !label.trim()) return alert('Level ও সাবজেক্টের নাম দেওয়া আবশ্যিক');
+    if (!level || !label.trim()) return toast.error('শিক্ষাস্তর ও সাবজেক্টের নাম দুটোই দিতে হবে।');
     
     let baseId = customId.trim() ? customId.trim() : label.trim();
     let safeId = baseId.toLowerCase().replace(/\s+/g, '-').replace(/[^\w\u0980-\u09FF-]/g, '');
@@ -203,15 +206,15 @@ export default function SubjectsManager() {
     
     const autoId = level.toLowerCase() + '-' + safeId;
     
-    if (subjects.find(s => s.id === autoId && s.level === level)) return alert('এই নামে বা ID-তে সাবজেক্ট আগেই আছে!');
+    if (subjects.find(s => s.id === autoId && s.level === level)) return toast.error('এই নামে বা ID-তে সাবজেক্ট আগেই আছে।');
     
     const newSub = { id: autoId, level, label: label.trim(), emoji: emoji || '📚', color: 'from-indigo-500 to-purple-500', chapters: [] };
     saveSubjects([...subjects, newSub], label.trim() + ' সাবজেক্ট যোগ হয়েছে! ✅');
     setLabel(''); setEmoji(''); setCustomId('');
   };
 
-  const handleDeleteSubject = (id, subLevel) => {
-    if (!confirm('এই সাবজেক্ট ও এর সব চ্যাপ্টার মুছে ফেলতে চান?')) return;
+  const handleDeleteSubject = async (id, subLevel) => {
+    if (!(await confirm({ title: 'সাবজেক্ট মুছে ফেলবেন?', message: 'এই সাবজেক্ট ও এর সব চ্যাপ্টার মুছে যাবে।' }))) return;
     saveSubjects(subjects.filter(s => !(s.id === id && s.level === subLevel)), 'সাবজেক্ট মুছে ফেলা হয়েছে।');
   };
 
@@ -238,11 +241,12 @@ export default function SubjectsManager() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-        <BookOpen className="text-emerald-400" /> সাবজেক্ট ও চ্যাপ্টার ম্যানেজমেন্ট
+      {confirmDialog}
+      {/* শিরোনাম প্যানেল হেডারে চলে গেছে; ভিতরের রিসেট বোতামটা এখানেই থাকে */}
+      <div className="mb-6 flex items-center gap-2">
         <button
           onClick={async () => {
-            if (!confirm('ফায়ারস্টোর ডিফল্ট ডেটা দিয়ে রিসেট করতে চান? (চ্যাপ্টার আইডি মিল রাখতে এটা দরকার)')) return;
+            if (!(await confirm({ title: 'ডিফল্ট ডেটা দিয়ে রিসেট করবেন?', message: 'বর্তমান সব সাবজেক্ট মুছে গিয়ে ডিফল্ট তালিকা বসবে। চ্যাপ্টার আইডি মিল রাখতে এটি দরকার হয়।', confirmLabel: 'হ্যাঁ, রিসেট করুন' }))) return;
             setSaving(true);
             try {
               await setDoc(doc(db, 'admin_settings', 'subjects'), { list: DEFAULT_SUBJECTS }, { merge: false });
@@ -256,7 +260,7 @@ export default function SubjectsManager() {
         >
           <RotateCcw className="w-3 h-3" /> ডিফল্ট রিসেট
         </button>
-      </h2>
+      </div>
 
       {successMsg && (
         <div className="mb-5 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 font-bold text-sm">
@@ -271,7 +275,7 @@ export default function SubjectsManager() {
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
           <div>
             <label className="text-xs text-slate-500 mb-1 block">লেভেল</label>
-            <select value={level} onChange={e => setLevel(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none text-slate-200">
+            <select value={level} onChange={e => setLevel(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-base sm:text-sm focus:border-indigo-500 outline-none text-slate-200">
               <option value="SSC">SSC</option>
               <option value="HSC">HSC</option>
               <option value="Admission">Admission</option>
@@ -279,15 +283,15 @@ export default function SubjectsManager() {
           </div>
           <div>
             <label className="text-xs text-slate-500 mb-1 block">সাবজেক্টের নাম</label>
-            <input type="text" value={label} onChange={e => setLabel(e.target.value)} placeholder="যেমন: রসায়ন ২য় পত্র" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none text-slate-200" />
+            <input type="text" value={label} onChange={e => setLabel(e.target.value)} placeholder="যেমন: রসায়ন ২য় পত্র" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-base sm:text-sm focus:border-indigo-500 outline-none text-slate-200" />
           </div>
           <div>
             <label className="text-xs text-slate-500 mb-1 block">URL Path (ঐচ্ছিক)</label>
-            <input type="text" value={customId} onChange={e => setCustomId(e.target.value)} placeholder="যেমন: chemistry-2" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none text-slate-200" />
+            <input type="text" value={customId} onChange={e => setCustomId(e.target.value)} placeholder="যেমন: chemistry-2" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-base sm:text-sm focus:border-indigo-500 outline-none text-slate-200" />
           </div>
           <div>
             <label className="text-xs text-slate-500 mb-1 block">Emoji (ঐচ্ছিক)</label>
-            <input type="text" value={emoji} onChange={e => setEmoji(e.target.value)} placeholder="⚡" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-indigo-500 outline-none text-slate-200" />
+            <input type="text" value={emoji} onChange={e => setEmoji(e.target.value)} placeholder="⚡" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-base sm:text-sm focus:border-indigo-500 outline-none text-slate-200" />
           </div>
         </div>
         <button onClick={handleAdd} disabled={saving} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center gap-2 transition-colors disabled:opacity-50">

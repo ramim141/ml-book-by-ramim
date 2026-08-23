@@ -18,7 +18,7 @@ export default function WordNavigation({ fallbackPath }) {
         {/* পূর্ববর্তী শব্দ (Previous Word) বাটন */}
         {previousWord ? (
           <Link
-            to={`/word/${previousWord.path}`}
+            to={`/ml/word/${previousWord.path}`}
             className="flex flex-1 items-center justify-start gap-4 px-5 py-4 rounded-2xl border border-white/[0.06] bg-[#0b111b] hover:bg-white/[0.03] hover:border-white/[0.15] transition-all duration-300 active:scale-[0.98] group shadow-[0_4px_20px_rgba(0,0,0,0.2)]"
           >
             <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center shrink-0 group-hover:bg-white/10 transition-colors">
@@ -38,7 +38,7 @@ export default function WordNavigation({ fallbackPath }) {
         {/* পরবর্তী শব্দ (Next Word) বাটন */}
         {nextWord ? (
           <Link
-            to={`/word/${nextWord.path}`}
+            to={`/ml/word/${nextWord.path}`}
             className="flex flex-1 items-center justify-end gap-4 px-5 py-4 rounded-2xl border border-[#1f3a46]/40 bg-[#1f3a46]/20 hover:bg-[#1f3a46]/40 hover:border-[#1f3a46]/80 transition-all duration-300 active:scale-[0.98] group shadow-[0_4px_20px_rgba(31,58,70,0.15)] backdrop-blur-sm"
           >
             <div className="flex flex-col text-right overflow-hidden">

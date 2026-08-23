@@ -9,6 +9,8 @@ import { ChevronRight, PlayCircle, FileText, HelpCircle, CheckCircle, ArrowLeft,
 import { collection, query, where, getDocs, doc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { recordMistake } from '../../lib/mistakes';
+import { SkeletonList } from '../UI/Skeleton';
 
 function getYouTubeEmbedUrl(url) {
   if (!url) return null;
@@ -147,7 +149,7 @@ function KnowledgeTabContent({ chapter }) {
   );
 }
 
-function ModelTestTabContent({ chapter }) {
+function ModelTestTabContent({ chapter, subjectId, subjectTitle }) {
   const allMcqs = chapter.mcqs || [];
   const { currentUser } = useAuth();
   
@@ -186,6 +188,29 @@ function ModelTestTabContent({ chapter }) {
     const currentScore = testMcqs.reduce((acc,q,i) => acc + (answers[i] === q.answer ? 1 : 0), 0);
     const xpToAward = currentScore * 2; // 2 XP per correct answer
     
+    // Record mistakes
+    if (currentUser) {
+      const mistakePromises = testMcqs.map((q, i) => {
+        const userAnswer = answers[i] !== undefined ? answers[i] : null;
+        if (userAnswer !== q.answer) {
+          return recordMistake(
+            currentUser.uid, 
+            {
+              ...q,
+              chapterId: q.chapterId || chapter.id || chapter.chapterNo,
+              chapterName: q.chapterName || chapter.title || chapter.name
+            }, 
+            { subjectId, subjectTitle, userAnswer }
+          );
+        }
+        return null;
+      }).filter(Boolean);
+      
+      if (mistakePromises.length > 0) {
+        Promise.all(mistakePromises).catch(console.error);
+      }
+    }
+
     if (currentUser && xpToAward > 0) {
       try {
         const userRef = doc(db, 'users', currentUser.uid);
@@ -452,7 +477,7 @@ export default function GenericChapterDetails({ subjectId, chaptersData, backLin
         <h1 className='text-xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight'>{chapter.title || chapter.name || 'লোড হচ্ছে...'}</h1>
       </div>
     </div>
-    {loadingData && <div className='flex items-center justify-center py-20'><Loader2 className='w-8 h-8 animate-spin text-indigo-400' /></div>}
+    {loadingData && <div className='py-10'><SkeletonList count={4} /></div>}
     {!loadingData && (<>
       <div className='hidden md:flex overflow-x-auto hide-scrollbar mb-8 border-b border-slate-800 sticky top-[80px] z-40 bg-[#0b0f19]/95 backdrop-blur-md pt-4 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8'>
         <div className='flex gap-5 lg:gap-8 min-w-max px-1'>
@@ -466,13 +491,13 @@ export default function GenericChapterDetails({ subjectId, chaptersData, backLin
         <button onClick={()=>setIsMobileMenuOpen(!isMobileMenuOpen)} className='bg-indigo-600 hover:bg-indigo-500 text-white p-2.5 rounded-full shadow-lg transition-transform hover:scale-105 active:scale-95 flex items-center justify-center'>{isMobileMenuOpen?<X className='w-5 h-5' />:<Menu className='w-5 h-5' />}</button>
       </div>
       <div className='min-h-[420px] sm:min-h-[500px]'>
-        <Suspense fallback={<div className='flex justify-center items-center h-64'><Loader2 className='w-8 h-8 animate-spin text-indigo-500' /></div>}>
+        <Suspense fallback={<div className='py-10'><SkeletonList count={3} /></div>}>
           {activeTab==='videos' && <VideoTabContent chapter={chapter} activeVideo={activeVideo} setActiveVideo={setActiveVideo} />}
           {activeTab==='notes' && <NotesTabContent chapter={chapter} />}
           {activeTab==='cqs' && <CQTabContent chapter={chapter} />}
           {activeTab==='mcqs' && <MCQTabContent chapter={chapter} />}
           {activeTab==='knowledge' && <KnowledgeTabContent chapter={chapter} />}
-          {activeTab==='modeltest' && <ModelTestTabContent chapter={chapter} />}
+          {activeTab==='modeltest' && <ModelTestTabContent chapter={chapter} subjectId={subjectId} subjectTitle={subjectLabel} />}
           {activeTab==='discussion' && <DiscussionTabContent chapter={chapter} subjectId={subjectId} chapterId={chapter.chapterNo || chapterId} />}
         </Suspense>
       </div>

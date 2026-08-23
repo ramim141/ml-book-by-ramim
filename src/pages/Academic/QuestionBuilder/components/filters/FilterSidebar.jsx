@@ -1,26 +1,40 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { BookOpen, Check, ChevronDown, ChevronLeft, Search, SlidersHorizontal, X } from 'lucide-react';
+import { BookOpen, Check, ChevronDown, Search, SlidersHorizontal, X, Layers, Tag, GraduationCap } from 'lucide-react';
+import { enToBn } from '../../helpers.jsx';
 
-const FilterCard = React.memo(({ title, count, isOpen = true, onToggle, children }) => (
-  <section className="mb-6">
+/** স্তরের তালিকা এখন Firestore থেকেই আসে; শুধু নামটা বাংলায় দেখাই */
+const LEVEL_LABELS = {
+  HSC: 'এইচএসসি (HSC)',
+  SSC: 'এসএসসি (SSC)',
+  Admission: 'এডমিশন (Admission)',
+};
+
+const chapterLabel = (chapter) => chapter?.name || chapter?.title || chapter?.id || '';
+
+const FilterCard = React.memo(({ title, count, isOpen = true, onToggle, icon: Icon, children }) => (
+  <section>
     <button
       type="button"
       onClick={onToggle}
       className="flex w-full items-center justify-between gap-3 text-left focus:outline-none"
-      title={isOpen ? `Collapse ${title}` : `Expand ${title}`}
       aria-expanded={isOpen}
     >
-      <span className="min-w-0">
-        <span className="block truncate text-[15px] font-bold text-slate-100">{title}</span>
-        {count && <span className="mt-0.5 block text-[11px] font-normal text-slate-500">{count}</span>}
-      </span>
-      <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+      <div className="flex items-center gap-2 min-w-0">
+        {Icon && <Icon className="h-3.5 w-3.5 shrink-0 text-violet-400" />}
+        <div className="min-w-0">
+          <span className="block truncate text-xs font-black text-slate-200">{title}</span>
+          {count && <span className="mt-0.5 block truncate text-[10px] font-semibold text-slate-500">{count}</span>}
+        </div>
+      </div>
+      <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180 text-violet-300' : ''}`} />
     </button>
-    <div className={`grid transition-all duration-200 ${isOpen ? 'mt-4 grid-rows-[1fr] opacity-100' : 'mt-0 grid-rows-[0fr] opacity-0'}`}>
+    <div className={`grid transition-all duration-200 ease-out ${isOpen ? 'mt-3 grid-rows-[1fr] opacity-100' : 'mt-0 grid-rows-[0fr] opacity-0'}`}>
       <div className="min-h-0 overflow-hidden">{children}</div>
     </div>
   </section>
 ));
+
+FilterCard.displayName = 'FilterCard';
 
 const FilterSearch = React.memo(({ value, onChange, placeholder }) => (
   <label className="relative block">
@@ -30,41 +44,48 @@ const FilterSearch = React.memo(({ value, onChange, placeholder }) => (
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="h-10 w-full rounded-xl bg-slate-950/40 py-2 pl-9 pr-3 text-xs font-semibold text-slate-100 transition duration-150 placeholder:text-slate-500 hover:bg-slate-900/70 focus:bg-slate-900 focus:outline-none "
+      className="h-8 w-full rounded-xl border border-slate-700/60 bg-slate-950/60 py-1.5 pl-8 pr-3 text-xs font-medium text-slate-200 transition-all placeholder:text-slate-500 hover:border-slate-600 focus:border-violet-500/60 focus:bg-slate-950 focus:outline-none"
     />
-    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
   </label>
 ));
 
-const FilterCheckboxRow = React.memo(({ checked, label, meta, onClick, disabled }) => (
+FilterSearch.displayName = 'FilterSearch';
+
+const FilterCheckboxRow = React.memo(({ checked, label, meta, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    disabled={disabled}
-    className={`group flex w-full items-center gap-3 rounded-xl p-3 text-left transition duration-150 focus:outline-none ${checked
-        ? 'bg-indigo-500/15 text-indigo-100'
-        : 'bg-slate-950/25 text-slate-300 hover:bg-slate-800/70'
-      } ${disabled ? 'cursor-not-allowed opacity-55' : ''}`}
+    className={`group flex w-full items-center gap-2.5 rounded-lg p-2.5 sm:p-2 text-left transition-all duration-150 focus:outline-none active:scale-[0.99] ${
+      checked ? 'bg-violet-500/10 text-violet-100' : 'text-slate-300 hover:bg-slate-800/50'
+    }`}
   >
-    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition duration-150 ${checked ? 'border-indigo-500 bg-indigo-500 text-white' : 'border-slate-600 bg-slate-900 group-hover:border-indigo-400'
-      }`}>
-      {checked && <Check className="h-3.5 w-3.5" />}
+    <span
+      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition-all ${
+        checked
+          ? 'border-violet-500 bg-violet-500 text-white'
+          : 'border-slate-600 group-hover:border-violet-400/60'
+      }`}
+    >
+      {checked && <Check className="h-3 w-3 stroke-[3.5]" />}
     </span>
     <span className="min-w-0 flex-1">
-      <span className="block truncate text-[13px] font-bold">{label}</span>
-      {meta && <span className="mt-0.5 block truncate text-[10px] font-semibold text-slate-400">{meta}</span>}
+      <span className="block truncate text-xs font-bold">{label}</span>
+      {meta && <span className="mt-0.5 block truncate text-[10px] font-semibold text-slate-500">{meta}</span>}
     </span>
   </button>
 ));
 
+FilterCheckboxRow.displayName = 'FilterCheckboxRow';
+
 const FilterSidebar = React.memo(({
-  isCollapsed, onToggleCollapse, isMobileOpen, onMobileClose,
+  isMobileOpen, onMobileClose,
+  levels = [],
   selectedLevel, setSelectedLevel,
   selectedSubjectId, setSelectedSubjectId,
   availableSubjects, activeSubjectConfig,
-  chapters, selectedChapters, toggleChapter,
+  chapters, chapterCounts = {}, selectedChapters, toggleChapter,
   availableTopics, selectedTopics, toggleTopic,
-  selectedType, setSelectedType,
 }) => {
   const [chapterSearch, setChapterSearch] = useState('');
   const [topicSearch, setTopicSearch] = useState('');
@@ -72,19 +93,21 @@ const FilterSidebar = React.memo(({
     level: true,
     subject: true,
     chapter: true,
-    topic: true,
-    type: true,
+    topic: false,
   });
 
   const toggleCard = useCallback((key) => {
     setOpenCards((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
-  const levelOptions = useMemo(() => [
-    { value: 'hsc', label: 'এইচএসসি' },
-  ], []);
-  const filteredChapters = useMemo(() => chapters.filter((c) => (c.title || '').toLowerCase().includes(chapterSearch.toLowerCase())), [chapters, chapterSearch]);
-  const filteredTopics = useMemo(() => availableTopics.filter((t) => (t.name || '').toLowerCase().includes(topicSearch.toLowerCase())), [availableTopics, topicSearch]);
+  const filteredChapters = useMemo(
+    () => chapters.filter((c) => chapterLabel(c).toLowerCase().includes(chapterSearch.toLowerCase())),
+    [chapters, chapterSearch]
+  );
+  const filteredTopics = useMemo(
+    () => availableTopics.filter((t) => (t.name || '').toLowerCase().includes(topicSearch.toLowerCase())),
+    [availableTopics, topicSearch]
+  );
 
   const selectAllChapters = useCallback(() => {
     chapters.forEach((chapter) => {
@@ -96,140 +119,199 @@ const FilterSidebar = React.memo(({
     selectedChapters.forEach((id) => toggleChapter(id));
   }, [selectedChapters, toggleChapter]);
 
-  const premiumBody = (
-    <div className="flex w-full flex-col gap-5">
-      <div className="flex items-center justify-between rounded-2xl border border-indigo-500/20 bg-[#0f172a]/70 p-4 shadow-[0_14px_35px_rgba(0,0,0,0.18)]">
-        <div className="flex items-center gap-2.5">
-          <div className="rounded-xl border border-indigo-500/25 bg-indigo-500/15 p-2 text-indigo-300">
-            <SlidersHorizontal className="w-4 h-4" />
-          </div>
-          <div>
-            <h2 className="text-sm font-extrabold text-slate-100">প্রশ্ন ফিল্টার</h2>
-            <p className="text-[11px] font-semibold text-slate-400">বিষয় ও অধ্যায় বাছাই করুন</p>
-          </div>
-        </div>
-
-        <button type="button" onClick={onMobileClose} className="rounded-[10px] p-2 text-slate-400 transition duration-150 hover:bg-white/10 hover:text-white focus:outline-none lg:hidden" title="Close filters" aria-label="Close filters">
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-
-      <FilterCard title="শিক্ষা স্তর" count={levelOptions.find((item) => item.value === selectedLevel)?.label} isOpen={openCards.level} onToggle={() => toggleCard('level')}>
-        <div className="grid grid-cols-2 gap-2">
-          {levelOptions.map((level) => {
-            const isAvailable = true;
+  const body = (
+    <div className="flex w-full flex-col gap-4">
+      {/* Education Level */}
+      <FilterCard
+        title="শিক্ষা স্তর"
+        icon={GraduationCap}
+        isOpen={openCards.level}
+        onToggle={() => toggleCard('level')}
+      >
+        <div className="grid grid-cols-1 gap-1.5">
+          {levels.length === 0 && (
+            <p className="px-2 py-3 text-center text-[11px] font-semibold text-slate-600">লোড হচ্ছে…</p>
+          )}
+          {levels.map((level) => {
+            const isSelected = selectedLevel === level;
             return (
               <button
-                key={level.value}
+                key={level}
                 type="button"
                 onClick={() => {
-                  if (!isAvailable) return;
-                  setSelectedLevel(level.value);
+                  setSelectedLevel(level);
                   setSelectedSubjectId('');
                 }}
-                disabled={!isAvailable}
-                className={`rounded-xl border px-3 py-2.5 text-xs font-extrabold uppercase transition duration-150 focus:outline-none ${selectedLevel === level.value
-                    ? 'border-indigo-500 bg-indigo-600 text-white shadow-md shadow-indigo-950/30'
-                    : 'border-slate-700/60 bg-slate-950/30 text-slate-300 hover:border-indigo-400/50 hover:bg-indigo-500/10 disabled:cursor-not-allowed disabled:opacity-45'
-                  }`}
-                title={`${level.label} নির্বাচন করুন`}
+                className={`flex items-center justify-between rounded-xl px-3 py-2.5 sm:py-2 text-xs font-bold transition-all duration-200 focus:outline-none active:scale-[0.98] ${
+                  isSelected
+                    ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/20'
+                    : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                }`}
               >
-                {level.label}
+                <span>{LEVEL_LABELS[level] || level}</span>
+                {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
               </button>
             );
           })}
         </div>
       </FilterCard>
 
-      <FilterCard title="বিষয়" count={selectedSubjectId ? 'নির্বাচিত' : 'বিষয় নির্বাচন করুন'} isOpen={openCards.subject} onToggle={() => toggleCard('subject')}>
+      {/* Subject */}
+      <FilterCard
+        title="বিষয়"
+        icon={BookOpen}
+        count={activeSubjectConfig ? (activeSubjectConfig.label || activeSubjectConfig.name) : 'বাছাই করুন'}
+        isOpen={openCards.subject}
+        onToggle={() => toggleCard('subject')}
+      >
         <div className="relative">
           <select
             value={selectedSubjectId}
             onChange={(e) => setSelectedSubjectId(e.target.value)}
-            className="w-full appearance-none rounded-xl border border-slate-700/70 bg-slate-950/40 p-3.5 pl-10 text-[13px] font-bold text-slate-100 transition duration-150 hover:border-indigo-400/50 hover:bg-slate-900/70 focus:bg-slate-900 focus:outline-none "
+            className="w-full appearance-none rounded-xl border border-slate-700/60 bg-slate-950/70 py-2.5 pl-9 pr-9 text-xs font-bold text-slate-100 transition-all hover:border-slate-600 focus:border-violet-500/60 focus:bg-slate-950 focus:outline-none"
           >
-            <option value="">-- বিষয় নির্বাচন করুন --</option>
+            <option value="">-- বিষয় নির্বাচন করুন --</option>
             {availableSubjects.map((sub) => (
-              <option key={sub.id} value={sub.id} className="bg-slate-900 text-slate-100">{sub.name}</option>
+              <option key={sub.id} value={sub.id} className="bg-slate-900 text-slate-100">
+                {sub.emoji ? `${sub.emoji} ` : ''}{sub.label || sub.name}
+              </option>
             ))}
           </select>
-          <BookOpen className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-300" />
-          <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <BookOpen className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-violet-300" />
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
         </div>
       </FilterCard>
 
+      {/* Chapters */}
       {activeSubjectConfig && chapters.length > 0 && (
-        <FilterCard title="অধ্যায়" count={`${selectedChapters.length}/${chapters.length} নির্বাচিত`} isOpen={openCards.chapter} onToggle={() => toggleCard('chapter')}>
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={selectAllChapters} className="rounded-xl border border-indigo-400/30 bg-indigo-500/15 px-3 py-2 text-xs font-extrabold text-indigo-200 transition duration-150 hover:bg-indigo-500/25 focus:outline-none ">সব অধ্যায়</button>
-              <button type="button" onClick={unselectAllChapters} className="rounded-xl border border-slate-700/60 bg-slate-950/30 px-3 py-2 text-xs font-extrabold text-slate-300 transition duration-150 hover:bg-slate-800/70 focus:outline-none ">বাদ দিন</button>
+        <FilterCard
+          title="অধ্যায়"
+          icon={Layers}
+          count={`${selectedChapters.length} / ${chapters.length} টি`}
+          isOpen={openCards.chapter}
+          onToggle={() => toggleCard('chapter')}
+        >
+          <div className="space-y-2">
+            {chapters.length > 5 && (
+              <FilterSearch value={chapterSearch} onChange={setChapterSearch} placeholder="অধ্যায় খুঁজুন..." />
+            )}
+            <div className="flex items-center gap-3 px-1">
+              <button
+                type="button"
+                onClick={selectAllChapters}
+                className="text-[11px] font-bold text-violet-300 transition hover:text-violet-200 active:scale-95"
+              >
+                সব সিলেক্ট
+              </button>
+              <span className="text-slate-700">·</span>
+              <button
+                type="button"
+                onClick={unselectAllChapters}
+                className="text-[11px] font-bold text-slate-500 transition hover:text-slate-300 active:scale-95"
+              >
+                ক্লিয়ার
+              </button>
             </div>
-            <div className="max-h-[280px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
-              {filteredChapters.map((c) => (
-                <FilterCheckboxRow key={c.id} checked={selectedChapters.includes(c.id)} label={c.title} onClick={() => toggleChapter(c.id)} />
-              ))}
+            <div className="space-y-1 max-h-56 overflow-y-auto custom-scrollbar pr-0.5">
+              {filteredChapters.map((c) => {
+                const count = chapterCounts[c.id] || 0;
+                return (
+                  <FilterCheckboxRow
+                    key={c.id}
+                    checked={selectedChapters.includes(c.id)}
+                    label={chapterLabel(c)}
+                    meta={count > 0 ? `${enToBn(count)} টি প্রশ্ন` : 'প্রশ্ন নেই'}
+                    onClick={() => toggleChapter(c.id)}
+                  />
+                );
+              })}
+              {filteredChapters.length === 0 && (
+                <p className="px-2 py-3 text-center text-[11px] font-semibold text-slate-500">কোনো অধ্যায় মেলেনি</p>
+              )}
             </div>
           </div>
         </FilterCard>
       )}
 
+      {/* Topics */}
       {selectedChapters.length > 0 && availableTopics.length > 0 && (
-        <FilterCard title="টপিক" count={`${selectedTopics.length}/${availableTopics.length} নির্বাচিত`} isOpen={openCards.topic} onToggle={() => toggleCard('topic')}>
-          <div className="space-y-3">
-            <div className="max-h-[250px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+        <FilterCard
+          title="টপিক"
+          icon={Tag}
+          count={`${selectedTopics.length} / ${availableTopics.length} টি`}
+          isOpen={openCards.topic}
+          onToggle={() => toggleCard('topic')}
+        >
+          <div className="space-y-2">
+            {availableTopics.length > 5 && (
+              <FilterSearch value={topicSearch} onChange={setTopicSearch} placeholder="টপিক খুঁজুন..." />
+            )}
+            <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar pr-0.5">
               {filteredTopics.map((t) => (
-                <FilterCheckboxRow key={t.id} checked={selectedTopics.includes(t.id)} label={t.name} onClick={() => toggleTopic(t.id)} />
+                <FilterCheckboxRow
+                  key={t.id}
+                  checked={selectedTopics.includes(t.id)}
+                  label={t.name}
+                  onClick={() => toggleTopic(t.id)}
+                />
               ))}
+              {filteredTopics.length === 0 && (
+                <p className="px-2 py-3 text-center text-[11px] font-semibold text-slate-500">কোনো টপিক মেলেনি</p>
+              )}
             </div>
           </div>
         </FilterCard>
       )}
-
-      <FilterCard title="প্রশ্নের ধরন" count="JSON ডেটা অনুযায়ী" isOpen={openCards.type} onToggle={() => toggleCard('type')}>
-        <div className="grid grid-cols-1 gap-2">
-          {[
-            { label: 'সব প্রশ্ন', value: 'all' },
-            { label: 'বহুনির্বাচনি (MCQ)', value: 'mcq' },
-            { label: 'সৃজনশীল (CQ)', value: 'cq' },
-            { label: 'জ্ঞান ও অনুধাবন', value: 'k_kh' },
-          ].map((type) => (
-            <FilterCheckboxRow key={type.value} checked={selectedType === type.value} label={type.label} onClick={() => setSelectedType(type.value)} />
-          ))}
-        </div>
-      </FilterCard>
-
-      <div className="lg:hidden">
-        <button type="button" onClick={onMobileClose} className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-extrabold text-white shadow-lg shadow-indigo-950/30 transition duration-150 hover:bg-indigo-500 active:scale-[0.98] focus:outline-none ">
-          ফিল্টার প্রয়োগ করুন
-        </button>
-      </div>
     </div>
   );
 
-  if (isCollapsed) {
-    return (
-      <div className="qb-sidebar-collapsed flex w-14 shrink-0 flex-col items-center gap-4 rounded-2xl border border-slate-800 bg-slate-900/95 py-5 shadow-[0_14px_35px_rgba(0,0,0,0.22)] transition-all duration-250">
-        <button onClick={onToggleCollapse} className="p-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-xl transition border border-indigo-500/20" title="Expand filters">
-          <SlidersHorizontal className="w-5 h-5" />
-        </button>
-      </div>
-    );
-  }
-
   return (
     <>
-      <div className={`qb-sidebar-drawer fixed inset-0 z-40 transition-opacity duration-300 ${isMobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onMobileClose} />
-        <aside className={`absolute left-0 top-0 bottom-0 w-[88%] max-w-sm bg-slate-950 border-r border-slate-800 p-5 flex flex-col gap-5 overflow-y-auto custom-scrollbar transform transition-transform duration-300 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          {premiumBody}
+      {/* Mobile Drawer */}
+      <div className={`fixed inset-0 z-[100] transition-opacity duration-300 ${isMobileOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onMobileClose} />
+        <aside className={`absolute bottom-0 left-0 top-0 flex w-[88%] max-w-sm transform flex-col border-r border-white/10 bg-[#0b0f19] shadow-2xl transition-transform duration-300 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5">
+            <div className="flex items-center gap-2.5">
+              <span className="rounded-xl bg-violet-500/15 p-2 text-violet-300">
+                <SlidersHorizontal className="h-4 w-4" />
+              </span>
+              <h2 className="text-sm font-black text-white">প্রশ্ন ফিল্টার</h2>
+            </div>
+            <button
+              type="button"
+              onClick={onMobileClose}
+              className="rounded-xl p-2 text-slate-400 transition hover:bg-white/10 hover:text-white"
+              aria-label="ফিল্টার বন্ধ করুন"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 custom-scrollbar">{body}</div>
+          <div className="shrink-0 border-t border-white/10 p-4">
+            <button
+              type="button"
+              onClick={onMobileClose}
+              className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 py-3 text-xs font-black text-white shadow-lg shadow-violet-500/25 transition hover:from-violet-500 hover:to-indigo-500 active:scale-[0.98]"
+            >
+              ফিল্টার প্রয়োগ করুন
+            </button>
+          </div>
         </aside>
       </div>
-      <aside className="qb-sidebar-desktop w-full shrink-0 overflow-y-auto bg-slate-900/20 border border-slate-800/50 rounded-2xl p-4 flex-col gap-2 custom-scrollbar">
-        {premiumBody}
+
+      {/* Desktop Sidebar Pane */}
+      <aside className="qb-filter-pane flex min-h-0 w-full flex-col rounded-2xl border border-white/[0.06] bg-slate-900/30 backdrop-blur-xl">
+        <div className="flex shrink-0 items-center gap-2 border-b border-white/[0.06] px-4 py-3">
+          <SlidersHorizontal className="h-3.5 w-3.5 text-violet-400" />
+          <h2 className="text-xs font-black tracking-wide text-white">ফিল্টার সেটিংস</h2>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-3.5 custom-scrollbar">{body}</div>
       </aside>
     </>
   );
 });
+
+FilterSidebar.displayName = 'FilterSidebar';
 
 export default FilterSidebar;

@@ -14,21 +14,21 @@ export default function ReadModeWidget({ isScrollingDown }) {
   const [isLabTab, setIsLabTab] = useState(false);
 
   const isTargetPage =
-    location.pathname === '/dashboard' ||
-    location.pathname.startsWith('/word/') ||
-    location.pathname === '/blog' ||
-    location.pathname.startsWith('/blog/');
+    location.pathname === '/ml/dashboard' ||
+    location.pathname.startsWith('/ml/word/') ||
+    location.pathname === '/ml/blog' ||
+    location.pathname.startsWith('/ml/blog/');
 
   // Determine current item for bookmarking
   const currentBookmarkItem = useMemo(() => {
-    if (location.pathname.startsWith('/word/')) {
-      const path = location.pathname.split('/word/')[1];
+    if (location.pathname.startsWith('/ml/word/')) {
+      const path = location.pathname.split('/ml/word/')[1];
       const word = getAllWords().find(w => w.path === path);
       if (word) {
         return { id: path, type: 'book', title: word.title, link: location.pathname };
       }
-    } else if (location.pathname.startsWith('/blog/')) {
-      const slug = location.pathname.split('/blog/')[1];
+    } else if (location.pathname.startsWith('/ml/blog/')) {
+      const slug = location.pathname.split('/ml/blog/')[1];
       const blog = allBlogs.find(b => b.slug === slug);
       if (blog) {
         return { id: slug, type: 'blog', title: blog.title, link: location.pathname };
@@ -53,7 +53,7 @@ export default function ReadModeWidget({ isScrollingDown }) {
   }, [isReadMode, isLabTab, isTargetPage, location.pathname]);
 
   useEffect(() => {
-    if (!isTargetPage || !location.pathname.startsWith('/word/')) {
+    if (!isTargetPage || !location.pathname.startsWith('/ml/word/')) {
       const timeout = setTimeout(() => setIsLabTab(false), 0);
       return () => clearTimeout(timeout);
     }

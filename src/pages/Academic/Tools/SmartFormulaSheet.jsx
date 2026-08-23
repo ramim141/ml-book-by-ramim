@@ -1,54 +1,37 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
+import { useQuery } from '@tanstack/react-query';
 import { db } from '../../../config/firebase';
-import { BookOpen, Search, Loader2, BookA, Calculator, Atom, Code } from 'lucide-react';
+import { useAcademicSubjects } from '../../../hooks/useAcademicSubjects';
+import { QK, STALE } from '../../../lib/queryConfig';
+import { SkeletonList } from '../../../components/UI/Skeleton';
+import { BookOpen, Search, BookA, Calculator, Atom, Code } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import { BlockMath } from 'react-katex';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 
-let cachedFormulas = null;
-let cachedSubjects = null;
-
 export default function SmartFormulaSheet() {
-  const [formulas, setFormulas] = useState(cachedFormulas || []);
-  const [availableSubjects, setAvailableSubjects] = useState(cachedSubjects || []);
-  const [loading, setLoading] = useState(!cachedFormulas);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('All');
   const [selectedChapter, setSelectedChapter] = useState('All');
   const [selectedFormula, setSelectedFormula] = useState('All');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  useEffect(() => {
-    if (cachedFormulas && cachedSubjects) return;
-    fetchData();
-  }, []);
+  const { data: availableSubjects = [], isLoading: loadingSubjects } = useAcademicSubjects();
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // Fetch dynamic subjects
-      let loadedSubjects = [];
-      const subSnap = await getDoc(doc(db, 'admin_settings', 'subjects'));
-      if (subSnap.exists() && subSnap.data().list) {
-        loadedSubjects = subSnap.data().list;
-        setAvailableSubjects(loadedSubjects);
-        cachedSubjects = loadedSubjects;
-      }
-
-      // Fetch formulas
+  const { data: formulas = [], isLoading: loadingFormulas } = useQuery({
+    queryKey: QK.formulas(),
+    queryFn: async () => {
       const snapshot = await getDocs(collection(db, 'smart_formulas'));
-      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setFormulas(list);
-      cachedFormulas = list;
-    } catch (e) {
-      console.error('Error fetching formulas:', e);
-    }
-    setLoading(false);
-  };
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+    },
+    staleTime: STALE.CONFIG,
+  });
+
+  const loading = loadingSubjects || loadingFormulas;
 
   const dynamicSubjects = useMemo(() => {
     return ['All', ...availableSubjects.map(s => s.label)];
@@ -242,10 +225,7 @@ export default function SmartFormulaSheet() {
 
         {/* Formulas Display */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="w-10 h-10 animate-spin text-emerald-500 mb-4" />
-            <p className="text-slate-400">ফর্মুলা লোড হচ্ছে...</p>
-          </div>
+          <SkeletonList count={6} />
         ) : Object.keys(groupedFormulas).length === 0 ? (
           <div className="text-center py-20 bg-slate-900/30 rounded-3xl border border-slate-800/50">
             <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-4 opacity-50" />

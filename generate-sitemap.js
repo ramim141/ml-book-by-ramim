@@ -5,26 +5,29 @@ const SITE_URL = 'https://learnwithramim.com'; // Change this to the actual doma
 
 // Static Routes
 const staticRoutes = [
+  // কেন্দ্রীয় হাব
   '/',
   '/about',
   '/contact',
-  '/ml-topics',
-  '/books',
-  '/blog',
-  '/dashboard',
-  '/bookmarks',
+  // সাব-সাইট ০১: এমএল বই
+  '/ml',
+  '/ml/dashboard',
+  '/ml/start',
+  '/ml/topics',
+  '/ml/books',
+  '/ml/blog',
+  '/ml/bookmarks',
+  // সাব-সাইট ০২: একাডেমিক হাব
   '/academic',
   '/academic/ssc',
   '/academic/hsc',
   '/academic/admission',
   '/academic/question-bank',
   '/academic/model-test',
-  '/academic/suggestion',
   '/academic/shortcut/all/all/all',
-  '/academic/syllabus',
-  '/academic/routine',
-  '/academic/result',
-  '/academic/timer'
+  // suggestion / syllabus / routine / result / timer এখনো "শীঘ্রই আসছে" পেজ —
+  // তৈরি না হওয়া পেজ sitemap এ দিলে Google এ খালি ফলাফল দেখায়।
+  // পেজগুলো তৈরি হলে এখানে ফিরিয়ে আনতে হবে।
 ];
 
 // Read wordsIndex.js
@@ -34,7 +37,7 @@ if (fs.existsSync(wordsIndexPath)) {
   const content = fs.readFileSync(wordsIndexPath, 'utf8');
   // Match path: "something" or path: 'something'
   const matches = [...content.matchAll(/path:\s*['"]([^'"]+)['"]/g)];
-  wordRoutes = matches.map(m => `/word/${m[1]}`);
+  wordRoutes = matches.map(m => `/ml/word/${m[1]}`);
 }
 
 // Read blogIndex.js
@@ -44,7 +47,7 @@ if (fs.existsSync(blogIndexPath)) {
   const content = fs.readFileSync(blogIndexPath, 'utf8');
   // Match slug: "something" or slug: 'something'
   const matches = [...content.matchAll(/slug:\s*['"]([^'"]+)['"]/g)];
-  blogRoutes = matches.map(m => `/blog/${m[1]}`);
+  blogRoutes = matches.map(m => `/ml/blog/${m[1]}`);
 }
 
 const allRoutes = [...staticRoutes, ...wordRoutes, ...blogRoutes];

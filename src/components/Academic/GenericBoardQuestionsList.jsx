@@ -4,6 +4,7 @@ import { ChevronRight, ChevronLeft, ArrowLeft, FileText, Loader2, Database } fro
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useQuery } from '@tanstack/react-query';
+import { SkeletonGrid } from '../UI/Skeleton';
 const enToBnNumber = (numStr) => {
   const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
   return String(numStr).replace(/[0-9]/g, w => bn[w]);
@@ -181,7 +182,7 @@ export default function GenericBoardQuestionsList({ subjectId, subjectPath }) {
 
         {/* Results */}
         {loadingCqs ? (
-          <div className="flex flex-col justify-center items-center py-20"><Loader2 className="w-10 h-10 animate-spin text-indigo-500" /></div>
+          <div className="py-4"><SkeletonGrid count={8} columns="sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" /></div>
         ) : filteredBoards.length === 0 ? (
           <div className="text-center py-20 text-slate-400 bg-slate-800/20 rounded-2xl border border-slate-700/50">
             <Database className="w-12 h-12 mx-auto mb-3 opacity-30" />

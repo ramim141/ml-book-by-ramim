@@ -19,12 +19,12 @@ function LandingPageContent() {
       <SEO 
         title="শব্দে শব্দে মেশিন লার্নিং (এমএল) Book" 
         description="জটিল অ্যালগরিদম আর খটমট সব সংজ্ঞা বাদ দিয়ে, গল্পের ছলে আর চমকপ্রদ সিমুলেশনের মাধ্যমে শিখুন ভবিষ্যতের প্রযুক্তি। Machine Learning Bengali Book (hardcopy)." 
-        canonical="https://learnwithramim.com/" 
+        canonical="https://learnwithramim.com/ml" 
         schema={{
           "@context": "https://schema.org",
           "@type": "WebSite",
           "name": "শব্দে শব্দে মেশিন লার্নিং (এমএল) Book",
-          "url": "https://learnwithramim.com/",
+          "url": "https://learnwithramim.com/ml",
           "description": "জটিল অ্যালগরিদম আর খটমট সব সংজ্ঞা বাদ দিয়ে, গল্পের ছলে বাংলায় মেশিন লার্নিং শিখুন। Hardcopy available."
         }}
       />
@@ -69,7 +69,7 @@ function LandingPageContent() {
              className="flex flex-col items-center justify-center gap-5 sm:flex-row"
           >
             <button 
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/ml/dashboard')}
               className="group px-8 py-4 bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-400 hover:to-cyan-400 text-white font-black rounded-2xl flex items-center justify-center w-full sm:w-auto gap-3 transition-all hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(99,102,241,0.3)] border border-white/10"
             >
               <BookOpen size={20} /> বই পড়া শুরু করুন <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />
@@ -387,7 +387,7 @@ function LandingPageContent() {
                 ভবিষ্যতের প্রযুক্তিকে আর ভয় নয়, এবার জয় করার পালা। এখনই ড্যাশবোর্ডে প্রবেশ করুন এবং আপনার প্রথম লেসনটি পড়ে ফেলুন।
               </p>
               <button 
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/ml/dashboard')}
                 className="px-10 py-4 bg-white text-indigo-950 font-black rounded-2xl flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.2)] mx-auto"
               >
                 <Rocket size={20} /> বিনামূল্যে পড়া শুরু করুন

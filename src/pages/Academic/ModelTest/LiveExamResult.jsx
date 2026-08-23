@@ -9,6 +9,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import 'katex/dist/katex.min.css';
+import { Skeleton, SkeletonList } from '../../../components/UI/Skeleton';
 
 const enToBnNumber = (numStr) => {
   if (!numStr) return numStr;
@@ -62,7 +63,19 @@ export default function LiveExamResult() {
         setLoading(false);
         return;
       }
-      setSubmission(submissionDoc.data());
+      // নিজের উত্তরগুলো এখন self-only সাবডকে (অন্যরা যেন পড়তে না পারে),
+      // তাই মূল সাবমিশনের সাথে সেটাও এনে জোড়া লাগাই। পুরনো সাবমিশনে
+      // answers মূল ডকেই আছে, তাই সেটাও fallback হিসেবে থাকে।
+      const privateSnap = await getDoc(
+        doc(db, 'live_exams', examId, 'submissions', currentUser.uid, 'private', 'data')
+      ).catch(() => null);
+
+      setSubmission({
+        ...submissionDoc.data(),
+        answers: privateSnap?.exists()
+          ? (privateSnap.data().answers || {})
+          : (submissionDoc.data().answers || {}),
+      });
 
       // 3. Fetch Snapshot Questions from User's History
       const historyDoc = await getDoc(doc(db, 'users', currentUser.uid, 'live_exam_history', examId));
@@ -98,9 +111,11 @@ export default function LiveExamResult() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#050914] flex flex-col items-center justify-center pt-20">
-        <Loader2 className="h-12 w-12 text-indigo-500 animate-spin mb-4" />
-        <p className="text-indigo-400 font-medium animate-pulse">Loading Results...</p>
+      <div className="min-h-screen bg-[#0a0f1c] pt-24 pb-20 px-4 sm:px-6 lg:px-8 font-bangla">
+        <div className="max-w-4xl mx-auto space-y-8">
+          <Skeleton className="h-64 w-full rounded-3xl" />
+          <SkeletonList count={5} />
+        </div>
       </div>
     );
   }

@@ -79,7 +79,7 @@ export default function About() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
-              to="/dashboard"
+              to="/ml/dashboard"
               className="inline-flex items-center justify-center gap-2 rounded-md bg-teal-300 px-5 py-3 text-sm font-black text-[#06111d] transition hover:bg-teal-200"
             >
               শেখা শুরু করুন

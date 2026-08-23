@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
-import { Search, Database, BookOpen, GraduationCap, FileText, CheckSquare, BrainCircuit, LayoutGrid, SlidersHorizontal, Loader2, FlaskConical, Calculator, Dna, FileDigit, Globe, Coins, PenTool } from 'lucide-react';
+import { Search, Database, BookOpen, GraduationCap, FileText, CheckSquare, BrainCircuit, LayoutGrid, SlidersHorizontal, FlaskConical, Calculator, Dna, FileDigit, Globe, Coins, PenTool } from 'lucide-react';
 import { getSubjectPath } from '../../../utils/academicRoutes';
+import { SkeletonGrid } from '../../../components/UI/Skeleton';
 
 
 const categories = ['All', 'HSC', 'SSC', 'Admission'];
@@ -167,7 +168,9 @@ const QuestionBankDashboard = () => {
 
       {/* Results Grid */}
       {loading ? (
-        <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-indigo-500" /></div>
+        <div className="mt-8">
+          <SkeletonGrid count={6} columns="lg:grid-cols-2" />
+        </div>
       ) : filteredBanks.length > 0 ? (
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
           {filteredBanks.map((bank) => {

@@ -5,6 +5,7 @@ import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firesto
 import { db } from '../../config/firebase';
 import 'katex/dist/katex.min.css';
 import SharedCQItem from './SharedCQItem';
+import { SkeletonList } from '../UI/Skeleton';
 
 const enToBnNumber = (numStr) => {
   const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
@@ -116,7 +117,7 @@ export default function GenericBoardQuestionViewer({ subjectId, subjectPath }) {
 
         {/* Content */}
         {loading ? (
-          <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-indigo-500" /></div>
+          <div className="py-4"><SkeletonList count={4} /></div>
         ) : questions.length === 0 ? (
           <div className="text-center py-20 text-slate-400 bg-slate-800/20 rounded-2xl border border-slate-700/50">
             <p className="text-lg font-medium">কোনো প্রশ্ন পাওয়া যায়নি</p>

@@ -1,13 +1,12 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../../config/firebase';
+import { useDashboardSubjects } from '../../../hooks/useAcademicSubjects';
+import { SkeletonCard } from '../../../components/UI/Skeleton';
 import { 
   BookOpen, CalendarDays, ChevronRight, 
   GraduationCap, Library, Lightbulb, 
-  Settings, Target, Trophy, Clock, Search, Zap, Loader2, FlaskConical, Cpu, Activity, Sigma
+  Settings, Target, Trophy, Clock, Search, Zap, FlaskConical, Cpu, Activity, Sigma
 } from 'lucide-react';
-import { getSubjectPath } from '../../../utils/academicRoutes';
 let cachedSubjects = null;
 
 export default function HSCDashboard() {
@@ -22,47 +21,7 @@ export default function HSCDashboard() {
     { title: 'শর্টকাট', icon: Zap, path: '/academic/shortcut/all/all/all', color: 'from-emerald-400 to-teal-500', shadow: 'shadow-emerald-500/20' },
   ];
 
-  const [subjects, setSubjects] = React.useState(cachedSubjects || []);
-  const [loading, setLoading] = React.useState(!cachedSubjects);
-
-  useEffect(() => {
-    if (cachedSubjects) return;
-
-    const fetchSubjects = async () => {
-      try {
-        const snap = await getDoc(doc(db, 'admin_settings', 'subjects'));
-        if (snap.exists() && snap.data().list) {
-          const presets = [
-            'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20',
-            'bg-purple-500/10 text-purple-400 border-purple-500/20 hover:bg-purple-500/20',
-            'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20',
-            'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
-            'bg-lime-500/10 text-lime-400 border-lime-500/20 hover:bg-lime-500/20',
-            'bg-sky-500/10 text-sky-400 border-sky-500/20 hover:bg-sky-500/20',
-            'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
-          ];
-
-          const hscSubjects = snap.data().list.filter(s => s.level === 'HSC').map((s, idx) => {
-            return {
-              id: s.id,
-              title: s.label,
-              subtitle: s.chapters?.length + ' টি অধ্যায়',
-              emoji: s.emoji,
-              path: getSubjectPath(s),
-              color: presets[idx % presets.length]
-            };
-          });
-          cachedSubjects = hscSubjects;
-          setSubjects(hscSubjects);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSubjects();
-  }, []);
+  const { subjects, isLoading } = useDashboardSubjects('HSC');
 
   const studyTools = [
     { title: 'পর্যায় সারণি', icon: FlaskConical, path: '/academic/periodic-table' },
@@ -141,8 +100,10 @@ export default function HSCDashboard() {
             </h2>
           </div>
 
-          {loading ? (
-            <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {Array.from({ length: 6 }, (_, i) => <SkeletonCard key={i} lines={0} />)}
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {subjects.map((subject, idx) => (

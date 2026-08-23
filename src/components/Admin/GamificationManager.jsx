@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { Star, Plus, Trash2, Loader2, Award, Zap, Trophy } from 'lucide-react';
+import { SkeletonList } from '../UI/Skeleton';
 
 export default function GamificationManager() {
   const [levels, setLevels] = useState([]);
@@ -71,7 +72,7 @@ export default function GamificationManager() {
     setLevels(levels.filter((_, i) => i !== idx));
   };
 
-  if (loading) return <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>;
+  if (loading) return <div className="p-4"><SkeletonList count={5} /></div>;
 
   return (
     <div className="max-w-4xl">
@@ -96,7 +97,7 @@ export default function GamificationManager() {
             <label className="block text-sm font-bold text-slate-400 mb-2">Base XP (পরীক্ষা দিলেই পাবে)</label>
             <div className="relative">
               <Award className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-400" />
-              <input type="number" value={baseXp} onChange={e => setBaseXp(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white font-bold outline-none focus:border-indigo-500" />
+              <input type="number" value={baseXp} onChange={e => setBaseXp(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white font-bold outline-none focus:border-indigo-500 text-base sm:text-sm" />
             </div>
             <p className="text-xs text-slate-500 mt-2">যেকোনো মডেল টেস্টে অংশগ্রহণ করলেই স্টুডেন্ট এই পয়েন্টটি পাবে।</p>
           </div>
@@ -104,7 +105,7 @@ export default function GamificationManager() {
             <label className="block text-sm font-bold text-slate-400 mb-2">XP Per Correct Answer (সঠিক উত্তরের পয়েন্ট)</label>
             <div className="relative">
               <Star className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400" />
-              <input type="number" value={xpPerCorrect} onChange={e => setXpPerCorrect(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white font-bold outline-none focus:border-emerald-500" />
+              <input type="number" value={xpPerCorrect} onChange={e => setXpPerCorrect(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white font-bold outline-none focus:border-emerald-500 text-base sm:text-sm" />
             </div>
             <p className="text-xs text-slate-500 mt-2">প্রতিটি সঠিক উত্তরের জন্য কত পয়েন্ট যোগ হবে। (যেমন: ১০টি সঠিক উত্তর = ১০ x ২ = ২০)</p>
           </div>
@@ -120,19 +121,19 @@ export default function GamificationManager() {
           <div key={lvl.id} className="flex flex-col md:flex-row gap-3 items-start md:items-center bg-slate-900/50 p-4 rounded-xl border border-slate-800">
             <div className="w-16 shrink-0">
               <label className="block text-xs font-bold text-slate-500 mb-1">Emoji</label>
-              <input type="text" value={lvl.icon} onChange={e => updateLevel(idx, 'icon', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-center text-xl" />
+              <input type="text" value={lvl.icon} onChange={e => updateLevel(idx, 'icon', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-center text-xl text-base sm:text-sm" />
             </div>
             <div className="w-full md:w-1/4">
               <label className="block text-xs font-bold text-slate-500 mb-1">লেভেলের নাম</label>
-              <input type="text" value={lvl.label} onChange={e => updateLevel(idx, 'label', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200" />
+              <input type="text" value={lvl.label} onChange={e => updateLevel(idx, 'label', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-base sm:text-sm text-slate-200" />
             </div>
             <div className="w-full md:w-32 shrink-0">
               <label className="block text-xs font-bold text-slate-500 mb-1">প্রয়োজনীয় XP</label>
-              <input type="number" value={lvl.minXp} onChange={e => updateLevel(idx, 'minXp', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-indigo-400" />
+              <input type="number" value={lvl.minXp} onChange={e => updateLevel(idx, 'minXp', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-base sm:text-sm font-bold text-indigo-400" />
             </div>
             <div className="w-full md:flex-1">
               <label className="block text-xs font-bold text-slate-500 mb-1">বর্ণনা</label>
-              <input type="text" value={lvl.desc} onChange={e => updateLevel(idx, 'desc', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200" />
+              <input type="text" value={lvl.desc} onChange={e => updateLevel(idx, 'desc', e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-base sm:text-sm text-slate-200" />
             </div>
             <button onClick={() => removeLevel(idx)} className="mt-5 md:mt-0 p-2 text-slate-500 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition-colors shrink-0">
               <Trash2 className="w-5 h-5" />

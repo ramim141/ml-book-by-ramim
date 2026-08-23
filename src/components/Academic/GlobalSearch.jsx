@@ -4,6 +4,7 @@ import { Search, Loader2, BookOpen, Layers, HelpCircle, X } from 'lucide-react';
 import { collection, query, where, orderBy, startAt, endAt, limit, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { getSubjectPath } from '../../utils/academicRoutes';
+import { SkeletonList } from '../UI/Skeleton';
 
 export default function GlobalSearch() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -141,9 +142,8 @@ export default function GlobalSearch() {
         <div className="absolute top-full left-0 w-full bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 border-t-0 rounded-b-2xl shadow-2xl overflow-hidden max-h-[70vh] overflow-y-auto custom-scrollbar flex flex-col">
           
           {isSearching ? (
-            <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-              <Loader2 className="w-8 h-8 animate-spin mb-3 text-indigo-500" />
-              <p className="text-sm font-medium">খোঁজা হচ্ছে...</p>
+            <div className="p-4">
+              <SkeletonList count={3} />
             </div>
           ) : (
             results.subjects.length === 0 && results.chapters.length === 0 && results.questions.length === 0 ? (

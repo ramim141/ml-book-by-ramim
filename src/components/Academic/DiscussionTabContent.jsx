@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, updateDoc, doc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { MessageSquare, Send, User, Reply, Loader2, MessageCircle } from 'lucide-react';
+import { SkeletonList } from '../UI/Skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import { bn } from 'date-fns/locale';
 
@@ -122,7 +124,7 @@ export default function DiscussionTabContent({ chapter, subjectId, chapterId }) 
         
         {!currentUser ? (
           <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-center text-indigo-300">
-            প্রশ্ন করতে বা রিপ্লাই দিতে দয়া করে <a href="/login" className="font-bold underline underline-offset-2">লগইন</a> করো।
+            প্রশ্ন করতে বা রিপ্লাই দিতে দয়া করে <Link to="/login" className="font-bold underline underline-offset-2">লগইন</Link> করো।
           </div>
         ) : (
           <form onSubmit={handleSubmitQuestion} className="space-y-3">
@@ -150,8 +152,8 @@ export default function DiscussionTabContent({ chapter, subjectId, chapterId }) 
       {/* Discussions Feed */}
       <div className="space-y-4">
         {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+          <div className="py-4">
+            <SkeletonList count={3} />
           </div>
         ) : discussions.length === 0 ? (
           <div className="text-center py-12 bg-slate-900/40 border border-slate-800 rounded-2xl">

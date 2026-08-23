@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "academic_content",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subject", "order": "ASCENDING" },
+        { "fieldPath": "type", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

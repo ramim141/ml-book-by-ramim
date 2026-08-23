@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../../config/firebase';
+import React, { useEffect, useMemo } from 'react';
 import { getSubjectPath } from '../../../utils/academicRoutes';
+import { useAcademicSubjects } from '../../../hooks/useAcademicSubjects';
+import { SkeletonCard } from '../../../components/UI/Skeleton';
 import { Link } from 'react-router-dom';
 import {
   BookOpen, Calculator, CalendarDays, ChevronRight, FileText,
@@ -10,45 +10,31 @@ import {
 } from 'lucide-react';
 
 export default function ShortcutDashboard() {
-  const [academicSubjects, setAcademicSubjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     window.scrollTo(0, 0);
-    const fetchSubjects = async () => {
-      try {
-        const snap = await getDoc(doc(db, 'admin_settings', 'subjects'));
-        if (snap.exists() && snap.data().list) {
-          const presets = [
-            'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
-            'bg-purple-500/10 text-purple-400 border-purple-500/20',
-            'bg-rose-500/10 text-rose-400 border-rose-500/20',
-            'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-          ];
-          const subjects = snap.data().list
-            .filter(s => s.level === 'HSC' || s.level === 'SSC')
-            .map((s, idx) => {
-              const baseRoute = getSubjectPath(s);
-              const shortcutPath = baseRoute.replace('/academic/', '/academic/shortcut/') + '/all';
-              return {
-                title: s.label,
-                subtitle: s.chapters?.length ? `${s.chapters.length} টি অধ্যায়` : 'সকল অধ্যায়ের শর্টকাট',
-                icon: LayoutDashboard,
-                emoji: s.emoji,
-                path: shortcutPath,
-                color: presets[idx % presets.length]
-              };
-            });
-          setAcademicSubjects(subjects);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSubjects();
   }, []);
+
+  const { data: allSubjects = [], isLoading } = useAcademicSubjects();
+
+  const academicSubjects = useMemo(() => {
+    const presets = [
+      'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+      'bg-purple-500/10 text-purple-400 border-purple-500/20',
+      'bg-rose-500/10 text-rose-400 border-rose-500/20',
+      'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    ];
+
+    return allSubjects
+      .filter((s) => s.level === 'HSC' || s.level === 'SSC')
+      .map((s, idx) => ({
+        title: s.label,
+        subtitle: s.chapters?.length ? `${s.chapters.length} টি অধ্যায়` : 'সকল অধ্যায়ের শর্টকাট',
+        icon: LayoutDashboard,
+        emoji: s.emoji,
+        path: getSubjectPath(s).replace('/academic/', '/academic/shortcut/') + '/all',
+        color: presets[idx % presets.length],
+      }));
+  }, [allSubjects]);
 
   const quickActions = [
     { title: 'প্রশ্নব্যাংক', icon: Library, path: '/academic/question-bank', color: 'from-blue-500 to-cyan-400', shadow: 'shadow-blue-500/20' },
@@ -135,7 +121,9 @@ export default function ShortcutDashboard() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            {academicSubjects.map((subject, idx) => (
+            {isLoading
+              ? Array.from({ length: 6 }, (_, i) => <SkeletonCard key={i} lines={0} />)
+              : academicSubjects.map((subject, idx) => (
               <Link
                 key={idx}
                 to={subject.path}

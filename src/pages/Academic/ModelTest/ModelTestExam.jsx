@@ -27,7 +27,7 @@ const MarkdownRenderer = ({ content }) => (
 export default function ModelTestExam() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { questions, durationSeconds, subjectTitle } = location.state || {};
+  const { questions, durationSeconds, subjectTitle, subjectId } = location.state || {};
 
   const [answers, setAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(durationSeconds || 600);
@@ -41,11 +41,12 @@ export default function ModelTestExam() {
         answers,
         totalTime: durationSeconds,
         timeTaken: durationSeconds - timeLeft,
-        subjectTitle
+        subjectTitle,
+        subjectId
       },
       replace: true
     });
-  }, [navigate, questions, answers, durationSeconds, timeLeft, subjectTitle]);
+  }, [navigate, questions, answers, durationSeconds, timeLeft, subjectTitle, subjectId]);
 
   useEffect(() => {
     if (!questions) return;

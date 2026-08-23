@@ -44,7 +44,7 @@ function PartPanel({ part }) {
             {part.words.map((word) => (
               <Link
                 key={word.id}
-                to={`/word/${word.path}`}
+                to={`/ml/word/${word.path}`}
                 className="flex items-center justify-between rounded-lg border border-white/10 bg-[#070b12] px-4 py-3 text-sm font-medium leading-relaxed text-slate-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-slate-100"
               >
                 <span>{word.title}</span>
@@ -92,7 +92,7 @@ function ChapterPanel({ chapter }) {
         </div>
 
         <Link
-          to={firstWordPath ? `/word/${firstWordPath}` : '/start'}
+          to={firstWordPath ? `/ml/word/${firstWordPath}` : '/ml/start'}
           onClick={(e) => e.stopPropagation()}
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/[0.07] self-start sm:self-auto"
         >
@@ -125,7 +125,7 @@ export default function Home() {
       <SEO 
         title="ড্যাশবোর্ড | Dashboard" 
         description="শব্দে শব্দে মেশিন লার্নিং বইয়ের সূচিপত্র ও ড্যাশবোর্ড। এখান থেকে যেকোনো অধ্যায় পড়া শুরু করুন। Machine Learning Bengali Book Dashboard and Table of Contents." 
-        canonical="https://learnwithramim.com/dashboard"
+        canonical="https://learnwithramim.com/ml/dashboard"
       />
       <div className="mx-auto max-w-6xl space-y-6">
         <section className="rounded-xl border border-white/10 bg-[#0b111b] p-5 sm:p-7">
@@ -145,7 +145,7 @@ export default function Home() {
             </div>
 
             <Link
-              to={firstWordPath ? `/word/${firstWordPath}` : '/start'}
+              to={firstWordPath ? `/ml/word/${firstWordPath}` : '/ml/start'}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1f3a46] px-5 py-3 text-sm font-bold text-slate-100 transition-colors hover:bg-[#294957]"
             >
               <Play size={16} className="fill-current" />

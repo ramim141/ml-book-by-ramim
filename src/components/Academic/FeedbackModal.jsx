@@ -43,17 +43,10 @@ export default function FeedbackModal({ isOpen, onClose, questionId, questionTyp
         createdAt: serverTimestamp(),
       });
       
-      try {
-        await addDoc(collection(db, 'admin_activity'), {
-          type: 'report',
-          message: 'একটি প্রশ্নে ভুলের রিপোর্ট এসেছে',
-          details: `Type: ${selectedType}, Details: ${details.substring(0, 50)}`,
-          timestamp: serverTimestamp(),
-          read: false
-        });
-      } catch (logErr) {
-        console.error('Failed to log admin activity', logErr);
-      }
+      // এখানে আগে `admin_activity` তেও একটা নোটিফিকেশন লেখার চেষ্টা হতো,
+      // কিন্তু ঐ কালেকশনে শুধু অ্যাডমিন লিখতে পারে — তাই ছাত্রের পক্ষ থেকে
+      // সেটা সবসময় ব্যর্থ হতো। রিপোর্টটা এমনিতেই উপরে `feedback_reports` এ
+      // জমা হয়ে গেছে, আর অ্যাডমিন সেটা "রিপোর্টস" ট্যাবেই দেখতে পান।
       setIsSuccess(true);
       setTimeout(() => {
         setIsSuccess(false);

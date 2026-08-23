@@ -1,58 +1,47 @@
-import { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
+import { useState } from 'react';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { useQuery } from '@tanstack/react-query';
 import { db } from '../../../config/firebase';
+import { QK, STALE } from '../../../lib/queryConfig';
+import { Skeleton, SkeletonList } from '../../../components/UI/Skeleton';
 import { useNavigate } from 'react-router-dom';
 import { CalendarClock, Play, Trophy, Clock, Search, BookOpen, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 
 export default function LiveExamList() {
   const [activeTab, setActiveTab] = useState('upcoming'); // upcoming, ongoing, past
-  const [exams, setExams] = useState({ upcoming: [], ongoing: [], past: [] });
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { currentUser } = useAuth();
 
-  useEffect(() => {
-    fetchExams();
-  }, []);
-
-  const fetchExams = async () => {
-    setLoading(true);
-    try {
-      const q = query(collection(db, 'live_exams'), orderBy('startTime', 'asc'));
-      const snapshot = await getDocs(q);
+  // লাইভ পরীক্ষার সময় বদলায়, তাই staleTime কম রাখা হয়েছে
+  const { data: exams = { upcoming: [], ongoing: [], past: [] }, isLoading: loading } = useQuery({
+    queryKey: QK.liveExams(),
+    queryFn: async () => {
+      const snapshot = await getDocs(query(collection(db, 'live_exams'), orderBy('startTime', 'asc')));
       const now = new Date();
 
       const upcoming = [];
       const ongoing = [];
       const past = [];
 
-      snapshot.docs.forEach(doc => {
-        const d = doc.data();
+      snapshot.docs.forEach((docSnap) => {
+        const d = docSnap.data();
         const start = d.startTime?.toDate();
         const end = d.endTime?.toDate();
+        const examData = { id: docSnap.id, ...d, startTime: start, endTime: end };
 
-        const examData = { id: doc.id, ...d, startTime: start, endTime: end };
-
-        if (now < start) {
-          upcoming.push(examData);
-        } else if (now >= start && now <= end) {
-          ongoing.push(examData);
-        } else {
-          past.push(examData);
-        }
+        if (now < start) upcoming.push(examData);
+        else if (now >= start && now <= end) ongoing.push(examData);
+        else past.push(examData);
       });
 
-      // Sort past exams descending so newest past exams are on top
+      // সবচেয়ে সাম্প্রতিক শেষ হওয়া পরীক্ষা আগে থাকবে
       past.sort((a, b) => b.endTime - a.endTime);
 
-      setExams({ upcoming, ongoing, past });
-    } catch (err) {
-      console.error('Error fetching live exams:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return { upcoming, ongoing, past };
+    },
+    staleTime: STALE.LIVE,
+  });
 
   const getStatusColor = (tab) => {
     if (tab === 'upcoming') return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
@@ -149,9 +138,14 @@ export default function LiveExamList() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#050914] flex flex-col items-center justify-center pt-20">
-        <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4" />
-        <p className="text-indigo-400 font-medium animate-pulse">Loading Live Exams...</p>
+      <div className="min-h-screen bg-[#050914] text-slate-200 font-bangla pb-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+          <div className="mx-auto mb-12 max-w-md space-y-3 text-center">
+            <Skeleton className="mx-auto h-9 w-64" />
+            <Skeleton className="mx-auto h-4 w-80" />
+          </div>
+          <SkeletonList count={4} />
+        </div>
       </div>
     );
   }

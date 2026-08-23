@@ -1,30 +1,68 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ArrowLeft, GraduationCap, Menu, X, LogIn, UserPlus, LogOut, ShieldCheck, User, Globe, Trophy, CalendarClock } from 'lucide-react';
+import { ArrowLeft, GraduationCap, Menu, X, LogIn, UserPlus, LogOut, ShieldCheck, User, Globe, Trophy, CalendarClock, FileText, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isAdmin } from '../../config/roles';
 import NotificationBell from '../../components/Navigation/NotificationBell';
 
+// শিক্ষাস্তরগুলো আলাদা আলাদা দেখালে ন্যাভবারে ন'টা আইটেম হয়ে ভিড় লাগত,
+// তাই এই তিনটা একটা ড্রপডাউনে আনা হয়েছে।
+const programLinks = [
+  { to: '/academic/ssc', label: 'এসএসসি', desc: 'নবম-দশম শ্রেণি' },
+  { to: '/academic/hsc', label: 'এইচএসসি', desc: 'একাদশ-দ্বাদশ শ্রেণি' },
+  { to: '/academic/admission', label: 'এডমিশন', desc: 'ভর্তি পরীক্ষার প্রস্তুতি' },
+];
+
 const navLinks = [
   { to: '/academic', label: 'হোম' },
-  { to: '/academic/ssc', label: 'এসএসসি' },
-  { to: '/academic/hsc', label: 'এইচএসসি' },
-  { to: '/academic/admission', label: 'এডমিশন' },
+  { type: 'dropdown', id: 'program', label: 'প্রোগ্রাম', icon: GraduationCap, children: programLinks },
   { to: '/academic/question-bank', label: 'প্রশ্নব্যাংক' },
+  { to: '/academic/question-builder', label: 'প্রশ্ন তৈরি', icon: FileText },
   { to: '/academic/live-exams', label: 'লাইভ এক্সাম', icon: CalendarClock },
   { to: '/academic/leaderboard', label: 'লিডারবোর্ড', icon: Trophy },
   { to: '/academic/shortcut/all/all/all', label: 'শর্টকাট' },
 ];
 
+const isProgramPath = (pathname) => programLinks.some((l) => pathname.startsWith(l.to));
+
 const AcademicNavbar = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isProgramOpen, setIsProgramOpen] = useState(false);
+  // যে স্তরের পেজে আছি সেই সেকশনটা মোবাইলে খোলা অবস্থায় শুরু হোক
+  const [isMobileProgramOpen, setIsMobileProgramOpen] = useState(() => isProgramPath(window.location.pathname));
+  const programRef = useRef(null);
   const location = useLocation();
   const { currentUser, logout } = useAuth();
 
-  // Close mobile menu on route change
+  const isLinkActive = (to) =>
+    to === '/academic' ? location.pathname === '/academic' : location.pathname.startsWith(to);
+
+  // Close menus on route change
   useEffect(() => {
     setIsMobileOpen(false);
+    setIsProgramOpen(false);
   }, [location.pathname]);
+
+  // বাইরে ক্লিক বা Escape চাপলে ড্রপডাউন বন্ধ হবে
+  useEffect(() => {
+    if (!isProgramOpen) return;
+
+    const handlePointerDown = (event) => {
+      if (programRef.current && !programRef.current.contains(event.target)) {
+        setIsProgramOpen(false);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setIsProgramOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isProgramOpen]);
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
@@ -39,7 +77,7 @@ const AcademicNavbar = () => {
   }, [isMobileOpen]);
 
   return (
-    <nav className="sticky top-0 z-50 w-full backdrop-blur-xl bg-[#0f172a]/90 border-b border-indigo-500/20 shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
+    <nav className="academic-navbar sticky top-0 z-50 w-full backdrop-blur-xl bg-[#0f172a]/90 border-b border-indigo-500/20 shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-2 sm:gap-3 min-h-16 py-3 sm:h-20 sm:py-0">
 
@@ -53,17 +91,70 @@ const AcademicNavbar = () => {
           </Link>
 
           {/* Desktop Navigation Links */}
-          <div className="hidden md:flex items-center space-x-8">
-            {navLinks.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className="flex items-center gap-1.5 text-sm font-bold text-slate-300 hover:text-white transition-colors"
-              >
-                {link.icon && <link.icon className="w-4 h-4 text-amber-400" />}
-                {link.label}
-              </Link>
-            ))}
+          <div className="hidden md:flex items-center gap-5 lg:gap-6">
+            {navLinks.map((link) => {
+              if (link.type === 'dropdown') {
+                const sectionActive = isProgramPath(location.pathname);
+                return (
+                  <div key={link.id} className="relative" ref={programRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsProgramOpen((v) => !v)}
+                      aria-expanded={isProgramOpen}
+                      aria-haspopup="menu"
+                      className={`flex items-center gap-1.5 text-sm font-bold transition-colors ${
+                        sectionActive || isProgramOpen ? 'text-white' : 'text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      <link.icon className="w-4 h-4 text-amber-400" />
+                      {link.label}
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isProgramOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isProgramOpen && (
+                      <div
+                        role="menu"
+                        className="absolute left-0 top-full z-50 mt-3 w-60 rounded-2xl border border-slate-700/70 bg-[#0f172a] p-1.5 shadow-2xl shadow-black/40"
+                      >
+                        {link.children.map((child) => {
+                          const childActive = isLinkActive(child.to);
+                          return (
+                            <Link
+                              key={child.to}
+                              to={child.to}
+                              role="menuitem"
+                              className={`block rounded-xl px-3 py-2.5 transition-colors ${
+                                childActive
+                                  ? 'bg-indigo-500/15 text-indigo-200'
+                                  : 'text-slate-200 hover:bg-slate-800/80'
+                              }`}
+                            >
+                              <span className="block text-sm font-bold">{child.label}</span>
+                              <span className="mt-0.5 block text-[11px] font-medium text-slate-500">{child.desc}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              const active = isLinkActive(link.to);
+              return (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  aria-current={active ? 'page' : undefined}
+                  className={`flex items-center gap-1.5 text-sm font-bold transition-colors ${
+                    active ? 'text-white' : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  {link.icon && <link.icon className="w-4 h-4 text-amber-400" />}
+                  {link.label}
+                </Link>
+              );
+            })}
           </div>
 
           {/* Actions */}
@@ -147,11 +238,56 @@ const AcademicNavbar = () => {
       >
         <div className="px-4 sm:px-6 py-3 bg-[#0f172a]/95 backdrop-blur-xl space-y-1">
           {navLinks.map((link) => {
-            const isActive = location.pathname === link.to;
+            if (link.type === 'dropdown') {
+              const sectionActive = isProgramPath(location.pathname);
+              return (
+                <div key={link.id}>
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileProgramOpen((v) => !v)}
+                    aria-expanded={isMobileProgramOpen}
+                    className={`w-full flex items-center justify-between px-3 py-3 rounded-xl text-sm font-bold transition-colors ${sectionActive
+                      ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
+                      : 'text-slate-200 hover:bg-slate-800/70 border border-transparent'
+                      }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <link.icon className={`w-4 h-4 ${sectionActive ? 'text-indigo-400' : 'text-amber-400'}`} />
+                      <span>{link.label}</span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-indigo-400/70 transition-transform duration-200 ${isMobileProgramOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isMobileProgramOpen && (
+                    <div className="mt-1 ml-4 space-y-1 border-l border-slate-700/60 pl-3">
+                      {link.children.map((child) => {
+                        const childActive = isLinkActive(child.to);
+                        return (
+                          <Link
+                            key={child.to}
+                            to={child.to}
+                            className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-colors ${childActive
+                              ? 'bg-indigo-500/15 text-indigo-300'
+                              : 'text-slate-300 hover:bg-slate-800/70'
+                              }`}
+                          >
+                            <span>{child.label}</span>
+                            <span className="text-indigo-400/70">›</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            const isActive = isLinkActive(link.to);
             return (
               <Link
                 key={link.to}
                 to={link.to}
+                aria-current={isActive ? 'page' : undefined}
                 className={`flex items-center justify-between px-3 py-3 rounded-xl text-sm font-bold transition-colors ${isActive
                   ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
                   : 'text-slate-200 hover:bg-slate-800/70 border border-transparent'

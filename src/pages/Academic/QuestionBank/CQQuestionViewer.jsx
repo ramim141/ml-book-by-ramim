@@ -4,6 +4,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { ArrowLeft, LayoutGrid, Loader2, Search, SlidersHorizontal } from 'lucide-react';
 import SharedCQItem from '../../../components/Academic/SharedCQItem';
+import { SkeletonList } from '../../../components/UI/Skeleton';
 import FilterSelect from '../../../components/UI/FilterSelect';
 import { db } from '../../../config/firebase';
 import { resolveSubjectFromRoute } from '../../../utils/academicRoutes';
@@ -157,9 +158,8 @@ export default function CQQuestionViewer({ educationLevel: propEdu, subject: pro
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
-            <p className="text-slate-400 text-sm">প্রশ্ন লোড হচ্ছে...</p>
+          <div className="py-4">
+            <SkeletonList count={4} />
           </div>
         ) : filteredQuestions.length > 0 ? (
           <div className="flex flex-col gap-4 pb-8">

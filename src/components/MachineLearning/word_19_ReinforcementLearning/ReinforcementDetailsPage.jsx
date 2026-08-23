@@ -105,7 +105,7 @@ export default function ReinforcementDetailsPage() {
                   <span className="text-[10px] md:text-xs font-mono font-bold tracking-[0.3em] uppercase flex items-center gap-2 mb-2"><Compass size={14} className="animate-spin-slow text-indigo-400" /> Entering Chapter 2</span>
                   <p className="text-base italic leading-relaxed md:text-lg">{rlData.next_intro.text}</p>
                   <div className="pt-4 text-slate-200">
-                    <Link to="/word/error-loss" className="w-full sm:w-auto inline-flex justify-center items-center gap-3 px-8 py-4 rounded-2xl bg-white text-[#070b12] font-black text-sm hover:bg-slate-200 transition-all active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.1)]">পরবর্তী অধ্যায়ে যান <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform"/></Link>
+                    <Link to="/ml/word/error-loss" className="w-full sm:w-auto inline-flex justify-center items-center gap-3 px-8 py-4 rounded-2xl bg-white text-[#070b12] font-black text-sm hover:bg-slate-200 transition-all active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.1)]">পরবর্তী অধ্যায়ে যান <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform"/></Link>
                   </div>
                </div>
             </motion.div>

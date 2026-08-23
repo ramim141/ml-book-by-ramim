@@ -23,6 +23,18 @@
   body {
     @apply font-sans bg-[#0b0f19] text-slate-200 antialiased;
   }
+
+  /* সব <select> এর dropdown popup ডিফল্টে সাদা দেখায়, কারণ শুধু বন্ধ অবস্থায়
+     dark class দেওয়া থাকে — popup টা ব্রাউজারের নিজস্ব UI। color-scheme একা
+     Windows Chrome-এ যথেষ্ট না হওয়ায় option-গুলোতে সরাসরি রঙও বসানো হলো। */
+  select {
+    color-scheme: dark;
+  }
+
+  select option {
+    background-color: #0f172a;
+    color: #e2e8f0;
+  }
 }
 
 .custom-scrollbar::-webkit-scrollbar {

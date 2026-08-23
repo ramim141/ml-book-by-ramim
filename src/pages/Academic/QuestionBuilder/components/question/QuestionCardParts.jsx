@@ -1,14 +1,14 @@
 import React from 'react';
 import { Bookmark } from 'lucide-react';
-import { MarkdownRenderer } from '../../helpers.jsx';
+import { MarkdownRenderer, cleanPrefix } from '../../helpers.jsx';
 
 export const getQuestionTypeMeta = (type) => {
-  if (type === 'mcq') return { label: 'MCQ', className: 'bg-indigo-500/15 text-indigo-200 border-indigo-400/30' };
-  if (type === 'cq') return { label: 'CQ', className: 'bg-emerald-500/15 text-emerald-200 border-emerald-400/30' };
-  if (type === 'k') return { label: 'জ্ঞানমূলক (ক)', className: 'bg-violet-500/15 text-violet-200 border-violet-400/30' };
-  if (type === 'kh') return { label: 'অনুধাবনমূলক (খ)', className: 'bg-orange-500/15 text-orange-200 border-orange-400/30' };
-  if (type === 'short') return { label: 'সংক্ষিপ্ত', className: 'bg-slate-800 text-slate-300 border-slate-700' };
-  return { label: 'প্রশ্ন', className: 'bg-slate-800 text-slate-300 border-slate-700' };
+  if (type === 'mcq') return { label: 'MCQ', className: 'bg-indigo-500/15 text-indigo-200 border-indigo-400/30', textClassName: 'text-indigo-300' };
+  if (type === 'cq') return { label: 'CQ', className: 'bg-emerald-500/15 text-emerald-200 border-emerald-400/30', textClassName: 'text-emerald-300' };
+  if (type === 'k') return { label: 'জ্ঞানমূলক (ক)', className: 'bg-violet-500/15 text-violet-200 border-violet-400/30', textClassName: 'text-violet-300' };
+  if (type === 'kh') return { label: 'অনুধাবনমূলক (খ)', className: 'bg-orange-500/15 text-orange-200 border-orange-400/30', textClassName: 'text-orange-300' };
+  if (type === 'short') return { label: 'সংক্ষিপ্ত', className: 'bg-slate-800 text-slate-300 border-slate-700', textClassName: 'text-slate-400' };
+  return { label: 'প্রশ্ন', className: 'bg-slate-800 text-slate-300 border-slate-700', textClassName: 'text-slate-400' };
 };
 
 const difficultyMeta = {
@@ -94,7 +94,7 @@ export const ExpandedQuestionDetails = React.memo(({ q }) => {
                   {cqLabels[key] || key}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <MarkdownRenderer content={content.replace(/^\*\*[কখগঘ][.)]\*\*\s*/, '')} />
+                  <MarkdownRenderer content={cleanPrefix(content)} />
                 </div>
               </div>
             );

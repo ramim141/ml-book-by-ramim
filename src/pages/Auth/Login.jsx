@@ -23,21 +23,10 @@ export default function Login() {
       if (isAdmin(userCredential.user.email)) {
         navigate('/admin');
       } else {
-        // Log the student login to admin_activity
-        try {
-          const { getFirestore, addDoc, collection, serverTimestamp } = await import('firebase/firestore');
-          const db = getFirestore();
-          await addDoc(collection(db, 'admin_activity'), {
-            type: 'login',
-            message: 'স্টুডেন্ট লগইন করেছেন',
-            userEmail: userCredential.user.email,
-            timestamp: serverTimestamp(),
-            read: false
-          });
-        } catch (logError) {
-          console.error("Failed to log activity:", logError);
-        }
-        
+        // এখানে আগে প্রতিটি ছাত্র লগইন `admin_activity` তে লেখার চেষ্টা হতো।
+        // কিন্তু নিয়ম অনুযায়ী ঐ কালেকশনে কেবল অ্যাডমিন লিখতে পারে, তাই
+        // লেখাটা প্রতিবারই permission-denied হয়ে ব্যর্থ হতো — আর await
+        // করার কারণে প্রতিটি লগইন ঐ ব্যর্থ রাউন্ড-ট্রিপের জন্য অপেক্ষা করত।
         navigate('/academic');
       }
     } catch (err) {
@@ -144,21 +133,8 @@ export default function Login() {
                 if (isAdmin(userCredential.user.email)) {
                   navigate('/admin');
                 } else {
-                  // Log the student login to admin_activity
-                  try {
-                    const { getFirestore, addDoc, collection, serverTimestamp } = await import('firebase/firestore');
-                    const db = getFirestore();
-                    await addDoc(collection(db, 'admin_activity'), {
-                      type: 'login',
-                      message: 'স্টুডেন্ট গুগল দিয়ে লগইন করেছেন',
-                      userEmail: userCredential.user.email,
-                      timestamp: serverTimestamp(),
-                      read: false
-                    });
-                  } catch (logError) {
-                    console.error("Failed to log activity:", logError);
-                  }
-                  
+                  // ইমেইল-পাসওয়ার্ড পথের মতোই — admin_activity তে লেখার
+                  // চেষ্টাটা সবসময় permission-denied হতো, তাই সরানো হলো
                   navigate('/academic');
                 }
               } catch (err) {

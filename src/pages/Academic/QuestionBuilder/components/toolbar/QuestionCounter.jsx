@@ -5,7 +5,7 @@ const QuestionCounter = React.memo(({ total = 0, filtered = false }) => (
   <div className="min-w-0">
     <div className="flex items-center gap-2">
       {filtered && (
-        <span className="rounded-md border border-indigo-500/20 bg-indigo-500/10 px-2 py-1 text-[10px] font-extrabold tracking-wide text-indigo-300">
+        <span className="rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-1 text-[10px] font-extrabold tracking-wide text-indigo-300">
           ফিল্টারড
         </span>
       )}

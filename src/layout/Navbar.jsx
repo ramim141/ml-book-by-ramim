@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BrainCircuit, Menu, Search, X, PanelLeft, Bookmark } from 'lucide-react';
+import { BrainCircuit, Menu, Search, X, PanelLeft, Bookmark, Globe } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getAllWords } from '../data/wordsIndex';
 import NotificationBell from '../components/Navigation/NotificationBell';
 import { useAuth } from '../contexts/AuthContext';
 
 const navLinks = [
-  { label: 'হোম', path: '/' },
-  { label: 'বই', path: '/dashboard' },
-  { label: 'ব্লগ', path: '/blog' },
-  { label: 'এমএল শব্দ', path: '/ml-topics' },
+  { label: 'হোম', path: '/ml' },
+  { label: 'বই', path: '/ml/dashboard' },
+  { label: 'ব্লগ', path: '/ml/blog' },
+  { label: 'এমএল শব্দ', path: '/ml/topics' },
   { label: 'একাডেমিক', path: '/academic' },
   { label: 'আমাদের সম্পর্কে', path: '/about' },
   { label: 'যোগাযোগ', path: '/contact' },
@@ -26,7 +26,7 @@ export default function Navbar({ onMenuClick, isScrollingDown }) {
   const [showMenu, setShowMenu] = useState(false);
   const { currentUser } = useAuth();
 
-  const showSidebarButton = location.pathname === '/dashboard' || location.pathname.startsWith('/word/');
+  const showSidebarButton = location.pathname === '/ml/dashboard' || location.pathname.startsWith('/ml/word/');
   const searchResults = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return [];
@@ -52,12 +52,12 @@ export default function Navbar({ onMenuClick, isScrollingDown }) {
   }, [showSearch]);
 
   const isActiveLink = (path) => {
-    if (path === '/') return location.pathname === '/';
+    if (path === '/ml') return location.pathname === '/ml';
     return location.pathname === path;
   };
 
   const goToWord = (path) => {
-    navigate(`/word/${path}`);
+    navigate(`/ml/word/${path}`);
     setSearchQuery('');
     setShowSearch(false);
     setShowMenu(false);
@@ -77,7 +77,7 @@ export default function Navbar({ onMenuClick, isScrollingDown }) {
           </button>
         )}
 
-        <Link to="/" className="flex min-w-0 shrink items-center gap-2.5 transition hover:opacity-90 sm:gap-3">
+        <Link to="/ml" className="flex min-w-0 shrink items-center gap-2.5 transition hover:opacity-90 sm:gap-3">
           <span className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-teal-300 text-[#06111d] shadow-[0_0_24px_rgba(45,212,191,0.2)] sm:h-10 sm:w-10">
             <span className="absolute inset-0 bg-white/20 blur-[2px]" />
             <BrainCircuit size={18} className="relative z-10 sm:h-5 sm:w-5" />
@@ -132,15 +132,24 @@ export default function Navbar({ onMenuClick, isScrollingDown }) {
           </button>
 
           <Link
-            to="/bookmarks"
+            to="/ml/bookmarks"
             aria-label="Saved Bookmarks"
             className={`flex h-9 w-9 items-center justify-center rounded-md transition sm:h-10 sm:w-10 ${
-              isActiveLink('/bookmarks')
+              isActiveLink('/ml/bookmarks')
                 ? 'bg-teal-300/10 text-teal-300'
                 : 'text-slate-400 hover:bg-white/[0.05] hover:text-teal-300'
             }`}
           >
             <Bookmark size={18} />
+          </Link>
+
+          <Link
+            to="/"
+            aria-label="Learn with Ramim হোম"
+            title="Learn with Ramim হোমে ফিরে যান"
+            className="hidden h-9 w-9 items-center justify-center rounded-md text-slate-400 transition hover:bg-white/[0.05] hover:text-teal-300 sm:flex sm:h-10 sm:w-10"
+          >
+            <Globe size={18} />
           </Link>
           
           {currentUser && <NotificationBell />}

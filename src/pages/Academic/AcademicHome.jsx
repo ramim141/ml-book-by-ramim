@@ -1,8 +1,11 @@
-import { useState, useEffect, memo } from 'react';
+import { memo } from 'react';
 import { Book, GraduationCap, Video, ArrowRight, Library, BookOpen, FileText, CheckSquare, Sparkles, Award, PlayCircle, Brain, Target, ShieldCheck, Zap, Trophy, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, getCountFromServer, query, where } from 'firebase/firestore';
+import { useQuery } from '@tanstack/react-query';
 import { db } from '../../config/firebase';
+import { useAcademicSubjects } from '../../hooks/useAcademicSubjects';
+import { QK, STALE } from '../../lib/queryConfig';
 import { Helmet } from 'react-helmet-async';
 import GlobalSearch from '../../components/Academic/GlobalSearch';
 import DailyChallengeWidget from '../../components/Academic/DailyChallengeWidget';
@@ -35,62 +38,32 @@ const StatCard = memo(({ icon: Icon, number, label, colorClass, gradient }) => (
 ));
 
 const AcademicHome = () => {
-  const [stats, setStats] = useState({
-    subjects: 0,
-    chapters: 0,
-    cqs: 0,
-    mcqs: 0
+  const { data: subjectList = [] } = useAcademicSubjects();
+
+  /**
+   * আগে শুধু গণনা দেখানোর জন্য প্রতিটা CQ ও MCQ ডকুমেন্ট ডাউনলোড করা হতো।
+   * getCountFromServer() সার্ভারেই গণনা করে ফেরত দেয় — ডকুমেন্ট আসে না,
+   * রিড খরচও নাটকীয়ভাবে কম।
+   */
+  const { data: questionCounts = { cqs: 0, mcqs: 0 } } = useQuery({
+    queryKey: QK.academicStats(),
+    queryFn: async () => {
+      const [cqSnap, mcqSnap] = await Promise.all([
+        getCountFromServer(query(collection(db, 'academic_content'), where('type', '==', 'cq'))),
+        getCountFromServer(query(collection(db, 'academic_content'), where('type', '==', 'mcq'))),
+      ]);
+      return { cqs: cqSnap.data().count, mcqs: mcqSnap.data().count };
+    },
+    staleTime: STALE.STATS,
+    retry: false, // লগআউট অবস্থায় permission-denied হলে বারবার চেষ্টা করার মানে নেই
   });
 
-  useEffect(() => {
-    async function fetchStats() {
-      const cachedStats = localStorage.getItem('academic_stats');
-      const cacheTime = localStorage.getItem('academic_stats_time');
-      const now = new Date().getTime();
-      const oneHour = 60 * 60 * 1000;
-
-      // Use cache if it exists and is less than 1 hour old
-      if (cachedStats && cacheTime && (now - parseInt(cacheTime) < oneHour)) {
-        try {
-          setStats(JSON.parse(cachedStats));
-          return;
-        } catch (e) {
-          console.error("Failed to parse cached stats", e);
-        }
-      }
-
-      try {
-        const [subjectsSnap, cqsSnap, mcqsSnap] = await Promise.all([
-          getDoc(doc(db, 'admin_settings', 'subjects')),
-          getDocs(query(collection(db, 'academic_content'), where('type', '==', 'cq'))),
-          getDocs(query(collection(db, 'academic_content'), where('type', '==', 'mcq')))
-        ]);
-        
-        let subjectsCount = 0;
-        let chaptersCount = 0;
-        if (subjectsSnap.exists() && subjectsSnap.data().list) {
-           const list = subjectsSnap.data().list;
-           subjectsCount = list.length;
-           chaptersCount = list.reduce((acc, sub) => acc + (sub.chapters?.length || 0), 0);
-        }
-
-        const newStats = {
-          subjects: subjectsCount,
-          chapters: chaptersCount,
-          cqs: cqsSnap.size,
-          mcqs: mcqsSnap.size
-        };
-
-        setStats(newStats);
-        localStorage.setItem('academic_stats', JSON.stringify(newStats));
-        localStorage.setItem('academic_stats_time', now.toString());
-      } catch (err) {
-        console.error("Failed to process academic stats", err);
-      }
-    }
-    
-    fetchStats();
-  }, []);
+  const stats = {
+    subjects: subjectList.length,
+    chapters: subjectList.reduce((acc, sub) => acc + (sub.chapters?.length || 0), 0),
+    cqs: questionCounts.cqs,
+    mcqs: questionCounts.mcqs,
+  };
 
   return (
     <div className="relative min-h-screen bg-[#030712] overflow-hidden text-slate-200 selection:bg-indigo-500/30">
@@ -337,7 +310,7 @@ const AcademicHome = () => {
           <div className="absolute top-0 right-0 w-64 h-64 sm:w-[500px] sm:h-[500px] bg-indigo-500/20 blur-[80px] sm:blur-[100px] rounded-full"></div>
           <div className="relative z-10">
             <h2 className="text-2xl sm:text-5xl font-black text-white mb-4 sm:mb-6">আজই আপনার প্রস্তুতি শুরু করুন</h2>
-            <p className="text-sm sm:text-xl text-indigo-200/80 mb-8 sm:mb-10 max-w-2xl mx-auto">ফ্রি অ্যাকাউন্ট খুলে এক্সপ্লোর করুন আমাদের সকল প্রিমিয়াম ফিচারসমূহ।</p>
+            <p className="text-sm sm:text-xl text-indigo-200/80 mb-8 sm:mb-10 max-w-2xl mx-auto">ফ্রি অ্যাকাউন্ট খুলে এক্সপ্লোর করুন আমাদের সকল ফিচারসমূহ।</p>
             <Link to="/register" className="inline-flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white px-6 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-bold text-sm sm:text-lg transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] sm:shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:shadow-[0_0_30px_rgba(99,102,241,0.5)] sm:hover:shadow-[0_0_50px_rgba(99,102,241,0.6)] hover:-translate-y-1 whitespace-nowrap">
               ফ্রিতে শুরু করুন <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </Link>

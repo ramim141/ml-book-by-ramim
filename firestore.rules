@@ -1,0 +1,228 @@
+rules_version = '2';
+
+/**
+ * Academic Hub — Firestore নিরাপত্তা নিয়ম
+ *
+ * নীতি: ডিফল্ট সবকিছু বন্ধ। প্রতিটি কালেকশনের জন্য আলাদা করে অনুমতি দেওয়া হয়।
+ *
+ * গুরুত্বপূর্ণ: ক্লায়েন্টের `<Gate>` বা `ProtectedRoute` শুধু UI লুকায় —
+ * আসল বেড়া এই ফাইল। পেইড বা সংবেদনশীল কিছু এখানে না আটকালে আটকায়নি।
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── সহায়ক ফাংশন ────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // আপাতত ইমেইল দিয়ে অ্যাডমিন চেনা হচ্ছে, যেভাবে src/config/roles.js এ আছে।
+    // email_verified শর্ত ইচ্ছে করেই রাখা হয়নি — অ্যাকাউন্টটি ইমেইল/পাসওয়ার্ডে
+    // তৈরি হয়ে থাকলে এবং যাচাই করা না থাকলে আপনি নিজেই অ্যাডমিন প্যানেল থেকে
+    // আটকে যেতেন। ইমেইলটি ইতিমধ্যেই রেজিস্টার্ড, তাই অন্য কেউ দাবি করতে পারবে না।
+    // Blaze প্ল্যানে গেলে এটা custom claim (request.auth.token.admin) এ বদলাবে।
+    // ছোট-বড় হাতের অক্ষর মিলিয়ে নিই। ক্লায়েন্টে src/config/roles.js
+    // `email.toLowerCase()` করে মেলায়, কিন্তু এখানে করত না — ফলে ইমেইলে
+    // একটাও বড় হাতের অক্ষর থাকলে UI অ্যাডমিন প্যানেল দেখাত অথচ সার্ভার
+    // প্রতিটি লেখা আটকে দিত। দুই দিকের নিয়ম এক রাখলাম।
+    function isAdmin() {
+      return isSignedIn()
+        && request.auth.token.email.lower() in ['ahramu584@gmail.com'];
+    }
+
+    // পরিবর্তনের সময় কোন কোন ফিল্ড বদলাচ্ছে
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // ── বিষয়/অধ্যায় কনফিগ ──────────────────────────────────────────
+    // শুধু বিষয় ও অধ্যায়ের নাম — গোপন কিছু নেই, তাই পাবলিক রিড।
+    // এতে লগআউট অবস্থাতেও হোমপেজ কাজ করে (আগে permission-denied হতো)।
+    match /admin_settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── প্রশ্নব্যাংক ─────────────────────────────────────────────────
+    // ⚠️ এই ডকুমেন্টগুলোতে `answer` ফিল্ড থাকে। লগইন করা যে কেউ পড়তে পারে,
+    // অর্থাৎ লাইভ পরীক্ষার আগেই উত্তর দেখা সম্ভব। সেটা ঠেকাতে rules যথেষ্ট নয় —
+    // উত্তরগুলো আলাদা জায়গায় সরাতে হবে (নিচের নোট দেখুন)।
+    match /academic_content/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /smart_formulas/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /daily_challenges/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /announcements/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /notifications/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ── ব্যবহারকারীর নিজস্ব ডেটা ────────────────────────────────────
+    match /users/{uid} {
+      // লিডারবোর্ডের জন্য অন্যের নাম/স্কোর পড়তে হয়, তাই read উন্মুক্ত রাখা হলো
+      // সাইন-ইন করা ব্যবহারকারীদের জন্য। ⚠️ ফোন/ঠিকানার মতো ব্যক্তিগত ফিল্ড
+      // এই ডকে রাখলে সেগুলোও সবাই পড়তে পারবে — ওগুলো users/{uid}/private/ এ সরান।
+      allow read: if isSignedIn();
+
+      allow create: if isSelf(uid);
+
+      // প্ল্যান ও রোল ক্লায়েন্ট কখনোই লিখতে পারবে না — সাবস্ক্রিপশনের ভিত্তি এটাই।
+      // এগুলো শুধু সার্ভার (Cloud Function) বা অ্যাডমিন কনসোল থেকে বসবে।
+      //
+      // xp আপাতত ক্লায়েন্টই লেখে (ডেইলি চ্যালেঞ্জ, স্ট্রিক, মডেল টেস্ট ইত্যাদি),
+      // তাই একেবারে বন্ধ করলে চালু ফিচার ভেঙে যেত। বদলে এক ধাক্কায় কতটা বাড়ানো
+      // যাবে তার সীমা বসানো হলো।
+      // ⚠️ এটি গতিরোধক, দেয়াল নয় — ধৈর্য ধরে বারবার লিখলে এখনো বাড়ানো সম্ভব।
+      // আসল সমাধান: স্কোরিং Cloud Function-এ সরানো (Blaze প্ল্যান লাগবে)।
+      allow update: if isSelf(uid)
+        && !changedKeys().hasAny(['plan', 'planExpiry', 'role'])
+        && (
+          !changedKeys().hasAny(['xp'])
+          || request.resource.data.xp <= resource.data.get('xp', 0) + 1000
+        );
+
+      allow delete: if false;
+
+      match /live_exam_history/{examId} {
+        allow read: if isSelf(uid);
+        // একবারই লেখা যাবে — পরীক্ষা আবার দিয়ে নম্বর বাড়ানো বন্ধ
+        allow create: if isSelf(uid);
+        allow update, delete: if false;
+      }
+
+      // পরীক্ষার ইতিহাস — আগে users ডকের অ্যারেতে ছিল, ফলে ডকুমেন্টটা
+      // সীমাহীন বাড়ত আর প্রোফাইল খুললেই পুরোটা নামত। এখন সাবকালেকশনে।
+      // ⚠️ users/{uid} সবাই পড়তে পারে (লিডারবোর্ডের জন্য), কিন্তু কে কোন
+      // পরীক্ষায় কত পেয়েছে সেটা ব্যক্তিগত — তাই এখানে self/admin only।
+      match /exam_history/{resultId} {
+        allow read: if isSelf(uid) || isAdmin();
+        allow create: if isSelf(uid);
+        allow update, delete: if false;
+      }
+
+      match /bookmarks/{bookmarkId} {
+        allow read, write: if isSelf(uid);
+      }
+
+      // Question Builder এ তৈরি করা প্রশ্নপত্র — সম্পূর্ণ ব্যক্তিগত।
+      // ভিতরে প্রশ্নের সাথে উত্তরও থাকে, তাই অন্য কেউ পড়তে পারবে না।
+      match /question_papers/{paperId} {
+        allow read, write: if isSelf(uid);
+      }
+
+      // ভুলের খাতা — মডেল টেস্ট/লাইভ এক্সামে ভুল হবার পর এখানে জমা হয়, পরে স্পেস্ড রিপিটিশন দিয়ে রিভিউ করা হয়।
+      match /mistakes/{mistakeId} {
+        allow read, write: if isSelf(uid);
+      }
+    }
+
+    // ── লাইভ পরীক্ষা ────────────────────────────────────────────────
+    match /live_exams/{examId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+
+      match /submissions/{uid} {
+        // লিডারবোর্ড ও রেজাল্ট পেজ সবার জমা তালিকাভুক্ত করে, তাই read উন্মুক্ত।
+        // এখানে এখন কেবল নাম ও স্কোর — `answers`/`email` নিচের private
+        // সাবডকুমেন্টে সরানো হয়েছে (আগে এই ডকেই ছিল, ফলে লগইন করা যে কেউ
+        // অন্যের উত্তর ও ইমেইল পড়তে পারত)।
+        allow read: if isSignedIn();
+
+        // একবার জমা দিলে আর বদলানো যাবে না — "এক পরীক্ষা এক বার" এখন সার্ভারে প্রয়োগ হয়
+        allow create: if isSelf(uid);
+        allow update, delete: if isAdmin();
+
+        // উত্তরপত্র ও ইমেইল — শুধু নিজে (ও অ্যাডমিন) পড়তে পারবে
+        match /private/{docId} {
+          allow read: if isSelf(uid) || isAdmin();
+          allow create: if isSelf(uid);
+          allow update, delete: if isAdmin();
+        }
+      }
+    }
+
+    // ── কুপন ────────────────────────────────────────────────────────
+    //
+    // কোডটাই ডকুমেন্টের আইডি। `get` আর `list` আলাদা করে দেওয়ার কারণ:
+    // ছাত্র নির্দিষ্ট কোড লিখলে সেটা যাচাই করতে পারবে (get), কিন্তু
+    // সব কুপনের তালিকা বের করে নিতে পারবে না (list শুধু অ্যাডমিনের)।
+    match /coupons/{code} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ── সাবস্ক্রিপশন: বিকাশ পেমেন্টের অনুরোধ ────────────────────────
+    //
+    // ছাত্র শুধু *অনুরোধ* জমা দিতে পারে — অনুমোদন করতে পারে না। `plan` ও
+    // `planExpiry` উপরে users এর নিয়মে ইতিমধ্যেই ক্লায়েন্টের জন্য বন্ধ,
+    // তাই প্রিমিয়াম চালু করার একমাত্র পথ অ্যাডমিনের অনুমোদন।
+    match /payment_requests/{requestId} {
+      // নিজের অনুরোধ নিজে দেখতে পারবে, অন্যেরটা নয় (TrxID ব্যক্তিগত তথ্য)
+      allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+
+      // জমা দেওয়ার সময় status অবশ্যই 'pending' — কেউ যেন সরাসরি
+      // 'approved' লিখে নিজেকে প্রিমিয়াম বানাতে না পারে
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'pending';
+
+      // যাচাই ও সিদ্ধান্ত কেবল অ্যাডমিনের
+      allow update, delete: if isAdmin();
+    }
+
+    // ── ব্যবহারকারীর তৈরি করা কনটেন্ট ───────────────────────────────
+    match /reported_errors/{reportId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /feedback_reports/{reportId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /chapter_discussions/{discussionId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // ── সাজেশন ────────────────────────────────────
+    // শিক্ষার্থীরা শুধু প্রকাশিত সাজেশন পড়তে পারবে। ড্রাফট শুধু অ্যাডমিনের।
+    // তালিকা পড়তে ক্লায়েন্টকে where('published','==',true) দিয়েই কোয়েরি করতে হবে।
+    match /suggestions/{suggestionId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.published == true);
+      allow write: if isAdmin();
+    }
+
+    // ── শুধু অ্যাডমিন ───────────────────────────────────────────────
+    match /admin_activity/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ── ডিফল্ট: বাকি সব বন্ধ ────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

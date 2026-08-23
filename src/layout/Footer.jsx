@@ -6,9 +6,11 @@ const footerGroups = [
     title: "Explore",
     links: [
       { name: "হোম", path: "/" },
-      { name: "বই পড়ুন", path: "/dashboard" },
+      { name: "এমএল বই", path: "/ml" },
+      { name: "বই পড়ুন", path: "/ml/dashboard" },
       { name: "বই কিনুন", path: "#", alertMessage: "শীঘ্রই আসছে, চোখ রাখুন ওয়েবসাইট ও Webmart Shop ফেসবুক পেইজে।" },
-      { name: "এমএল শব্দ", path: "/ml-topics" },
+      { name: "এমএল শব্দ", path: "/ml/topics" },
+      { name: "একাডেমিক হাব", path: "/academic" },
     ],
   },
   {
@@ -53,16 +55,16 @@ export default function Footer() {
               </span>
               <span>
                 <span className="block text-lg font-black leading-tight text-white">
-                  শব্দে শব্দে মেশিন লার্নিং
+                  Learn with Ramim
                 </span>
                 <span className="mt-1 block text-xs font-semibold text-slate-500">
-                  রামীম আহমেদের বাংলা AI learning book
+                  রামীম আহমেদের লার্নিং প্ল্যাটফর্ম
                 </span>
               </span>
             </Link>
 
             <p className="mt-5 text-sm leading-7 text-slate-400">
-              কঠিন AI/ML ধারণাকে সহজ বাংলা ব্যাখ্যা, গল্প এবং ইন্টারেক্টিভ ল্যাবের মাধ্যমে শেখার একটি বন্ধুসুলভ প্ল্যাটফর্ম।
+              বাংলায় AI/ML শেখার ইন্টারেক্টিভ বই এবং SSC, HSC ও ভর্তি পরীক্ষার একাডেমিক হাব — দুইটাই এক ঠিকানায়।
             </p>
           </div>
 
@@ -149,7 +151,7 @@ export default function Footer() {
 
         <div className="mt-10 flex flex-col gap-4 border-t border-cyan-100/[0.06] pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <p>
-            © 2026 <span className="font-bold text-slate-300">ML Book by Ramim</span>. All rights reserved.
+            © 2026 <span className="font-bold text-slate-300">Learn with Ramim</span>. All rights reserved.
           </p>
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-slate-600">
             Powered by React & Vite

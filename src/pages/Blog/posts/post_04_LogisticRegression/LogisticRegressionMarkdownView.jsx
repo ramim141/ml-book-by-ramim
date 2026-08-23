@@ -146,7 +146,7 @@ export default function LogisticRegressionMarkdownView() {
                 <p className="mb-2 text-xs font-bold tracking-widest uppercase text-slate-500">পড়া চালিয়ে যান</p>
                 <h3 className="text-2xl font-bold text-white md:text-3xl">আপনি এগুলোও পছন্দ করতে পারেন</h3>
               </div>
-              <Link to="/blog" className="text-sm font-bold text-[#5b5dfa] border-b border-[#5b5dfa] pb-1 hidden sm:block">সব আর্টিকেল দেখুন</Link>
+              <Link to="/ml/blog" className="text-sm font-bold text-[#5b5dfa] border-b border-[#5b5dfa] pb-1 hidden sm:block">সব আর্টিকেল দেখুন</Link>
             </div>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -154,7 +154,7 @@ export default function LogisticRegressionMarkdownView() {
                 .filter((blog) => blog.category === meta.category && blog.title !== meta.title)
                 .slice(0, 3)
                 .map((post) => (
-                  <Link to={`/blog/${post.slug}`} key={post.id} className="cursor-pointer group block">
+                  <Link to={`/ml/blog/${post.slug}`} key={post.id} className="cursor-pointer group block">
                     <div className="w-full h-48 mb-4 overflow-hidden border rounded-2xl border-slate-800">
                       <img src={post.image} alt={post.title} className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105" />
                     </div>

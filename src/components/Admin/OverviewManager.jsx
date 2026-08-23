@@ -1,12 +1,20 @@
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { LayoutDashboard, Users, Swords, BookOpen, Trophy, Loader2, AlertTriangle } from 'lucide-react';
+import { Users, Swords, BookOpen, Trophy, AlertTriangle } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
+import { Skeleton, SkeletonGrid, SkeletonList } from '../UI/Skeleton';
+import { STALE } from '../../lib/queryConfig';
 
 export default function OverviewManager() {
   const { data: stats, isLoading, isError } = useQuery({
     queryKey: ['admin_overview_stats'],
+    // ⚠️ এই কোয়েরিটা পুরো `users` কালেকশন নামায় (নিচের getDocs দেখুন) —
+    // অর্থাৎ প্রতিবার রিফেচ মানে ব্যবহারকারীর সংখ্যার সমান Firestore read।
+    // ডিফল্ট ৫ মিনিটের বদলে STATS (৬০ মিনিট) রাখা হলো, কারণ ড্যাশবোর্ডের
+    // সংখ্যাগুলো মিনিটে মিনিটে বদলায় না। বড় হলে এই হিসাবগুলো Cloud
+    // Function এ সরানো দরকার, ক্লায়েন্টে গোনা টেকসই নয়।
+    staleTime: STALE.STATS,
     queryFn: async () => {
         let totalUsers = 0;
         let totalExams = 0;
@@ -90,12 +98,24 @@ export default function OverviewManager() {
     }
   });
 
-  if (isLoading) return <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>;
+  if (isLoading) {
+    return (
+      <div className="space-y-8 mt-4">
+        <Skeleton className="h-8 w-48 rounded-lg mb-6" />
+        <SkeletonGrid count={4} columns="grid-cols-2 lg:grid-cols-4" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+           <Skeleton className="h-64 w-full rounded-2xl" />
+           <Skeleton className="h-64 w-full rounded-2xl" />
+        </div>
+        <SkeletonList count={5} />
+      </div>
+    );
+  }
   if (isError || !stats) return <div className="flex justify-center p-12 text-rose-500"><AlertTriangle className="w-8 h-8" /></div>;
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><LayoutDashboard className="text-indigo-400" /> ড্যাশবোর্ড ওভারভিউ</h2>
+      {/* শিরোনাম প্যানেল হেডারেই আছে — এখানে রাখলে ডেস্কটপে দুবার দেখাত */}
       
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

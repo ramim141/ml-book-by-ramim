@@ -1,10 +1,17 @@
 import { lazy } from 'react';
-import OutputLabelDetailsPage from '../components/MachineLearning/word_11_OutputLabel/OutputLabelDetailsPage';
-import PatternDetailsPage from '../components/MachineLearning/word_12_Pattern/PatternDetailsPage';
-import ModelDetailsPage from '../components/MachineLearning/word_13_Model/ModelDetailsPage';
-import DecisionProcessDetailsPage from '../components/MachineLearning/word_14_DecisionProcess/DecisionProcessDetailsPage';
-import TypesMLDetailsPage from '../components/MachineLearning/word_15_TypesML/TypesMLDetailsPage';
 
+/**
+ * প্রতিটি শব্দের পাতা lazy — না হলে পুরো বইটা (২৮টা পাতা + তাদের
+ * SimulationLab) প্রথম চাঙ্কেই ঢুকে যেত।
+ *
+ * এই ফাইলটা ProgressContext পড়ে, আর ProgressContext main.jsx এর
+ * প্রোভাইডারে বসানো — অর্থাৎ এখানে static import মানে অ্যাপের *সব*
+ * ভিজিটর, এমনকি যে শুধু অ্যাডমিন বা একাডেমিক অংশে যায়, সে-ও পুরো
+ * এমএল বই ডাউনলোড করত। আগে ১১–২৮ নম্বর শব্দগুলো static ছিল বলে
+ * ~২৫০KB অপ্রয়োজনীয় কোড প্রথম লোডেই নামত।
+ *
+ * BookReader ইতিমধ্যেই <Suspense> দিয়ে রেন্ডার করে, তাই lazy নিরাপদ।
+ */
 const AIDetailsPage = lazy(() => import('../components/MachineLearning/word_01_AI/AIDetailsPage'));
 const TuringDetailsPage = lazy(() => import('../components/MachineLearning/word_02_TuringTest/TuringDetailsPage'));
 const ExpertDetailsPage = lazy(() => import('../components/MachineLearning/word_03_ExpertSystem/ExpertDetailsPage'));
@@ -15,19 +22,24 @@ const AlgorithmDetailsPage = lazy(() => import('../components/MachineLearning/wo
 const DatasetDetailsPage = lazy(() => import('../components/MachineLearning/word_08_Dataset/DatasetDetailsPage'));
 const InputDataDetailsPage = lazy(() => import('../components/MachineLearning/word_09_InputData/InputDataDetailsPage'));
 const FeatureDetailsPage = lazy(() => import('../components/MachineLearning/word_10_Feature/FeatureDetailsPage'));
-import SupervisedDetailsPage from '../components/MachineLearning/word_16_SupervisedML/SupervisedDetailsPage';
-import UnsupervisedDetailsPage from '../components/MachineLearning/word_17_Unsupervised/UnsupervisedDetailsPage';
-import SemiSupervisedLearningDetailsPage from '../components/MachineLearning/word_18_SemiSupervised/SemiSupervisedLearningDetailsPage';
-import ReinforcementDetailsPage from '../components/MachineLearning/word_19_ReinforcementLearning/ReinforcementDetailsPage';
-import GIGODetailsPage from '../components/MachineLearning/word_20_GIGO/GIGODetailsPage';
-import DataDependencyDetailsPage from '../components/MachineLearning/word_21_DataDependency/DataDependencyDetailsPage';
-import BiasDetailsPage from '../components/MachineLearning/word_22_Bias/BiasDetailsPage';
-import GeneralizationDetailsPage from '../components/MachineLearning/word_23_Generalization/GeneralizationDetailsPage';
-import DomainKnowledgeDetailsPage from '../components/MachineLearning/word_24_DomainKnowledge/DomainKnowledgeDetailsPage';
-import TrainingSetDetailsPage from '../components/MachineLearning/word_25_TrainingSet/TrainingSetDetailsPage';
-import TestingSetDetailsPage from '../components/MachineLearning/word_26_TestingSet/TestingSetDetailsPage';
-import ValidationSetDetailsPage from '../components/MachineLearning/word_27_ValidationSet/ValidationSetDetailsPage';
-import CrossValidationDetailsPage from '../components/MachineLearning/word_28_CrossValidation/CrossValidationDetailsPage';
+const OutputLabelDetailsPage = lazy(() => import('../components/MachineLearning/word_11_OutputLabel/OutputLabelDetailsPage'));
+const PatternDetailsPage = lazy(() => import('../components/MachineLearning/word_12_Pattern/PatternDetailsPage'));
+const ModelDetailsPage = lazy(() => import('../components/MachineLearning/word_13_Model/ModelDetailsPage'));
+const DecisionProcessDetailsPage = lazy(() => import('../components/MachineLearning/word_14_DecisionProcess/DecisionProcessDetailsPage'));
+const TypesMLDetailsPage = lazy(() => import('../components/MachineLearning/word_15_TypesML/TypesMLDetailsPage'));
+const SupervisedDetailsPage = lazy(() => import('../components/MachineLearning/word_16_SupervisedML/SupervisedDetailsPage'));
+const UnsupervisedDetailsPage = lazy(() => import('../components/MachineLearning/word_17_Unsupervised/UnsupervisedDetailsPage'));
+const SemiSupervisedLearningDetailsPage = lazy(() => import('../components/MachineLearning/word_18_SemiSupervised/SemiSupervisedLearningDetailsPage'));
+const ReinforcementDetailsPage = lazy(() => import('../components/MachineLearning/word_19_ReinforcementLearning/ReinforcementDetailsPage'));
+const GIGODetailsPage = lazy(() => import('../components/MachineLearning/word_20_GIGO/GIGODetailsPage'));
+const DataDependencyDetailsPage = lazy(() => import('../components/MachineLearning/word_21_DataDependency/DataDependencyDetailsPage'));
+const BiasDetailsPage = lazy(() => import('../components/MachineLearning/word_22_Bias/BiasDetailsPage'));
+const GeneralizationDetailsPage = lazy(() => import('../components/MachineLearning/word_23_Generalization/GeneralizationDetailsPage'));
+const DomainKnowledgeDetailsPage = lazy(() => import('../components/MachineLearning/word_24_DomainKnowledge/DomainKnowledgeDetailsPage'));
+const TrainingSetDetailsPage = lazy(() => import('../components/MachineLearning/word_25_TrainingSet/TrainingSetDetailsPage'));
+const TestingSetDetailsPage = lazy(() => import('../components/MachineLearning/word_26_TestingSet/TestingSetDetailsPage'));
+const ValidationSetDetailsPage = lazy(() => import('../components/MachineLearning/word_27_ValidationSet/ValidationSetDetailsPage'));
+const CrossValidationDetailsPage = lazy(() => import('../components/MachineLearning/word_28_CrossValidation/CrossValidationDetailsPage'));
 
 
 export const bookStructure = [

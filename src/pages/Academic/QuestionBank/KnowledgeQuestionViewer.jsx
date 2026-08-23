@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
-import { ArrowLeft, LayoutGrid, Loader2, Search, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Search, SlidersHorizontal } from 'lucide-react';
 import SharedKQItem from '../../../components/Academic/SharedKQItem';
 import FilterSelect from '../../../components/UI/FilterSelect';
+import { useQuery } from '@tanstack/react-query';
 import { db } from '../../../config/firebase';
+import { useAcademicSubjects } from '../../../hooks/useAcademicSubjects';
+import { QK, STALE } from '../../../lib/queryConfig';
+import { SkeletonList } from '../../../components/UI/Skeleton';
 import { resolveSubjectFromRoute } from '../../../utils/academicRoutes';
 
 const normalizeYear = (value) => String(value || '').replace(/[০-৯]/g, (digit) => '০১২৩৪৫৬৭৮৯'.indexOf(digit));
@@ -13,10 +17,6 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
   const { educationLevel: paramEdu, subject: paramSub } = useParams();
   const educationLevel = propEdu || paramEdu;
   const subjectSlug = propSub || paramSub;
-  const [subjectConfig, setSubjectConfig] = useState(null);
-  const [notFound, setNotFound] = useState(false);
-  const [allQuestions, setAllQuestions] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
@@ -30,54 +30,39 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
     setVisibleCount(15);
   }, [searchQuery, selectedChapter, selectedType, selectedBoard, selectedYear, selectedTopic]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const { data: subjectList = [] } = useAcademicSubjects();
+  const subjectConfig = useMemo(
+    () => resolveSubjectFromRoute(subjectList, educationLevel, subjectSlug),
+    [subjectList, educationLevel, subjectSlug]
+  );
 
-    async function loadData() {
-      try {
-        setLoading(true);
-        const subjectsSnap = await getDoc(doc(db, 'admin_settings', 'subjects'));
-        const subjects = subjectsSnap.exists() ? subjectsSnap.data().list || [] : [];
-        const resolved = resolveSubjectFromRoute(subjects, educationLevel, subjectSlug);
+  const { data: allQuestions = [], isLoading } = useQuery({
+    queryKey: QK.knowledgeQuestions(subjectConfig?.id),
+    enabled: Boolean(subjectConfig?.id),
+    staleTime: STALE.CONTENT,
+    queryFn: async () => {
+      const contentSnap = await getDocs(query(
+        collection(db, 'academic_content'),
+        where('subject', '==', subjectConfig.id),
+        where('type', '==', 'knowledge')
+      ));
 
-        if (!resolved) {
-          if (!cancelled) setNotFound(true);
-          return;
-        }
+      const chapters = subjectConfig.chapters || [];
+      return contentSnap.docs.map((docSnap) => {
+        const data = docSnap.data();
+        const chapter = chapters.find((item) => item.id === data.chapterId);
+        return {
+          firebaseId: docSnap.id,
+          ...data,
+          chapterName: chapter?.title || chapter?.name || data.chapterName || data.chapterId,
+        };
+      });
+    },
+  });
 
-        const contentSnap = await getDocs(query(
-          collection(db, 'academic_content'),
-          where('subject', '==', resolved.id),
-          where('type', '==', 'knowledge')
-        ));
-
-        const chapters = resolved.chapters || [];
-        const questions = contentSnap.docs.map((docSnap) => {
-          const data = docSnap.data();
-          const chapter = chapters.find((item) => item.id === data.chapterId);
-          return {
-            firebaseId: docSnap.id,
-            ...data,
-            chapterName: chapter?.title || chapter?.name || data.chapterName || data.chapterId,
-          };
-        });
-
-        if (!cancelled) {
-          setSubjectConfig(resolved);
-          setAllQuestions(questions);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    loadData();
-    return () => {
-      cancelled = true;
-    };
-  }, [educationLevel, subjectSlug]);
+  // বিষয়ের তালিকা এসে গেছে কিন্তু রুটের বিষয়টি মেলেনি — তবেই "পাওয়া যায়নি"
+  const notFound = subjectList.length > 0 && !subjectConfig;
+  const loading = isLoading || (subjectList.length === 0 && !notFound);
 
   const filterOptions = useMemo(() => {
     const boards = new Set();
@@ -175,10 +160,7 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 className="w-10 h-10 text-purple-500 animate-spin" />
-            <p className="text-slate-400 text-sm">প্রশ্ন লোড হচ্ছে...</p>
-          </div>
+          <SkeletonList count={6} className="pb-8" />
         ) : filteredQuestions.length > 0 ? (
           <div className="flex flex-col gap-4 pb-8">
             {filteredQuestions.slice(0, visibleCount).map((kq, index) => <SharedKQItem key={kq.firebaseId || kq.id || index} kq={kq} />)}

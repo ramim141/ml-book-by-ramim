@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { Quote, Plus, Trash2, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import { Plus, Trash2, Loader2 } from 'lucide-react';
 
 export default function QuotesManager() {
+  const [confirm, confirmDialog] = useConfirm();
   const [quotes, setQuotes] = useState([]);
   const [newQuoteText, setNewQuoteText] = useState('');
   const [newQuoteAuthor, setNewQuoteAuthor] = useState('');
@@ -41,19 +44,20 @@ export default function QuotesManager() {
     setNewQuoteText(''); setNewQuoteAuthor('');
   };
 
-  const handleDelete = (id) => {
-    if (confirm('Are you sure?')) saveQuotes(quotes.filter(q => q.id !== id));
+  const handleDelete = async (id) => {
+    if (await confirm({ title: 'কোট মুছে ফেলবেন?', message: 'মুছে ফেললে এটি আর ফিরে পাওয়া যাবে না।' })) saveQuotes(quotes.filter(q => q.id !== id));
   };
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><Quote className="text-fuchsia-400" /> ডেইলি কোট ম্যানেজমেন্ট</h2>
+      {confirmDialog}
+      {/* শিরোনাম প্যানেল হেডারেই আছে — এখানে রাখলে ডেস্কটপে দুবার দেখাত */}
 
       <div className="bg-slate-950 border border-slate-800 p-5 rounded-xl mb-8 flex flex-col sm:flex-row gap-3">
         <input type="text" value={newQuoteText} onChange={e => setNewQuoteText(e.target.value)} placeholder="বাণী লিখুন..."
-          className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:border-indigo-500 outline-none" />
+          className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-base sm:text-sm text-slate-200 focus:border-indigo-500 outline-none" />
         <input type="text" value={newQuoteAuthor} onChange={e => setNewQuoteAuthor(e.target.value)} placeholder="লেখকের নাম (ঐচ্ছিক)"
-          className="w-full sm:w-48 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:border-indigo-500 outline-none" />
+          className="w-full sm:w-48 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-base sm:text-sm text-slate-200 focus:border-indigo-500 outline-none" />
         <button onClick={handleAdd} disabled={saving} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold flex justify-center items-center gap-2">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} যোগ করুন
         </button>

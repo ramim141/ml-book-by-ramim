@@ -78,13 +78,13 @@ export default function Sidebar({ isMobileOpen, closeMobileMenu }) {
           {/* Main Menu Items */}
           <nav className="pb-8 mb-8 space-y-2 border-b border-white/[0.07]">
             <Link 
-              to="/dashboard" 
+              to="/ml/dashboard" 
               onClick={handleLinkClick}
               title="বইয়ের হোম পেজ"
               className={`w-full flex items-center py-3.5 rounded-lg text-[15px] font-bold transition-all ${
                 isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'
               } ${
-                isActive('/dashboard') 
+                isActive('/ml/dashboard') 
                   ? 'bg-[#1f3a46] text-slate-100 shadow-sm' 
                   : 'hover:bg-white/[0.04] text-slate-400 hover:text-slate-100'
               }`}
@@ -94,13 +94,13 @@ export default function Sidebar({ isMobileOpen, closeMobileMenu }) {
             </Link>
 
             <Link 
-              to="/start" 
+              to="/ml/start" 
               onClick={handleLinkClick}
               title="বইয়ের সূচনালগ্নে"
               className={`w-full flex items-center py-3.5 rounded-lg text-[15px] font-bold transition-all ${
                 isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'
               } ${
-                isActive('/start') 
+                isActive('/ml/start') 
                   ? 'bg-[#1f3a46] text-slate-100 shadow-sm' 
                   : 'hover:bg-white/[0.04] text-slate-400 hover:text-slate-100'
               }`}
@@ -199,7 +199,7 @@ export default function Sidebar({ isMobileOpen, closeMobileMenu }) {
                             <div className="overflow-hidden">
                               <div className="space-y-1.5 pl-3 py-2">
                                 {part.words.map((word) => {
-                                  const wordPath = `/word/${word.path}`;
+                                  const wordPath = `/ml/word/${word.path}`;
                                   const isWordActive = isActive(wordPath);
 
                                   return (

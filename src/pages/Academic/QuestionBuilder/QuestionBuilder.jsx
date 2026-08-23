@@ -1,294 +1,418 @@
-import React, { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-import remarkGfm from 'remark-gfm';
+import { useState, useEffect, useMemo, useCallback, useDeferredValue, useRef } from 'react';
 import 'katex/dist/katex.min.css';
-import { academicSubjects } from '../../../data/academic/subjectsConfig';
 import PrintableView from './PrintableView.jsx';
 import AnswerSheetView from './components/preview/AnswerSheetView.jsx';
+import OmrAnswerSheet from './components/preview/OmrAnswerSheet.jsx';
 import FilterSidebar from './components/filters/FilterSidebar.jsx';
 import RightSidebar from './components/rightSidebar/RightSidebar.jsx';
-import QuestionCard from './components/question/QuestionCard.jsx';
 import ProfessionalQuestionCard from './components/question/ProfessionalQuestionCard.jsx';
 import QuestionCardSkeleton from './components/question/QuestionCardSkeleton.jsx';
 import QuestionLibraryEmpty from './components/question/QuestionLibraryEmpty.jsx';
 import Toolbar from './components/toolbar/Toolbar.jsx';
-import {
-  Loader2, Settings, BookOpen, FileText, Trash2, Printer, Download,
-  ArrowRight, Check, SlidersHorizontal, ChevronRight,
-  BookOpenCheck, ChevronDown, HelpCircle,
-  Circle, ChevronLeft, ShoppingCart, X, Sparkles, LayoutList,
-  Plus, Search, Bell, SunMoon, UserCircle, Grid3X3, List, RefreshCw,
-  Bookmark, MoreVertical, Image as ImageIcon, Eye,
-} from 'lucide-react';
-import {
-  enToBn,
-  cleanPrefix,
-  MarkdownRenderer,
-  PrintMarkdownRenderer,
-} from "./helpers.jsx";
+import AutoPickDialog from './components/toolbar/AutoPickDialog.jsx';
+import BuilderHeader from './components/shell/BuilderHeader.jsx';
+import PaperInfoPanel from './components/shell/PaperInfoPanel.jsx';
+import PrintSettingsPanel from './components/preview/PrintSettingsPanel.jsx';
+import SavedPapersPanel from './components/shell/SavedPapersPanel.jsx';
+import CompleteCQModal from './components/question/CompleteCQModal.jsx';
+import { DEFAULT_PRINT_SETTINGS, resolvePage } from './printSettings.js';
+import { useAcademicSubjects } from '../../../hooks/useAcademicSubjects';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useConfirm } from '../../../hooks/useConfirm';
+import toast from 'react-hot-toast';
+import { useBuilderQuestions } from './useBuilderQuestions.js';
+import { DEFAULT_MARKS, summarizeCart, markOf } from './marks.js';
+import { listPapers } from '../../../lib/savedPapers';
+import { buildUsageIndex } from './duplicateCheck.js';
+import { uploadPaperLogo, deletePaperLogo } from './logoUpload.js';
+import { estimatePageCount } from './pageEstimate.js';
+import { materializeEdits, shuffleSetVariant } from './setUtils.js';
+import { Download, ChevronDown, ChevronLeft, FileText, Wand2, CheckCheck, History, X, Settings2, Pencil, Printer, Layers } from 'lucide-react';
+import { enToBn } from './helpers.jsx';
 
+// ── localStorage keys ─────────────────────────────────────────────────
+const CART_STORAGE_KEY = 'qb-cart-v2';
+const HEADER_STORAGE_KEY = 'qb-header-v1';
+const MARKS_STORAGE_KEY = 'qb-marks-v1';
+const DRAFT_SAVED_AT_KEY = 'qb-draft-saved-at-v1';
+const PRINT_SETTINGS_KEY = 'qb-print-settings-v1';
+const EDITS_STORAGE_KEY = 'qb-edits-v1';
 
-// Cart components live in ./components/cart
-const BuilderHeader = React.memo(({ step, canPreview, setStep }) => {
-  const steps = useMemo(() => [
-    { num: 1, label: 'à¦¹à§‡à¦¡à¦¾à¦°', icon: Settings },
-    { num: 2, label: 'à¦¨à¦¿à¦°à§à¦¬à¦¾à¦šà¦¨', icon: LayoutList },
-    { num: 3, label: 'à¦ªà§à¦°à¦¿à¦­à¦¿à¦‰', icon: Printer },
-    { num: 4, label: 'à¦‰à¦¤à§à¦¤à¦°à¦ªà¦¤à§à¦°', icon: Check },
-  ], []);
+/** খসড়া কতক্ষণ আগের — "পুরোনো কাজ রয়ে গেছে" বোঝাতে এটাই সবচেয়ে কাজে দেয় */
+const relativeTime = (timestamp) => {
+  if (!timestamp) return '';
+  const minutes = Math.floor((Date.now() - timestamp) / 60000);
+  if (minutes < 1) return 'এইমাত্র';
+  if (minutes < 60) return `${enToBn(minutes)} মিনিট আগের`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${enToBn(hours)} ঘণ্টা আগের`;
+  return `${enToBn(Math.floor(hours / 24))} দিন আগের`;
+};
 
-  return (
-    <header className="qb-header flex flex-col items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] xl:flex-row xl:items-center">
-      <div className="flex items-center gap-3">
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-2 text-indigo-600">
-          <BookOpenCheck className="h-5 w-5" />
-        </div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
-          à¦¸à§à¦®à¦¾à¦°à§à¦Ÿ à¦ªà§à¦°à¦¶à§à¦¨à¦ªà¦¤à§à¦° à¦¨à¦¿à¦°à§à¦®à¦¾à¦¤à¦¾
-        </h1>
-      </div>
-      <div className="flex w-full items-center justify-between gap-0.5 overflow-x-auto py-2 sm:justify-start sm:gap-1 xl:w-auto custom-scrollbar" aria-label="Question builder steps">
-        {steps.map((s, i) => (
-          <React.Fragment key={s.num}>
-            <button
-              type="button"
-              onClick={() => ((s.num !== 3 && s.num !== 4) || canPreview) ? setStep(s.num) : null}
-              disabled={(s.num === 3 || s.num === 4) && !canPreview}
-              className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-bold transition-all duration-150 focus:outline-none sm:gap-1.5 sm:text-[13px] ${step === s.num ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-30'
-                }`}
-            >
-              <s.icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              <span className="whitespace-nowrap">{s.label}</span>
-            </button>
-            {i < 3 && <ChevronRight className="h-3 w-3 shrink-0 text-slate-300 sm:h-3.5 sm:w-3.5" />}
-          </React.Fragment>
-        ))}
-      </div>
-    </header>
-  );
-});
+const readStored = (key, fallback) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+};
 
-const HeaderIconButton = React.memo(({ label, children }) => (
-  <button
-    type="button"
-    title={label}
-    aria-label={label}
-    className="flex h-10 w-10 items-center justify-center rounded-[10px] text-slate-400 transition duration-150 hover:bg-white/10 hover:text-white focus:outline-none "
-  >
-    {children}
-  </button>
-));
+const writeStored = (key, value) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // কোটা শেষ হলে চুপচাপ ছেড়ে দিই — persist না হলেও অ্যাপ চলবে
+  }
+};
 
-const DashboardHeader = React.memo(() => (
-  <header className="qb-header sticky top-0 z-40 -mx-5 flex h-[72px] shrink-0 items-center gap-4 bg-[#0f172a]/90 px-6 backdrop-blur-xl">
-    <div className="flex min-w-0 flex-1 items-center gap-3 md:flex-[0_0_300px]">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-sky-500 text-white">
-        <BookOpenCheck className="h-5 w-5" />
-      </div>
-      <div className="min-w-0">
-        <h1 className="truncate text-base font-extrabold tracking-tight text-slate-100 sm:text-lg">
-          Smart Question Builder
-        </h1>
-        <p className="hidden truncate text-xs font-medium text-slate-400 lg:block">
-          Professional Question Paper Generator
-        </p>
-      </div>
-    </div>
+const DEFAULT_HEADER_INFO = {
+  schoolName: '',
+  examName: '',
+  subject: '',
+  time: '২ ঘন্টা ৩০ মিনিট',
+  totalMarks: '',
+  subjectCode: '',
+  logoUrl: '',
+  logoPath: '',
+};
 
-    <div className="flex min-w-0 flex-[1.4] justify-center">
-      <label className="relative hidden w-full max-w-[680px] sm:block">
-        <span className="sr-only">Global search</span>
-        <input
-          type="search"
-          placeholder="প্রশ্ন, অধ্যায়, টপিক অথবা বোর্ড অনুসন্ধান করুন..."
-          className="h-11 w-full rounded-xl border border-slate-700/70 bg-slate-950/40 py-2.5 pl-4 pr-11 text-sm font-medium text-slate-100 transition duration-150 placeholder:text-slate-500 hover:border-indigo-400/50 hover:bg-slate-900/70 focus:bg-slate-900 focus:outline-none "
-        />
-        <Search className="pointer-events-none absolute right-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-      </label>
-      <div className="sm:hidden">
-        <HeaderIconButton label="Open global search">
-          <Search className="h-5 w-5" />
-        </HeaderIconButton>
-      </div>
-    </div>
-
-    <div className="flex flex-1 items-center justify-end gap-1 md:flex-[0_0_210px]">
-      <HeaderIconButton label="Notifications">
-        <Bell className="h-5 w-5" />
-      </HeaderIconButton>
-      <HeaderIconButton label="Settings">
-        <Settings className="h-5 w-5" />
-      </HeaderIconButton>
-      <HeaderIconButton label="Theme">
-        <SunMoon className="h-5 w-5" />
-      </HeaderIconButton>
-      <HeaderIconButton label="User profile">
-        <UserCircle className="h-5 w-5" />
-      </HeaderIconButton>
-    </div>
-  </header>
-));
-
-const BuilderShell = React.memo(({ children }) => (
-  <div className="qb-shell min-h-[calc(100vh-64px)] bg-[#0b0f19] pb-8 text-slate-200 selection:bg-indigo-500/35">
-    <div className="pointer-events-none fixed inset-0 bg-gradient-to-br from-indigo-900/10 via-transparent to-purple-900/10" />
-    <div className="relative z-10 mx-auto flex max-w-7xl flex-col gap-5 px-4 sm:px-6 lg:px-8 py-5">
-      {children}
-    </div>
-  </div>
-));
-
-const ContentPanel = React.memo(({ children }) => (
-  <main className="qb-content-panel flex min-w-0 flex-1 flex-col bg-transparent">
-    {children}
-  </main>
-));
+const SET_LABELS = ['A', 'B', 'C', 'D'];
 
 // ── CategoryTab ───────────────────────────────────────────────────────
-const CategoryTab = ({ active, onClick, label, count }) => (
+const CategoryTab = ({ active, onClick, label, mobileLabel, count }) => (
   <button
     onClick={onClick}
-    className={`group flex items-center justify-center gap-1.5 rounded-full px-2 py-2 sm:py-2.5 text-[11px] sm:text-[13px] font-extrabold transition-all duration-300 ${active
-        ? 'bg-[#8b5cf6] text-white shadow-[0_0_15px_rgba(139,92,246,0.3)]'
-        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+    className={`group relative flex min-w-0 flex-1 items-center justify-center gap-1.5 sm:gap-2 rounded-lg px-2 sm:px-3 py-2.5 sm:py-2 text-xs font-bold transition-all duration-200 active:scale-[0.97] ${active
+        ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/25'
+        : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
       }`}
   >
-    <span className="truncate">{label}</span>
-    <span className={`flex h-5 items-center justify-center rounded-full px-2 text-[10px] font-black shrink-0 transition-colors ${active ? 'bg-white/25 text-white' : 'bg-slate-800/80 text-slate-400 group-hover:bg-slate-700/80 group-hover:text-slate-200'
-      }`}>
+    <span className="sm:hidden whitespace-nowrap">{mobileLabel || label}</span>
+    <span className="hidden sm:inline truncate">{label}</span>
+    <span
+      className={`hidden sm:flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-black transition-colors ${active
+          ? 'bg-white/20 text-white'
+          : 'bg-white/[0.06] text-slate-500 group-hover:bg-white/10 group-hover:text-slate-300'
+        }`}
+    >
       {count}
     </span>
   </button>
 );
 
-// ── EmptyState ────────────────────────────────────────────────────────
-const EmptyState = ({ icon: Icon, title, hint, spinning }) => (
-  <div className="flex flex-col items-center justify-center px-4 py-20 text-center text-slate-500">
-    <div className="p-4 mb-4 border rounded-2xl bg-slate-900/60 border-slate-800">
-      <Icon className={`w-10 h-10 ${spinning ? 'animate-spin text-indigo-500' : 'text-slate-600'}`} />
-    </div>
-    <p className="text-sm font-bold text-slate-400">{title}</p>
-    {hint && <p className="text-xs text-slate-600 mt-1.5 max-w-xs">{hint}</p>}
-  </div>
-);
+// পুরো বিল্ডারের লেআউট: ডেস্কটপে পেজ স্ক্রল করে না, শুধু প্রশ্নের তালিকা স্ক্রল করে
+const BUILDER_CSS = `
+  /* body-তে বসানো, .qb-root-এর ভেতরে নয় — কারণ nav.academic-navbar এই
+     কম্পোনেন্টের বাইরে (DOM-এ .qb-root-এর sibling-এর মতো অবস্থানে), তাই
+     .qb-root-স্কোপড ভ্যারিয়েবল সেখান থেকে দেখা যেত না */
+  body { --qb-nav-h: 64px; }
+  @media (min-width: 640px) { body { --qb-nav-h: 80px; } }
 
-// ── FieldShell ────────────────────────────────────────────────────────
-const FieldShell = ({ label, full, children }) => (
-  <div className={full ? 'md:col-span-2 space-y-2' : 'space-y-2'}>
-    <label className="block pl-1 text-xs font-bold tracking-widest uppercase text-slate-400">{label}</label>
-    {children}
-  </div>
-);
+  /* এই পুরো কোলাপ্স-লজিক শুধু ডেস্কটপের জন্য — ওখানে পুরো পাতা স্ক্রল হয় না,
+     শুধু মাঝের প্রশ্নের তালিকা (.qb-list-pane) নিজের ভেতরে স্ক্রল হয়, তাই মূল
+     সাইট নেভবার (এই কম্পোনেন্টের বাইরে) সাধারণ CSS sticky দিয়ে সরানো যায় না।
+     বদলে তালিকা স্ক্রল হলে body-তে ক্লাস বসিয়ে নেভবারকে height-collapse করি —
+     তখন নিচের সবকিছু (এই হেডারসহ) স্বাভাবিক flow-তেই উপরে উঠে আসে।
+
+     মোবাইলে পুরো পাতাই স্বাভাবিকভাবে স্ক্রল হয় (নেভবার নিজেই sticky), তাই এই
+     লজিকের দরকার নেই — বরং max-height বেস-রুলটা মোবাইলেও বসে গেলে নেভবারের
+     আসল উচ্চতা --qb-nav-h-এর অনুমানের চেয়ে সামান্য বেশি হলেই কনটেন্ট কেটে
+     (ক্লিপ হয়ে) গ্লিচের মতো দেখাচ্ছিল — তাই পুরোটাই ≥1024px-এ আটকে রাখা হলো */
+  @media (min-width: 1024px) {
+    nav.academic-navbar {
+      max-height: var(--qb-nav-h);
+      overflow: hidden;
+    }
+    body.qb-nav-collapsed nav.academic-navbar {
+      max-height: 0;
+      opacity: 0;
+      border-color: transparent;
+    }
+    body.qb-nav-collapsed .qb-app { height: 100dvh; }
+  }
+
+  .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.4); border-radius: 9999px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.3); border-radius: 9999px; transition: background 0.2s ease; }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(139, 92, 246, 0.7); }
+
+  @keyframes fade-up { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+  .animate-in { animation: fade-up 220ms cubic-bezier(0.16, 1, 0.3, 1); }
+
+  /* sticky দিলে মোবাইলে মূল নেভবারও (নিজেই sticky top:0) একই জায়গায় আটকে
+     থেকে এই হেডারের সাথে ওভারল্যাপ করে গ্লিচের মতো দেখাচ্ছিল — আর ডেস্কটপে
+     .qb-app নিজে স্ক্রলই হয় না বলে sticky-র কোনো কাজও ছিল না। তাই স্বাভাবিক
+     position-এই রাখা হলো; ডেস্কটপের "উপরে ওঠা" পুরোপুরি nav.academic-navbar
+     কোলাপ্স হয়ে জায়গা ছেড়ে দেওয়ার (flow reflow) ওপর নির্ভর করে। */
+  .qb-step-header { position: static; }
+  .qb-cart-button { display: inline-flex; }
+  .qb-empty-action { display: none; }
+  .qb-filter-toggle { display: none; }
+
+  .qb-app { display: flex; flex-direction: column; height: calc(100dvh - var(--qb-nav-h)); }
+  .qb-panes {
+    display: grid;
+    grid-template-columns: 295px minmax(0, 1fr) 345px;
+    gap: 16px;
+    flex: 1;
+    min-height: 0;
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+  .qb-list-pane { min-height: 0; overflow-y: auto; scroll-behavior: smooth; }
+
+  .qb-list-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(11, 15, 25, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 12px;
+  }
+
+  .qb-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .qb-clamp-2 .prose { display: inline; }
+  .qb-clamp-2 p { display: inline; margin: 0 !important; }
+
+  .qb-card {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 88px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @media (min-width: 1024px) {
+    footer { display: none; }
+  }
+
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid #8b5cf6; outline-offset: 2px; }
+
+  @media (max-width: 1279px) {
+    .qb-panes { grid-template-columns: minmax(0, 1fr) 320px; }
+    .qb-filter-pane { display: none; }
+    .qb-filter-toggle { display: inline-flex; }
+    .qb-empty-action { display: inline-flex; }
+  }
+
+  @media (max-width: 1023px) {
+    .qb-app { height: auto; }
+    .qb-panes { grid-template-columns: minmax(0, 1fr); padding-bottom: 24px; }
+    .qb-cart-pane { display: none; }
+    .qb-list-pane { overflow: visible; }
+  }
+
+  @media (min-width: 1280px) {
+    .qb-cart-button { display: none; }
+  }
+`;
 
 export default function QuestionBuilder() {
-  const [step, setStep] = useState(1);
-  const [cart, setCart] = useState([]);
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  // আগে চার ধাপের উইজার্ড ছিল; এখন বিল্ডারই মূল পর্দা, বাকি দুটো আউটপুট ভিউ
+  const [view, setView] = useState('build'); // 'build' | 'preview' | 'answers' | 'omr'
 
-  const [headerInfo, setHeaderInfo] = useState({
-    schoolName: '',
-    examName: '',
-    subject: 'পদার্থবিজ্ঞান',
-    time: '২ ঘন্টা ৩০ মিনিট',
-    totalMarks: '১০০',
-    subjectCode: '১৭৪',
+  // ডেস্কটপে পাতা নিজে স্ক্রল হয় না, শুধু প্রশ্নের তালিকা (.qb-list-pane) হয় —
+  // তালিকা একটু স্ক্রল হলেই মূল নেভবার কোলাপ্স করে এই হেডারকে ওই জায়গায় তুলে আনি
+  const listPaneRef = useRef(null);
+  const [listScrolled, setListScrolled] = useState(false);
+  useEffect(() => {
+    const el = listPaneRef.current;
+    if (!el) return undefined;
+    // স্ক্রল ইভেন্ট খুব ঘনঘন আসে — প্রতিটাতেই সরাসরি setState চালালে স্ক্রলের
+    // সাথে রেন্ডার প্রতিযোগিতা করে খসখসে লাগে, তাই ফ্রেম-প্রতি একবারই চেক করি
+    let rafId = null;
+    const onScroll = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        setListScrolled((prev) => {
+          const next = el.scrollTop > 4;
+          return prev === next ? prev : next;
+        });
+      });
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [view]);
+  useEffect(() => {
+    document.body.classList.toggle('qb-nav-collapsed', listScrolled);
+    return () => document.body.classList.remove('qb-nav-collapsed');
+  }, [listScrolled]);
+  const [cart, setCart] = useState(() => {
+    const stored = readStored(CART_STORAGE_KEY, []);
+    return Array.isArray(stored) ? stored : [];
+  });
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [confirm, confirmDialog] = useConfirm();
+  const { currentUser } = useAuth();
+  const [savedPapersOpen, setSavedPapersOpen] = useState(false);
+
+  // "এই প্রশ্নটা কি আগে অন্য কোনো কাগজে ব্যবহার হয়েছে?" — সেশনে একবারই
+  // সংরক্ষিত কাগজের তালিকা আনি, প্রতিটা প্রশ্ন-কার্ডে আলাদা করে হিসাব করতে হয় না
+  const [usageIndex, setUsageIndex] = useState(null);
+  useEffect(() => {
+    if (!currentUser?.uid) return undefined;
+    let cancelled = false;
+    listPapers(currentUser.uid)
+      .then((rows) => { if (!cancelled) setUsageIndex(buildUsageIndex(rows)); })
+      .catch((err) => console.error(err));
+    return () => { cancelled = true; };
+  }, [currentUser?.uid]);
+
+  // পেজ খোলার সময় আগের খসড়া ফিরে এলে সেটা জানিয়ে দিই — না হলে নতুন কাগজ
+  // বানাতে বসে হঠাৎ আগের প্রশ্নগুলো দেখে বিভ্রান্তি হয়
+  const [restoredDraft, setRestoredDraft] = useState(() => {
+    const stored = readStored(CART_STORAGE_KEY, []);
+    if (!Array.isArray(stored) || stored.length === 0) return null;
+    return { count: stored.length, savedAt: readStored(DRAFT_SAVED_AT_KEY, null) };
   });
 
-  const [selectedLevel, setSelectedLevel] = useState('hsc');
+  const [headerInfo, setHeaderInfo] = useState(() => ({
+    ...DEFAULT_HEADER_INFO,
+    ...readStored(HEADER_STORAGE_KEY, {}),
+  }));
+  const [marksConfig, setMarksConfig] = useState(() => ({
+    ...DEFAULT_MARKS,
+    ...readStored(MARKS_STORAGE_KEY, {}),
+  }));
+
+  // ── প্রিন্ট সেটআপ ও প্রশ্ন সম্পাদনা ──────────────────────────────
+  const [printSettings, setPrintSettings] = useState(() => ({
+    ...DEFAULT_PRINT_SETTINGS,
+    ...readStored(PRINT_SETTINGS_KEY, {}),
+  }));
+  const [printPanelOpen, setPrintPanelOpen] = useState(false);
+  // প্রিন্টে আনুমানিক কত পৃষ্ঠা লাগবে — PrintableView রিয়েল উচ্চতা রিপোর্ট করে,
+  // হিসাবটা এখানেই হয় (component-টা নিজে পাতাসংখ্যা নিয়ে ভাবে না)
+  const [contentHeightPx, setContentHeightPx] = useState(0);
+  const estimatedPages = useMemo(
+    () => estimatePageCount({ contentHeightPx, page: resolvePage(printSettings) }),
+    [contentHeightPx, printSettings],
+  );
+  const [editing, setEditing] = useState(false);
+  // প্রশ্নের সম্পাদিত লেখা — মূল প্রশ্ন অক্ষত রেখে uniqueId ধরে আলাদা রাখা হয়,
+  // তাই যেকোনো সময় আসল লেখায় ফেরা যায়
+  const [edits, setEdits] = useState(() => readStored(EDITS_STORAGE_KEY, {}) || {});
+
+  // ── একাধিক সেট (A/B/C...) — MCQ-এর ক্রম ও অপশনের ক্রম শাফল করা প্রতিটি
+  // সেট শুধু এই সেশনেই থাকে (localStorage/সংরক্ষিত কাগজে যায় না), কারণ
+  // মূল cart-ই একমাত্র সত্য উৎস — সেট শুধু তারই একটা রেন্ডার-টাইম রূপ
+  const [setCount, setSetCount] = useState(1);
+  const [activeSetIndex, setActiveSetIndex] = useState(0);
+
+  const materializedCart = useMemo(() => materializeEdits(cart, edits), [cart, edits]);
+  const shuffledSets = useMemo(
+    () => Array.from({ length: setCount }, (_, i) => (i === 0 ? materializedCart : shuffleSetVariant(materializedCart))),
+    [materializedCart, setCount],
+  );
+  const activeCart = shuffledSets[activeSetIndex] || materializedCart;
+  // সেট A (মূল ক্রম) ছাড়া বাকি সেটগুলোতে ইনলাইন এডিট বন্ধ — কারণ এডিট
+  // পজিশনভিত্তিক (opt_2 ইত্যাদি), অপশন শাফলের পর সেই পজিশন আর একই অপশনকে
+  // নির্দেশ করে না। শাফলের আগেই এডিট materializeEdits দিয়ে পাকা করা হয়,
+  // তাই সেট A-তেই শুধু এডিট চালু রাখা নিরাপদ।
+  const canEditActiveSet = activeSetIndex === 0;
+
+  const [selectedLevel, setSelectedLevel] = useState('HSC');
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedType, setSelectedType] = useState('all');
-  const [loading, setLoading] = useState(false);
-  const [chapters, setChapters] = useState([]);
-  const [allQuestions, setAllQuestions] = useState([]);
   const [selectedChapters, setSelectedChapters] = useState([]);
   const [selectedTopics, setSelectedTopics] = useState([]);
-  const [expandedCQs, setExpandedCQs] = useState([]);
   const [visibleCount, setVisibleCount] = useState(10);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const [paperInfoOpen, setPaperInfoOpen] = useState(false);
+  const [autoPickOpen, setAutoPickOpen] = useState(false);
+  const [completingCq, setCompletingCq] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [navHeight, setNavHeight] = useState(null);
 
-  const deferredQuestions = useDeferredValue(allQuestions);
+  // একাডেমিক ন্যাভবারের আসল উচ্চতা মেপে নিই — হার্ডকোড করলে ১-২px গরমিলেও
+  // পুরো পেজে বাড়তি স্ক্রলবার চলে আসে
+  useEffect(() => {
+    const measure = () => {
+      const nav = document.querySelector('nav');
+      if (nav) setNavHeight(nav.getBoundingClientRect().height);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
 
-  // ── derived: active subject config ─────────────────────────────────
-  const activeSubjectConfig = useMemo(
-    () => (academicSubjects[selectedLevel] || []).find((s) => s.id === selectedSubjectId) || null,
-    [selectedLevel, selectedSubjectId]
+  const rootStyle = navHeight ? { '--qb-nav-h': `${navHeight}px` } : undefined;
+
+  // ── data: বাকি অ্যাপের মতোই admin_settings/subjects + academic_content ──
+  const { data: allSubjects = [], isLoading: subjectsLoading } = useAcademicSubjects();
+
+  const levels = useMemo(() => {
+    const seen = [];
+    allSubjects.forEach((s) => { if (s.level && !seen.includes(s.level)) seen.push(s.level); });
+    return seen;
+  }, [allSubjects]);
+
+  // selectedLevel এর প্রাথমিক মান 'HSC'; অ্যাডমিনের তালিকায় সেটা না থাকলে
+  // ইফেক্ট দিয়ে সংশোধন না করে সরাসরি প্রথম স্তরটাই ধরে নিই — এতে বাড়তি
+  // রেন্ডার-চক্র তৈরি হয় না
+  const effectiveLevel = levels.includes(selectedLevel) ? selectedLevel : (levels[0] || selectedLevel);
+
+  const availableSubjects = useMemo(
+    () => allSubjects.filter((s) => s.level === effectiveLevel),
+    [allSubjects, effectiveLevel]
   );
+
+  const activeSubjectConfig = useMemo(
+    () => availableSubjects.find((s) => s.id === selectedSubjectId) || null,
+    [availableSubjects, selectedSubjectId]
+  );
+
+  const chapters = useMemo(() => activeSubjectConfig?.chapters || [], [activeSubjectConfig]);
+
+  const { questions: subjectQuestions, isLoading: questionsLoading } = useBuilderQuestions(activeSubjectConfig);
+
+  // বিষয়ের ভিতরে অধ্যায় বদলালে আর নেটওয়ার্ক কল যায় না — কাটাকুটি ক্লায়েন্টেই
+  const scopedQuestions = useMemo(() => {
+    if (selectedChapters.length === 0) return [];
+    const set = new Set(selectedChapters);
+    return subjectQuestions.filter((q) => set.has(q.chapterId));
+  }, [subjectQuestions, selectedChapters]);
+
+  const deferredQuestions = useDeferredValue(scopedQuestions);
+  const loading = subjectsLoading || questionsLoading;
+
+  // ── effect: persist so a refresh does not wipe the work ──
+  useEffect(() => {
+    writeStored(CART_STORAGE_KEY, cart);
+    writeStored(DRAFT_SAVED_AT_KEY, cart.length > 0 ? Date.now() : null);
+  }, [cart]);
+  useEffect(() => { writeStored(HEADER_STORAGE_KEY, headerInfo); }, [headerInfo]);
+  useEffect(() => { writeStored(MARKS_STORAGE_KEY, marksConfig); }, [marksConfig]);
+  useEffect(() => { writeStored(PRINT_SETTINGS_KEY, printSettings); }, [printSettings]);
+  useEffect(() => { writeStored(EDITS_STORAGE_KEY, edits); }, [edits]);
 
   // ── effect: reset when subject changes ────────────────────────────
   useEffect(() => {
-    if (activeSubjectConfig) {
-      setChapters(activeSubjectConfig.chapters || []);
-      setHeaderInfo((prev) => ({ ...prev, subject: activeSubjectConfig.name.split(' (')[0] }));
-    } else {
-      setChapters([]);
-    }
     setSelectedChapters([]);
     setSelectedTopics([]);
     setSelectedType('all');
-    setAllQuestions([]);
     setSearchQuery('');
-  }, [activeSubjectConfig]);
-
-  // ── effect: load JSON questions dynamically ───────────────────────
-  useEffect(() => {
-    let isMounted = true;
-    if (!activeSubjectConfig || selectedChapters.length === 0) {
-      setAllQuestions([]);
-      return;
+    if (activeSubjectConfig) {
+      setHeaderInfo((prev) => ({
+        ...prev,
+        subject: activeSubjectConfig.label || activeSubjectConfig.name || prev.subject,
+      }));
     }
-    const loadQuestions = async () => {
-      setLoading(true);
-      try {
-        const results = await Promise.all(
-          selectedChapters.map(async (chapterId) => {
-            const match = chapterId.match(/chapter-?(\d+)/i);
-            if (!match) return [];
-            const num = parseInt(match[1]);
-            const padded = num < 10 ? `0${num}` : `${num}`;
-            const chapterName = chapters.find((c) => c.id === chapterId)?.title || `অধ্যায় ${num}`;
-
-            const findKey = (obj, n, p) =>
-              obj ? Object.keys(obj).find((k) => k.includes(`chapter_${p}_`) || k.includes(`chapter_${n}_`)) : undefined;
-
-            const cqKey = findKey(activeSubjectConfig.cqs, num, padded);
-            const mcqKey = findKey(activeSubjectConfig.mcqs, num, padded);
-            const kKey = findKey(activeSubjectConfig.kQs, num, padded);
-
-            const [cqData, mcqData, kData] = await Promise.all([
-              cqKey ? activeSubjectConfig.cqs[cqKey]() : null,
-              mcqKey ? activeSubjectConfig.mcqs[mcqKey]() : null,
-              kKey ? activeSubjectConfig.kQs[kKey]() : null,
-            ]);
-
-            const cqs = (cqData?.default || cqData || []).map((q) => ({
-              ...q, uniqueId: `cq-${chapterId}-${q.id}`, type: 'cq', chapterId, chapterName,
-            }));
-            const mcqs = (mcqData?.default || mcqData || []).map((q) => ({
-              ...q, uniqueId: `mcq-${chapterId}-${q.id}`, type: 'mcq', chapterId, chapterName,
-            }));
-            const kQs = (kData?.default || kData || []).map((q) => {
-              const t = q.type === 'k' ? 'k' : 'kh';
-              return { ...q, uniqueId: `${t}-${chapterId}-${q.id}`, type: t, chapterId, chapterName };
-            });
-
-            return [...cqs, ...mcqs, ...kQs];
-          })
-        );
-        if (isMounted) setAllQuestions(results.flat());
-      } catch (err) {
-        console.error('Error loading questions:', err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    loadQuestions();
-    return () => { isMounted = false; };
-  }, [selectedChapters, activeSubjectConfig, chapters]);
+  }, [activeSubjectConfig]);
 
   // ── derived: topics ───────────────────────────────────────────────
   const availableTopics = useMemo(() => {
@@ -321,31 +445,41 @@ export default function QuestionBuilder() {
         q.institutions?.map((institution) => `${institution.name || ''} ${institution.year || ''}`).join(' '),
       ].filter(Boolean).join(' ').toLowerCase().includes(term));
     }
-    setVisibleCount(10);
     return qs;
   }, [deferredQuestions, selectedTopics, selectedType, searchQuery]);
 
-  const questionCounts = useMemo(() => allQuestions.reduce((a, q) => {
+  // ফিল্টার বদলালে তালিকা আবার প্রথম ১০টি থেকে শুরু হবে
+  const filterSignature = `${selectedTopics.join('|')}::${selectedType}::${searchQuery}::${deferredQuestions.length}`;
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [filterSignature]);
+
+  const questionCounts = useMemo(() => scopedQuestions.reduce((a, q) => {
     a.all += 1;
     if (q.type === 'cq') a.cq += 1;
     if (q.type === 'mcq') a.mcq += 1;
     if (q.type === 'k' || q.type === 'kh') a.kKh += 1;
     return a;
-  }, { all: 0, cq: 0, mcq: 0, kKh: 0 }), [allQuestions]);
+  }, { all: 0, cq: 0, mcq: 0, kKh: 0 }), [scopedQuestions]);
 
-  const cartCounts = useMemo(() => cart.reduce((a, q) => {
-    if (q.type === 'cq') a.cq += 1;
-    if (q.type === 'mcq') a.mcq += 1;
-    if (q.type === 'k' || q.type === 'kh') a.kKh += 1;
-    return a;
-  }, { cq: 0, mcq: 0, kKh: 0 }), [cart]);
+  const chapterCounts = useMemo(() => {
+    const counts = {};
+    subjectQuestions.forEach((q) => {
+      if (!q.chapterId) return;
+      counts[q.chapterId] = (counts[q.chapterId] || 0) + 1;
+    });
+    return counts;
+  }, [subjectQuestions]);
 
   const cartIdSet = useMemo(() => new Set(cart.map((q) => q.uniqueId)), [cart]);
-  const isQuestionLibraryFiltered = selectedChapters.length > 0 || selectedTopics.length > 0 || selectedType !== 'all' || searchQuery.trim();
+  const isQuestionLibraryFiltered = selectedChapters.length > 0 || selectedTopics.length > 0 || selectedType !== 'all' || Boolean(searchQuery.trim());
   const questionLibrarySummary = useMemo(() => {
-    const subjectName = activeSubjectConfig?.name?.split(' (')[0];
+    const subjectName = activeSubjectConfig?.label || activeSubjectConfig?.name;
     const selectedChapterLabels = selectedChapters
-      .map((id) => chapters.find((chapter) => chapter.id === id)?.title)
+      .map((id) => {
+        const chapter = chapters.find((c) => c.id === id);
+        return chapter?.name || chapter?.title;
+      })
       .filter(Boolean);
     const typeLabel = selectedType === 'all'
       ? null
@@ -354,7 +488,7 @@ export default function QuestionBuilder() {
         : selectedType.toUpperCase();
     return [
       subjectName,
-      selectedChapterLabels.length > 1 ? `${enToBn(selectedChapterLabels.length)} অধ্যায়` : selectedChapterLabels[0],
+      selectedChapterLabels.length > 1 ? `${enToBn(selectedChapterLabels.length)} অধ্যায়` : selectedChapterLabels[0],
       selectedTopics.length > 1 ? `${enToBn(selectedTopics.length)} টপিক` : selectedTopics[0],
       typeLabel,
       searchQuery.trim() ? `সার্চ: ${searchQuery.trim()}` : null,
@@ -362,106 +496,198 @@ export default function QuestionBuilder() {
   }, [activeSubjectConfig, chapters, selectedChapters, selectedTopics, selectedType, searchQuery]);
 
   // ── callbacks ─────────────────────────────────────────────────────
-  const handleHeaderChange = (e) => {
+  const handleHeaderChange = useCallback((e) => {
     const { name, value } = e.target;
     setHeaderInfo((prev) => ({ ...prev, [name]: value }));
+  }, []);
+
+  const [logoUploading, setLogoUploading] = useState(false);
+  const handleLogoUpload = async (file) => {
+    if (!currentUser?.uid) { toast.error('লোগো আপলোড করতে লগইন করুন।'); return; }
+    setLogoUploading(true);
+    try {
+      const { url, path } = await uploadPaperLogo(currentUser.uid, file);
+      if (headerInfo.logoPath) deletePaperLogo(headerInfo.logoPath);
+      setHeaderInfo((prev) => ({ ...prev, logoUrl: url, logoPath: path }));
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || 'লোগো আপলোড করা যায়নি।');
+    } finally {
+      setLogoUploading(false);
+    }
   };
+  const handleLogoRemove = () => {
+    if (headerInfo.logoPath) deletePaperLogo(headerInfo.logoPath);
+    setHeaderInfo((prev) => ({ ...prev, logoUrl: '', logoPath: '' }));
+  };
+
+  const handleMarksChange = useCallback((type, value) => {
+    setMarksConfig((prev) => ({ ...prev, [type]: Math.max(0, Number(value) || 0) }));
+  }, []);
   const addToCart = useCallback((q) => setCart((prev) => prev.some((x) => x.uniqueId === q.uniqueId) ? prev : [...prev, q]), []);
   const removeFromCart = useCallback((id) => setCart((prev) => prev.filter((q) => q.uniqueId !== id)), []);
   const clearCart = useCallback(() => setCart([]), []);
-  const toggleChapter = (id) => setSelectedChapters((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-  const toggleTopic = (id) => setSelectedTopics((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
-  const availableSubjects = academicSubjects[selectedLevel] || [];
-  const canPreview = cart.length > 0;
-  const rightSidebarCounts = useMemo(() => cart.reduce((acc, q) => {
-    acc.total += 1;
-    if (q.type === 'mcq') acc.mcq += 1;
-    else if (q.type === 'cq') acc.cq += 1;
-    else if (q.type === 'k') acc.k += 1;
-    else if (q.type === 'kh') acc.kh += 1;
-    else if (q.type === 'short') acc.short += 1;
-    return acc;
-  }, { total: 0, mcq: 0, cq: 0, k: 0, kh: 0, short: 0 }), [cart]);
-  const rightSidebarStats = useMemo(() => {
-    const markByType = { mcq: 1, k: 1, kh: 2, cq: 10, short: 2 };
-    const difficultyScore = { easy: 1, medium: 2, hard: 3 };
-    const chaptersSet = new Set();
-    const topicsSet = new Set();
-    let estimatedMarks = 0;
-    let difficultyTotal = 0;
-    let difficultyCount = 0;
+  /**
+   * সংরক্ষিত কাগজ খোলা — প্রশ্ন, শিরোনাম, নম্বর ও পেজ সেটআপ সবই ফিরে আসে।
+   * টেমপ্লেট হলে শুধু বিন্যাস (হেডার/নম্বর/প্রিন্ট সেটআপ) প্রয়োগ হয় — বর্তমান
+   * কার্টের প্রশ্নগুলো অক্ষত থাকে, কারণ টেমপ্লেটে আদৌ কোনো প্রশ্ন থাকে না।
+   */
+  const loadSavedPaper = useCallback((paper) => {
+    if (!paper.isTemplate) {
+      setCart(Array.isArray(paper.cart) ? paper.cart : []);
+    }
+    if (paper.headerInfo) setHeaderInfo({ ...DEFAULT_HEADER_INFO, ...paper.headerInfo });
+    if (paper.marksConfig) setMarksConfig({ ...DEFAULT_MARKS, ...paper.marksConfig });
+    if (paper.printSettings) setPrintSettings({ ...DEFAULT_PRINT_SETTINGS, ...paper.printSettings });
+    setRestoredDraft(null);
+    toast.success(paper.isTemplate ? `"${paper.name}" টেমপ্লেট প্রয়োগ হয়েছে` : `"${paper.name}" খোলা হয়েছে`);
+  }, []);
 
-    cart.forEach((q) => {
-      estimatedMarks += Number(q.marks || q.mark || markByType[q.type] || 1);
-      if (q.chapterId || q.chapterName) chaptersSet.add(q.chapterId || q.chapterName);
-      if (q.topic) topicsSet.add(q.topic);
-      const difficultyKey = String(q.difficulty || '').toLowerCase();
-      if (difficultyScore[difficultyKey]) {
-        difficultyTotal += difficultyScore[difficultyKey];
-        difficultyCount += 1;
+  /** null পাঠালে ওই ফিল্ডের সম্পাদনা মুছে মূল লেখা ফিরে আসে */
+  const handleEdit = useCallback((uniqueId, field, value) => {
+    setEdits((prev) => {
+      const forQuestion = { ...(prev[uniqueId] || {}) };
+      if (value === null) delete forQuestion[field];
+      else forQuestion[field] = value;
+
+      const next = { ...prev };
+      if (Object.keys(forQuestion).length === 0) delete next[uniqueId];
+      else next[uniqueId] = forQuestion;
+      return next;
+    });
+  }, []);
+
+  /**
+   * নতুন প্রশ্নপত্র — শুধু কার্ট নয়, কাগজের তথ্য ও নম্বরের হারও ডিফল্টে ফেরে।
+   * আগে একমাত্র উপায় ছিল কার্টের ট্র্যাশ বাটন, যেটা প্রতিষ্ঠান/পরীক্ষার নাম
+   * রেখে দিত — ফলে নতুন কাগজে পুরোনো শিরোনামই ছাপা হতো।
+   */
+  const startNewPaper = useCallback(async () => {
+    const ok = await confirm({
+      title: 'নতুন প্রশ্নপত্র শুরু করবেন?',
+      message: 'নির্বাচিত সব প্রশ্ন ও কাগজের তথ্য মুছে যাবে। এটি ফেরানো যাবে না।',
+      confirmLabel: 'হ্যাঁ, নতুন শুরু করি',
+    });
+    if (!ok) return;
+
+    setCart([]);
+    setHeaderInfo({
+      ...DEFAULT_HEADER_INFO,
+      // বিষয় বাছাই করা থাকলে নামটা রেখে দিই — না হলে ফাঁকা থেকে যেত, কারণ
+      // অটো-ফিল ইফেক্টটা কেবল বিষয় বদলালেই চলে
+      subject: activeSubjectConfig?.label || activeSubjectConfig?.name || '',
+    });
+    setMarksConfig({ ...DEFAULT_MARKS });
+    setEdits({});
+    setEditing(false);
+    setRestoredDraft(null);
+    setPaperInfoOpen(false);
+    setMobileCartOpen(false);
+  }, [confirm, activeSubjectConfig]);
+
+  /** একবারে অনেকগুলো — স্বয়ংক্রিয় বাছাই ও "সব যোগ করুন" দুটোই এটাই ব্যবহার করে */
+  const addManyToCart = useCallback((items) => {
+    setCart((prev) => {
+      const seen = new Set(prev.map((q) => q.uniqueId));
+      const fresh = items.filter((q) => !seen.has(q.uniqueId));
+      return fresh.length ? [...prev, ...fresh] : prev;
+    });
+  }, []);
+
+  const moveCartItem = useCallback((index, offset) => {
+    setCart((prev) => {
+      const target = index + offset;
+      if (index < 0 || target < 0 || index >= prev.length || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }, []);
+  const moveCartItemUp = useCallback((index) => moveCartItem(index, -1), [moveCartItem]);
+  const moveCartItemDown = useCallback((index) => moveCartItem(index, 1), [moveCartItem]);
+  const toggleChapter = useCallback((id) => setSelectedChapters((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]), []);
+  const toggleTopic = useCallback((id) => setSelectedTopics((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]), []);
+
+  const knowledgePool = useMemo(
+    () => subjectQuestions.filter((q) => q.type === 'k' || q.type === 'kh'),
+    [subjectQuestions]
+  );
+
+  const handleSaveCompletedCq = useCallback((updatedCq) => {
+    setCart((prev) => {
+      const exists = prev.some((x) => x.uniqueId === updatedCq.uniqueId);
+      if (exists) {
+        return prev.map((x) => (x.uniqueId === updatedCq.uniqueId ? updatedCq : x));
       }
+      return [...prev, updatedCq];
     });
 
-    const averageScore = difficultyCount ? Math.round(difficultyTotal / difficultyCount) : 0;
-    const averageDifficulty = averageScore === 1 ? 'Easy' : averageScore === 2 ? 'Medium' : averageScore === 3 ? 'Hard' : 'Mixed';
+    setEdits((prev) => ({
+      ...prev,
+      [updatedCq.uniqueId]: {
+        ...(prev[updatedCq.uniqueId] || {}),
+        q_ka: updatedCq.questions?.ka || '',
+        q_kha: updatedCq.questions?.kha || '',
+        q_ga: updatedCq.questions?.ga || '',
+        q_gha: updatedCq.questions?.gha || '',
+      },
+    }));
 
-    return {
-      totalQuestions: cart.length,
-      estimatedMarks,
-      averageDifficulty,
-      uniqueChapters: chaptersSet.size,
-      uniqueTopics: topicsSet.size,
-    };
-  }, [cart]);
+    toast.success('পূর্ণ CQ (ক, খ, গ, ঘ) সংরক্ষিত হয়েছে!');
+  }, []);
 
-  const handleDownloadPdf = useCallback(async () => {
-    const content = step === 3
-      ? document.querySelector('#pdf-content .printable-paper')
-      : document.querySelector('#pdf-content > div');
+  // এক জায়গায় হিসাব — হেডার, সাইডবার, প্রিন্ট সবাই এটাই পড়ে
+  const summary = useMemo(() => summarizeCart(cart, marksConfig), [cart, marksConfig]);
+  const canOutput = cart.length > 0;
 
-    if (!content || isDownloadingPdf) return;
+  const visibleUnadded = useMemo(
+    () => filteredQuestions.slice(0, visibleCount).filter((q) => !cartIdSet.has(q.uniqueId)),
+    [filteredQuestions, visibleCount, cartIdSet]
+  );
+
+  /**
+   * PDF তৈরি এখন ব্রাউজারের নিজের প্রিন্ট ইঞ্জিন দিয়ে।
+   *
+   * আগে html2pdf (html2canvas) ব্যবহার হতো — সেটা পুরো পাতাকে একটা ছবিতে
+   * রূপান্তর করে টুকরো করে। html2canvas 1.4.1 `column-count`, `break-inside`
+   * বা `flex` — কোনোটাই পড়ে না (dist ফাইলে এই প্রোপার্টিগুলোর অস্তিত্বই নেই)।
+   * ফলে বহুনির্বাচনীর দুই কলাম ও অপশনের বৃত্ত-লেখার সারি ভেঙে যেত, প্রশ্ন
+   * মাঝখান থেকে কাটা পড়ত, আর মার্জিন মিলত না।
+   *
+   * ব্রাউজারের প্রিন্ট ইঞ্জিন এই তিনটাই ঠিকঠাক মানে, লেখা ভেক্টর থাকে
+   * (ঝাপসা হয় না, সিলেক্ট করা যায়) এবং ফাইলও অনেক ছোট হয়।
+   */
+  const handleDownloadPdf = useCallback(() => {
+    if (isDownloadingPdf) return;
+    // ফাইলের নাম প্রিন্ট ডায়ালগে document.title থেকেই আসে
+    const subject = (headerInfo.subject || 'question-paper')
+      .trim()
+      .replace(/[\\/:*?"<>|]+/g, '-')
+      .replace(/\s+/g, '-');
+    const suffix = view === 'answers' ? 'answer-sheet' : view === 'omr' ? 'omr-sheet' : 'questions';
+    const setSuffix = setCount > 1 && view !== 'omr' ? `-set-${SET_LABELS[activeSetIndex]}` : '';
+    const previousTitle = document.title;
+    document.title = `${subject || 'question-paper'}-${suffix}${setSuffix}`;
 
     setIsDownloadingPdf(true);
-    try {
-      const html2pdfModule = await import('html2pdf.js');
-      const html2pdf = html2pdfModule.default || html2pdfModule;
-      content.classList.add('pdf-export-mode');
-      const subject = (headerInfo.subject || 'question-paper')
-        .trim()
-        .replace(/[\\/:*?"<>|]+/g, '-')
-        .replace(/\s+/g, '-');
-
-      await html2pdf()
-        .set({
-          margin: [12, 12, 12, 12],
-          filename: `${subject || 'question-paper'}-${step === 4 ? 'answer-sheet' : 'questions'}.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#ffffff',
-          },
-          jsPDF: {
-            unit: 'mm',
-            format: 'a4',
-            orientation: 'portrait',
-          },
-          pagebreak: {
-            mode: ['css', 'legacy'],
-            avoid: ['.mcq-item', '.question-row', '.sub-question-row'],
-          },
-        })
-        .from(content)
-        .save();
-    } finally {
-      content.classList.remove('pdf-export-mode');
+    const restore = () => {
+      document.title = previousTitle;
       setIsDownloadingPdf(false);
-    }
-  }, [headerInfo.subject, isDownloadingPdf, step]);
+    };
+    window.addEventListener('afterprint', restore, { once: true });
 
-  // ── Step 3: Print Preview ─────────────────────────────────────────
-  if (step === 3 || step === 4) {
+    // লেআউট স্থির হওয়ার সুযোগ দিয়ে তবেই ডায়ালগ
+    requestAnimationFrame(() => {
+      window.print();
+      // কিছু ব্রাউজারে afterprint আসে না — তাই নিরাপত্তা হিসেবে
+      setTimeout(restore, 1000);
+    });
+  }, [headerInfo.subject, isDownloadingPdf, view, setCount, activeSetIndex]);
+
+
+  // ── Output views: print preview / answer key / OMR sheet ──────────
+  if (view === 'preview' || view === 'answers' || view === 'omr') {
     return (
       <div className="relative z-50 min-h-screen bg-slate-100">
         {/* Hide Navbar and Footer in Print Preview Mode */}
@@ -469,544 +695,396 @@ export default function QuestionBuilder() {
           nav, footer { display: none !important; }
           body { background-color: #f1f5f9 !important; }
           @media print {
-            @page { margin: 0; }
+            /* @page এর মার্জিন এখানে নয় — প্রতিটি ডকুমেন্ট (প্রশ্নপত্র ও
+               উত্তরপত্র) নিজের পেজ সেটআপ অনুযায়ী সেটা ঠিক করে। এখানে
+               margin:0 থাকায় সেগুলোর সাথে দ্বন্দ্ব বাধত। */
             body, html, #root { margin: 0; background-color: white !important; }
             /* Force the dark layout background to be white during print to prevent black bars */
             .bg-\\[\\#0b0f19\\] { background-color: white !important; }
             .bg-\\[\\#020617\\] { background-color: white !important; }
           }
-          .mcq-columns {
-            column-count: 2;
-            column-gap: 32px;
-            column-rule: 1px solid #ccc;
-          }
         `}</style>
 
         {/* PDF Viewer Header */}
         <div className="sticky top-0 z-40 w-full border-b shadow-sm print:hidden border-slate-300/80 bg-white/95 backdrop-blur-md">
-          <div className="flex items-center justify-between max-w-5xl px-4 py-3 mx-auto sm:px-6 lg:px-8">
-            <button onClick={() => setStep(2)} className="flex items-center gap-2 px-3 py-2 text-sm font-semibold transition rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 py-3 sm:px-6 lg:px-8">
+            <button onClick={() => setView('build')} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900">
               <ChevronLeft className="w-4 h-4" /> এডিটে ফিরে যান
             </button>
-            <div className="flex items-center hidden gap-2 sm:flex">
-              <FileText className="w-5 h-5 text-indigo-600" />
-              <span className="text-sm font-bold tracking-widest uppercase text-slate-800">PDF Preview {step === 4 ? '(Answer Sheet)' : ''}</span>
+
+            <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+              {[
+                { id: 'preview', label: 'প্রশ্নপত্র' },
+                { id: 'answers', label: 'উত্তরপত্র' },
+                { id: 'omr', label: 'OMR শীট' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setView(tab.id)}
+                  className={`rounded-md px-2.5 py-1.5 text-xs font-bold transition ${view === tab.id ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
-            <button
-              onClick={handleDownloadPdf}
-              disabled={isDownloadingPdf}
-              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition shadow-md shadow-indigo-500/20 active:scale-95"
-            >
-              <Download className="w-4 h-4" /> {isDownloadingPdf ? 'তৈরি হচ্ছে...' : 'PDF ডাউনলোড'}
-            </button>
+
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              {(view === 'preview' || view === 'answers') && (
+                <div className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5">
+                  <Layers className="h-4 w-4 text-slate-500" />
+                  <select
+                    value={setCount}
+                    onChange={(e) => {
+                      const n = Number(e.target.value);
+                      setSetCount(n);
+                      if (activeSetIndex >= n) setActiveSetIndex(0);
+                    }}
+                    title="কয়টি আলাদা সেট বানাতে চান (প্রতিটিতে MCQ ও অপশনের ক্রম আলাদা)"
+                    className="bg-transparent text-xs font-bold text-slate-700 focus:outline-none"
+                  >
+                    {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n === 1 ? '১টি সেট' : `${enToBn(n)}টি সেট`}</option>)}
+                  </select>
+                  {setCount > 1 && (
+                    <div className="flex gap-1 border-l border-slate-200 pl-1.5">
+                      {SET_LABELS.slice(0, setCount).map((label, i) => (
+                        <button
+                          key={label}
+                          onClick={() => setActiveSetIndex(i)}
+                          title={i === 0 ? 'মূল ক্রম — এডিট করা যায়' : 'MCQ ও অপশনের ক্রম এলোমেলো'}
+                          className={`h-6 w-6 rounded-md text-[11px] font-black transition ${activeSetIndex === i ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                            }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {view === 'preview' && setCount > 1 && !canEditActiveSet && (
+                    <span className="hidden border-l border-slate-200 pl-1.5 text-[11px] font-semibold text-slate-500 md:inline">
+                      এলোমেলো — এডিট শুধু A-তে
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {view === 'preview' && (
+                <>
+                  <button
+                    onClick={() => canEditActiveSet && setEditing((v) => !v)}
+                    disabled={!canEditActiveSet}
+                    title={canEditActiveSet ? 'প্রশ্নের লেখায় ক্লিক করে সম্পাদনা করুন' : 'শুধু সেট A-তে সম্পাদনা করা যায়'}
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-bold transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${editing && canEditActiveSet
+                        ? 'border-amber-300 bg-amber-100 text-amber-800'
+                        : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                  >
+                    <Pencil className="w-4 h-4" />
+                    <span className="hidden sm:inline">{editing && canEditActiveSet ? 'এডিট চালু' : 'এডিট'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setPrintPanelOpen(true)}
+                    className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50 active:scale-95"
+                  >
+                    <Settings2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">পেজ সেটআপ</span>
+                  </button>
+
+                  <span
+                    title="আনুমানিক — প্রকৃত প্রিন্টে সামান্য বেশি হতে পারে"
+                    className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-500"
+                  >
+                    <FileText className="w-4 h-4" />
+                    ≈ {enToBn(estimatedPages)} পৃষ্ঠা
+                  </span>
+                </>
+              )}
+
+              <button
+                onClick={() => window.print()}
+                title="ব্রাউজারের প্রিন্ট — পৃষ্ঠা নম্বর ও পেজ ব্রেক সবচেয়ে নিখুঁত হয়"
+                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50 active:scale-95"
+              >
+                <Printer className="w-4 h-4" />
+                <span className="hidden sm:inline">প্রিন্ট</span>
+              </button>
+
+              <button
+                onClick={handleDownloadPdf}
+                disabled={isDownloadingPdf}
+                title="প্রিন্ট উইন্ডোতে গন্তব্য হিসেবে “Save as PDF” বেছে নিন"
+                className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-md shadow-indigo-500/20 transition hover:bg-indigo-700 active:scale-95 disabled:opacity-60"
+              >
+                <Download className="w-4 h-4" /> {isDownloadingPdf ? 'অপেক্ষা করুন...' : 'PDF সেভ করুন'}
+              </button>
+            </div>
           </div>
-          {/* Edit Hint Banner */}
-          {step === 3 && (
-            <div className="px-4 py-2 text-center border-t bg-indigo-50/80 border-indigo-100/50 print:hidden">
-              <p className="flex items-center justify-center gap-2 text-sm font-medium text-indigo-700">
-                <span className="animate-pulse">💡</span> <strong>টিপস:</strong> আপনি চাইলে প্রিভিউয়ের যেকোনো জায়গায় ক্লিক করে লেখাগুলো নিজের মতো এডিট করতে পারবেন!
+
+          {view === 'preview' && editing && canEditActiveSet && (
+            <div className="border-t border-amber-200 bg-amber-50 px-4 py-2 text-center">
+              <p className="text-sm font-medium text-amber-800">
+                ✏️ যে লেখা বদলাতে চান তাতে ক্লিক করুন। <strong>Esc</strong> বাতিল, <strong>Ctrl+Enter</strong> সেভ।
+                {Object.keys(edits).length > 0 && (
+                  <> · <button onClick={() => setEdits({})} className="underline font-bold">সব সম্পাদনা মুছুন</button></>
+                )}
               </p>
             </div>
           )}
         </div>
+
         <div className="p-4 sm:p-8 print:p-0" id="pdf-content">
-          {step === 3 ? (
-            <PrintableView headerInfo={headerInfo} cart={cart} onDownloadPdf={handleDownloadPdf} />
+          {view === 'preview' ? (
+            <PrintableView
+              headerInfo={headerInfo}
+              cart={activeCart}
+              summary={summary}
+              marksConfig={marksConfig}
+              settings={printSettings}
+              edits={{}}
+              editing={editing && canEditActiveSet}
+              onEdit={canEditActiveSet ? handleEdit : undefined}
+              onContentHeightChange={setContentHeightPx}
+              setLabel={setCount > 1 ? SET_LABELS[activeSetIndex] : null}
+            />
+          ) : view === 'omr' ? (
+            <OmrAnswerSheet headerInfo={headerInfo} cart={cart} settings={printSettings} />
           ) : (
-            <AnswerSheetView headerInfo={headerInfo} cart={cart} />
+            <AnswerSheetView
+              headerInfo={headerInfo}
+              cart={activeCart}
+              page={resolvePage(printSettings)}
+              setLabel={setCount > 1 ? SET_LABELS[activeSetIndex] : null}
+            />
           )}
         </div>
+
+        <PrintSettingsPanel
+          isOpen={printPanelOpen}
+          onClose={() => setPrintPanelOpen(false)}
+          settings={printSettings}
+          onChange={setPrintSettings}
+          onReset={() => setPrintSettings({ ...DEFAULT_PRINT_SETTINGS })}
+        />
       </div>
     );
   }
 
-  if (step === 2) {
-    return (
-      <BuilderShell>
-        <style dangerouslySetInnerHTML={{
-          __html: `
-          .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6366f1; }
-          @keyframes fade-up { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-          .qb-header, .qb-dashboard, .qb-content-panel { animation: fade-up 200ms ease-out; }
-          .qb-dashboard { display: grid; grid-template-columns: 260px minmax(0, 1fr) 280px; gap: 24px; align-items: start; transition: grid-template-columns 0.3s ease; }
-          .qb-dashboard.qb-sidebar-minimized { grid-template-columns: 56px minmax(0, 1fr) 280px; }
-          .qb-sidebar-desktop, .qb-right-sidebar-desktop { display: flex; height: calc(100vh - 110px); position: sticky; top: 90px; }
-          .qb-sidebar-collapsed { display: flex; height: auto; position: sticky; top: 90px; z-index: 20; }
-          .qb-content-head { position: sticky; top: 0; z-index: 10; background: rgba(15, 23, 42, 0.95); }
-          .qb-content-panel .group { transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease, background-color 200ms ease; }
-          .qb-content-panel .group:hover { transform: scale(1.01); }
-          .qb-tablet-toggle { display: none; }
-          button { transition-duration: 150ms; }
-          button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
-          @media (max-width: 1199px) {
-            .qb-dashboard { grid-template-columns: minmax(0, 1fr) 320px; }
-            .qb-sidebar-desktop, .qb-sidebar-collapsed { display: none; }
-            .qb-tablet-toggle { display: inline-flex; }
-          }
-          @media (max-width: 991px) {
-            .qb-dashboard { grid-template-columns: minmax(0, 1fr); padding-bottom: 78px; }
-            .qb-right-sidebar-desktop { display: none; }
-          }
-          @media (max-width: 767px) {
-            .qb-shell > div { padding: 12px; gap: 12px; }
-            .qb-header { margin-left: -12px; margin-right: -12px; padding-left: 12px; padding-right: 12px; }
-            .qb-content-panel { border-radius: 16px; }
-            .qb-dashboard { gap: 12px; padding-bottom: 84px; }
-          }
-        `}} />
+  // ── Build view: question library ──────────────────────────────────
+  const libraryEmptyReason = !selectedSubjectId
+    ? 'subject'
+    : selectedChapters.length === 0
+      ? 'chapter'
+      : 'empty';
 
-        <div className="qb-header flex flex-col gap-3 px-2 py-4 sm:flex-row sm:items-end sm:justify-between mb-2">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-bold text-indigo-300">
-              <BookOpenCheck className="h-4 w-4" />
-              প্রশ্নপত্র তৈরি
-            </div>
-            <h1 className="mt-1 text-xl font-black tracking-tight text-slate-100 sm:text-2xl">প্রশ্ন নির্বাচন করুন</h1>
-            <p className="mt-1 text-sm font-medium text-slate-400">JSON ডেটা থেকে বিষয়, অধ্যায় ও প্রশ্নের ধরন বেছে প্রশ্নপত্র তৈরি করুন।</p>
-          </div>
-          <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar">
-            {[
-              { num: 1, label: 'তথ্য', icon: Settings },
-              { num: 2, label: 'প্রশ্ন', icon: LayoutList },
-              { num: 3, label: 'প্রিভিউ', icon: Printer },
-              { num: 4, label: 'উত্তর', icon: Check },
-            ].map((s) => (
-              <button
-                key={s.num}
-                type="button"
-                onClick={() => ((s.num !== 3 && s.num !== 4) || canPreview) ? setStep(s.num) : null}
-                disabled={(s.num === 3 || s.num === 4) && !canPreview}
-                className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition duration-150 disabled:cursor-not-allowed disabled:opacity-40 ${step === s.num
-                    ? 'bg-indigo-500/15 text-indigo-200'
-                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100'
-                  }`}
-              >
-                <s.icon className="h-3.5 w-3.5" />
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
+  return (
+    <div className="qb-root bg-[#0b0f19] font-sans text-slate-200 selection:bg-indigo-500/35" style={rootStyle}>
+      <style dangerouslySetInnerHTML={{ __html: BUILDER_CSS }} />
 
-        <div className={`qb-dashboard ${isSidebarCollapsed ? 'qb-sidebar-minimized' : ''}`}>
+      <div className="qb-app mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8">
+        <BuilderHeader
+          paperTitle={headerInfo.examName || headerInfo.schoolName}
+          totalQuestions={summary.totalQuestions}
+          totalMarks={summary.totalMarks}
+          canOutput={canOutput}
+          onOpenPaperInfo={() => setPaperInfoOpen(true)}
+          onOpenCart={() => setMobileCartOpen(true)}
+          onPreview={() => setView('preview')}
+          onNewPaper={startNewPaper}
+          onOpenSaved={() => setSavedPapersOpen(true)}
+        />
+
+        {restoredDraft && cart.length > 0 && (
+          <div className="mt-3 flex items-center gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3.5 py-2.5">
+            <History className="h-4 w-4 shrink-0 text-amber-400" />
+            <p className="min-w-0 flex-1 text-[12px] font-semibold text-amber-100">
+              {relativeTime(restoredDraft.savedAt)} খসড়া ফিরিয়ে আনা হয়েছে — <span className="font-black">{enToBn(restoredDraft.count)}</span> টি প্রশ্ন আগে থেকেই নির্বাচিত।
+            </p>
+            <button
+              type="button"
+              onClick={startNewPaper}
+              className="shrink-0 rounded-lg bg-amber-500/20 px-2.5 py-1.5 text-[11px] font-extrabold text-amber-100 transition hover:bg-amber-500/30"
+            >
+              নতুন শুরু করুন
+            </button>
+            <button
+              type="button"
+              onClick={() => setRestoredDraft(null)}
+              aria-label="বার্তাটি বন্ধ করুন"
+              className="shrink-0 rounded-lg p-1 text-amber-300/70 transition hover:bg-amber-500/20 hover:text-amber-100"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        <div className="qb-panes">
           <FilterSidebar
-            isCollapsed={isSidebarCollapsed}
-            onToggleCollapse={() => setIsSidebarCollapsed((v) => !v)}
             isMobileOpen={mobileFilterOpen}
             onMobileClose={() => setMobileFilterOpen(false)}
-            selectedLevel={selectedLevel}
+            levels={levels}
+            selectedLevel={effectiveLevel}
             setSelectedLevel={setSelectedLevel}
             selectedSubjectId={selectedSubjectId}
             setSelectedSubjectId={setSelectedSubjectId}
             availableSubjects={availableSubjects}
             activeSubjectConfig={activeSubjectConfig}
             chapters={chapters}
+            chapterCounts={chapterCounts}
             selectedChapters={selectedChapters}
             toggleChapter={toggleChapter}
             availableTopics={availableTopics}
             selectedTopics={selectedTopics}
             toggleTopic={toggleTopic}
-            selectedType={selectedType}
-            setSelectedType={setSelectedType}
           />
 
-          <ContentPanel>
-            <div className="qb-content-scroll flex-1 px-5 py-5 custom-scrollbar">
+          <section ref={listPaneRef} className="qb-list-pane custom-scrollbar pr-0.5">
+            <div className="qb-list-sticky">
               <Toolbar
                 total={filteredQuestions.length}
                 isFiltered={isQuestionLibraryFiltered}
                 filterSummary={questionLibrarySummary}
                 searchValue={searchQuery}
                 onSearchChange={setSearchQuery}
-                searchLoading={false}
+                onOpenFilters={() => setMobileFilterOpen(true)}
               />
-              {selectedChapters.length > 0 && (
-                <div className="mb-5 grid grid-cols-4 gap-1 rounded-full bg-[#0f172a] p-1.5">
-                  <CategoryTab active={selectedType === 'all'} onClick={() => setSelectedType('all')} label="সব" count={questionCounts.all} />
-                  <CategoryTab active={selectedType === 'cq'} onClick={() => setSelectedType('cq')} label="সৃজনশীল" count={questionCounts.cq} />
-                  <CategoryTab active={selectedType === 'mcq'} onClick={() => setSelectedType('mcq')} label="MCQ" count={questionCounts.mcq} />
-                  <CategoryTab active={selectedType === 'k_kh'} onClick={() => setSelectedType('k_kh')} label="জ্ঞান/অনু." count={questionCounts.kKh} />
-                </div>
-              )}
 
-              <div className="space-y-4">
-                {loading && Array.from({ length: 5 }, (_, index) => <QuestionCardSkeleton key={index} />)}
-                {!loading && (!selectedSubjectId || selectedChapters.length === 0 || filteredQuestions.length === 0) && <QuestionLibraryEmpty />}
-                {!loading && filteredQuestions.slice(0, visibleCount).map((q, qi) => (
-                  <ProfessionalQuestionCard key={q.uniqueId} q={q} qIndex={qi} isAdded={cartIdSet.has(q.uniqueId)} onAdd={addToCart} onRemove={removeFromCart} />
-                ))}
-                {!loading && filteredQuestions.length > visibleCount && (
-                  <button
-                    type="button"
-                    onClick={() => setVisibleCount((v) => v + 10)}
-                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-700 bg-slate-900/50 py-3.5 text-[13px] font-extrabold text-slate-400 transition-all duration-150 hover:border-indigo-400/50 hover:bg-indigo-500/10 hover:text-indigo-200 focus:outline-none "
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                    আরো দেখান ({enToBn(filteredQuestions.length - visibleCount)} টি বাকি)
-                  </button>
-                )}
-              </div>
-            </div>
-            {false && (
-              <div>
-                <div className="qb-content-head flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
-                  <div className="flex min-w-0 flex-1 items-center gap-2">
+              {selectedChapters.length > 0 && (
+                /* ট্যাব আর বাল্ক-অ্যাকশন আগে দুই সারিতে ছিল; এক সারিতে এনে
+                   তালিকার জন্য জায়গা বাড়ানো হলো */
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex min-w-0 flex-1 gap-1 rounded-xl border border-white/[0.06] bg-white/[0.02] p-1 shadow-inner shadow-black/20">
+                    <CategoryTab active={selectedType === 'all'} onClick={() => setSelectedType('all')} label="সব" mobileLabel="সব" count={enToBn(questionCounts.all)} />
+                    <CategoryTab active={selectedType === 'cq'} onClick={() => setSelectedType('cq')} label="সৃজনশীল" mobileLabel="CQ" count={enToBn(questionCounts.cq)} />
+                    <CategoryTab active={selectedType === 'mcq'} onClick={() => setSelectedType('mcq')} label="MCQ" mobileLabel="MCQ" count={enToBn(questionCounts.mcq)} />
+                    <CategoryTab active={selectedType === 'k_kh'} onClick={() => setSelectedType('k_kh')} label="জ্ঞান/অনু." mobileLabel="ক/খ" count={enToBn(questionCounts.kKh)} />
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-1 shadow-inner shadow-black/20">
                     <button
                       type="button"
-                      onClick={() => setMobileFilterOpen(true)}
-                      className="qb-tablet-toggle rounded-xl border border-indigo-100 bg-indigo-50 p-2 text-indigo-600 transition hover:bg-indigo-100 active:scale-95 focus:outline-none "
-                      aria-label="Open filters"
+                      onClick={() => setAutoPickOpen(true)}
+                      disabled={filteredQuestions.length === 0}
+                      title="ফিল্টার থেকে এলোমেলোভাবে নির্দিষ্ট সংখ্যক প্রশ্ন নিন"
+                      className="flex items-center gap-1.5 rounded-lg px-2.5 py-2.5 sm:py-2 text-[11px] font-extrabold text-violet-300 transition hover:bg-violet-500/15 hover:text-violet-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      <SlidersHorizontal className="w-4 h-4" />
+                      <Wand2 className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">স্বয়ংক্রিয়</span>
                     </button>
-                    <div className="hidden rounded-xl border border-indigo-100 bg-indigo-50 p-2 text-indigo-600 sm:flex">
-                      <BookOpen className="w-4 h-4" />
-                    </div>
-                    <h2 className="truncate text-sm font-extrabold text-slate-900 sm:text-base">à¦ªà§à¦°à¦¶à§à¦¨à¦¬à§à¦¯à¦¾à¦‚à¦•</h2>
-                    {filteredQuestions.length > 0 && (
-                      <span className="whitespace-nowrap rounded-md border border-indigo-100 bg-indigo-50 px-2 py-1 text-[10px] font-bold text-indigo-700">
-                        {filteredQuestions.length} à¦Ÿà¦¿ à¦ªà¦¾à¦“à¦¯à¦¼à¦¾ à¦—à§‡à¦›à§‡
-                      </span>
-                    )}
+                    <span className="h-4 w-px shrink-0 bg-white/10" />
+                    <button
+                      type="button"
+                      onClick={() => addManyToCart(visibleUnadded)}
+                      disabled={visibleUnadded.length === 0}
+                      title="তালিকায় এখন দেখা যাচ্ছে এমন সব প্রশ্ন যোগ করুন"
+                      className="flex items-center gap-1.5 rounded-lg px-2.5 py-2.5 sm:py-2 text-[11px] font-extrabold text-slate-300 transition hover:bg-white/[0.06] hover:text-white active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <CheckCheck className="h-3.5 w-3.5 text-emerald-400" />
+                      +{enToBn(visibleUnadded.length)}
+                    </button>
                   </div>
                 </div>
+              )}
+            </div>
 
-                <div className="qb-content-scroll flex-1 px-5 py-5 custom-scrollbar">
-                  {selectedChapters.length > 0 && (
-                    <div className="mb-5 grid grid-cols-4 gap-1.5 rounded-2xl border border-slate-200 bg-slate-100 p-1.5 shadow-inner">
-                      <CategoryTab active={selectedType === 'all'} onClick={() => setSelectedType('all')} label="সব" count={questionCounts.all} />
-                      <CategoryTab active={selectedType === 'cq'} onClick={() => setSelectedType('cq')} label="সৃজনশীল" count={questionCounts.cq} />
-                      <CategoryTab active={selectedType === 'mcq'} onClick={() => setSelectedType('mcq')} label="MCQ" count={questionCounts.mcq} />
-                      <CategoryTab active={selectedType === 'k_kh'} onClick={() => setSelectedType('k_kh')} label="জ্ঞান/অনু." count={questionCounts.kKh} />
-                    </div>
-                  )}
+            <div className="space-y-2 pb-5">
+              {loading && Array.from({ length: 4 }, (_, index) => <QuestionCardSkeleton key={index} />)}
 
-                  <div className="space-y-3 sm:space-y-4">
-                    {loading && <EmptyState icon={Loader2} title="à¦ªà§à¦°à¦¶à§à¦¨à¦¸à¦®à§‚à¦¹ à¦²à§‹à¦¡ à¦¹à¦šà§à¦›à§‡..." spinning />}
-                    {!loading && !selectedSubjectId && <EmptyState icon={BookOpen} title="à¦¬à¦¿à¦·à¦¯à¦¼ à¦¨à¦¿à¦°à§à¦¬à¦¾à¦šà¦¨ à¦•à¦°à§à¦¨" hint="à¦¬à¦¾à¦® à¦ªà¦¾à¦¶à§‡à¦° à¦«à¦¿à¦²à§à¦Ÿà¦¾à¦° à¦¥à§‡à¦•à§‡ à¦à¦•à¦Ÿà¦¿ à¦¬à¦¿à¦·à¦¯à¦¼ à¦“ à¦…à¦§à§à¦¯à¦¾à¦¯à¦¼ à¦¬à§‡à¦›à§‡ à¦¨à¦¿à¦¨à¥¤" />}
-                    {!loading && selectedSubjectId && selectedChapters.length === 0 && <EmptyState icon={SlidersHorizontal} title="à¦…à¦§à§à¦¯à¦¾à¦¯à¦¼ à¦¨à¦¿à¦°à§à¦¬à¦¾à¦šà¦¨ à¦•à¦°à§à¦¨" hint="à¦¬à¦¾à¦® à¦ªà¦¾à¦¶ à¦¥à§‡à¦•à§‡ à¦à¦•à¦Ÿà¦¿ à¦¬à¦¾ à¦à¦•à¦¾à¦§à¦¿à¦• à¦…à¦§à§à¦¯à¦¾à¦¯à¦¼ à¦¬à§‡à¦›à§‡ à¦¨à¦¿à¦¨à¥¤" />}
-                    {!loading && selectedChapters.length > 0 && filteredQuestions.length === 0 && <EmptyState icon={HelpCircle} title="à¦à¦‡ à¦«à¦¿à¦²à§à¦Ÿà¦¾à¦°à§‡ à¦•à§‹à¦¨à§‹ à¦ªà§à¦°à¦¶à§à¦¨ à¦ªà¦¾à¦“à¦¯à¦¼à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿" hint="à¦«à¦¿à¦²à§à¦Ÿà¦¾à¦° à¦ªà¦°à¦¿à¦¬à¦°à§à¦¤à¦¨ à¦•à¦°à§‡ à¦†à¦¬à¦¾à¦° à¦šà§‡à¦·à§à¦Ÿà¦¾ à¦•à¦°à§à¦¨à¥¤" />}
-                    {!loading && filteredQuestions.slice(0, visibleCount).map((q, qi) => (
-                      <QuestionCard key={q.uniqueId} q={q} qIndex={qi} isAdded={cartIdSet.has(q.uniqueId)} onAdd={addToCart} onRemove={removeFromCart} expandedCQs={expandedCQs} setExpandedCQs={setExpandedCQs} />
-                    ))}
-                    {!loading && filteredQuestions.length > visibleCount && (
-                      <button
-                        type="button"
-                        onClick={() => setVisibleCount((v) => v + 10)}
-                        className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 py-3.5 text-[13px] font-bold text-slate-500 transition-all duration-150 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none "
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                        à¦†à¦°à§‹ à¦¦à§‡à¦–à¦¾à¦¨ ({filteredQuestions.length - visibleCount} à¦Ÿà¦¿ à¦¬à¦¾à¦•à¦¿)
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </ContentPanel>
+              {!loading && filteredQuestions.length === 0 && (
+                <QuestionLibraryEmpty
+                  reason={libraryEmptyReason}
+                  onAction={() => setMobileFilterOpen(true)}
+                />
+              )}
+
+              {!loading && filteredQuestions.slice(0, visibleCount).map((q) => (
+                <ProfessionalQuestionCard
+                  key={q.uniqueId}
+                  q={q}
+                  mark={markOf(q, marksConfig)}
+                  isAdded={cartIdSet.has(q.uniqueId)}
+                  onAdd={addToCart}
+                  onRemove={removeFromCart}
+                  usageIndex={usageIndex}
+                  onCompleteCq={(cq) => setCompletingCq(cq)}
+                />
+              ))}
+
+              {!loading && filteredQuestions.length > visibleCount && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((v) => v + 10)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-800 bg-slate-900/40 py-3 text-xs font-extrabold text-slate-400 transition hover:border-indigo-400/50 hover:bg-indigo-500/10 hover:text-indigo-200"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                  আরো {enToBn(Math.min(10, filteredQuestions.length - visibleCount))} টি দেখান
+                  <span className="text-slate-600">({enToBn(filteredQuestions.length - visibleCount)} টি বাকি)</span>
+                </button>
+              )}
+            </div>
+          </section>
 
           <RightSidebar
             cart={cart}
-            counts={rightSidebarCounts}
-            stats={rightSidebarStats}
-            progressTarget={25}
+            summary={summary}
             clearCart={clearCart}
-            onPreview={() => setStep(3)}
-            onGenerate={() => setStep(4)}
+            onPreview={() => setView('preview')}
+            onGenerate={() => setView('answers')}
             onBrowse={() => setMobileFilterOpen(true)}
             isOpen={mobileCartOpen}
             onClose={() => setMobileCartOpen(false)}
+            onRemove={removeFromCart}
+            onMoveUp={moveCartItemUp}
+            onMoveDown={moveCartItemDown}
+            usageIndex={usageIndex}
+            onCompleteCq={(cq) => setCompletingCq(cq)}
           />
-
-          <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-800 bg-slate-900/95 shadow-2xl shadow-black/30 backdrop-blur-xl lg:hidden">
-            <div className="grid grid-cols-[auto_1fr] gap-2 px-3 py-3 sm:gap-3">
-              <button type="button" onClick={() => setMobileCartOpen(true)} className="relative flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-white shadow-lg transition active:scale-95 focus:outline-none ">
-                <ShoppingCart className="w-4 h-4 text-emerald-400" />
-                <span className="text-[11px] font-semibold tracking-wide">{cart.length === 0 ? 'à¦•à¦¾à¦°à§à¦Ÿ' : `${cart.length}à¦Ÿà¦¿`}</span>
-              </button>
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep(4)}
-                  disabled={cartCounts.mcq === 0}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-400/20 bg-indigo-600 px-2 py-2.5 text-[11px] font-medium text-white shadow-lg transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 sm:text-xs"
-                >
-                  <Check className="w-3.5 h-3.5 shrink-0 opacity-90" />
-                  <span className="truncate">à¦‰à¦¤à§à¦¤à¦°à¦ªà¦¤à§à¦°</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStep(3)}
-                  disabled={!canPreview}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-400/20 bg-emerald-600 px-2 py-2.5 text-[11px] font-medium text-white shadow-lg transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:text-xs"
-                >
-                  <Printer className="w-3.5 h-3.5 shrink-0 opacity-90" />
-                  <span className="truncate">à¦ªà§à¦°à¦¿à¦¨à§à¦Ÿ à¦ªà§à¦°à¦¿à¦­à¦¿à¦‰</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
         </div>
-      </BuilderShell>
-    );
-  }
-
-  // ── Main layout ───────────────────────────────────────────────────
-  return (
-    <div className="min-h-screen bg-[#0b0f19] pb-16 lg:pb-24 font-sans text-slate-200 selection:bg-indigo-500/35">
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6366f1; }
-        @keyframes fade-up { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-        .animate-in, .qb-header, .qb-dashboard, .qb-content-panel { animation: fade-up 200ms ease-out; }
-        .qb-dashboard { display: grid; grid-template-columns: 320px minmax(0, 1fr) 360px; gap: 20px; min-height: 0; flex: 1; overflow: hidden; }
-        .qb-sidebar-desktop, .qb-sidebar-collapsed, .qb-right-sidebar-desktop { display: flex; height: 100%; min-height: 0; position: sticky; top: 0; }
-        .qb-content-panel { min-height: 0; }
-        .qb-content-scroll { min-height: 0; overflow-y: auto; }
-        .qb-content-head { position: sticky; top: 0; z-index: 10; background: rgba(15, 23, 42, 0.95); }
-        .qb-content-panel .group:hover { transform: scale(1.01); }
-        .qb-content-panel .group { transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease, background-color 200ms ease; }
-        .qb-tablet-toggle { display: none; }
-        @media (max-width: 1199px) {
-          .qb-dashboard { grid-template-columns: minmax(0, 1fr) 360px; }
-          .qb-sidebar-desktop, .qb-sidebar-collapsed { display: none; }
-          .qb-tablet-toggle { display: inline-flex; }
-        }
-        @media (max-width: 991px) {
-          .qb-dashboard { grid-template-columns: minmax(0, 1fr); padding-bottom: 78px; }
-          .qb-right-sidebar-desktop { display: none; }
-        }
-        @media (max-width: 767px) {
-          .qb-shell > div { padding: 12px; gap: 12px; }
-          .qb-header, .qb-content-panel { border-radius: 16px; }
-          .qb-dashboard { gap: 12px; padding-bottom: 84px; }
-        }
-      `}} />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-
-
-        {/* ══════════════════════════════════════════════════════════ */}
-        {/* STEP 1: Form */}
-        {/* ══════════════════════════════════════════════════════════ */}
-        {step === 1 && (
-          <div className="max-w-4xl mx-auto mt-4 sm:mt-6 animate-in">
-            <div className="relative p-5 overflow-hidden border shadow-2xl bg-slate-900/60 backdrop-blur-xl border-white/10 rounded-3xl sm:p-8">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500" />
-              <div className="flex flex-col items-start gap-4 pb-5 mb-5 border-b sm:flex-row sm:items-center border-white/5">
-                <div className="p-3 border bg-white/5 border-white/10 rounded-2xl">
-                  <FileText className="w-7 h-7 text-indigo-400" />
-                </div>
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">প্রশ্নপত্রের প্রাথমিক তথ্য</h2>
-                  <p className="mt-1 text-xs sm:text-sm text-slate-400">প্রিন্ট কপিতে প্রদর্শনের জন্য নিচের তথ্যগুলো পূরণ করুন।</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
-                <FieldShell label="শিক্ষা প্রতিষ্ঠানের নাম" full>
-                  <input type="text" name="schoolName" value={headerInfo.schoolName} onChange={handleHeaderChange} placeholder="যেমন: ঢাকা রেসিডেনসিয়াল মডেল কলেজ"
-                    className="w-full p-3 text-sm text-white transition-all border bg-black/40 border-white/10 rounded-xl focus:outline-none placeholder-slate-600" />
-                </FieldShell>
-                <FieldShell label="পরীক্ষার নাম" full>
-                  <input type="text" name="examName" value={headerInfo.examName} onChange={handleHeaderChange} placeholder="যেমন: প্রাক-নির্বাচনি পরীক্ষা ২০২৪"
-                    className="w-full p-3 text-sm text-white transition-all border bg-black/40 border-white/10 rounded-xl focus:outline-none placeholder-slate-600" />
-                </FieldShell>
-                <FieldShell label="বিষয়">
-                  <input type="text" name="subject" value={headerInfo.subject} onChange={handleHeaderChange}
-                    className="w-full p-3 text-sm text-white transition-all border bg-black/40 border-white/10 rounded-xl focus:outline-none " />
-                </FieldShell>
-                <FieldShell label="বিষয় কোড">
-                  <input type="text" name="subjectCode" value={headerInfo.subjectCode} onChange={handleHeaderChange}
-                    className="w-full p-3 text-sm text-white transition-all border bg-black/40 border-white/10 rounded-xl focus:outline-none " />
-                </FieldShell>
-                <FieldShell label="সময়">
-                  <input type="text" name="time" value={headerInfo.time} onChange={handleHeaderChange}
-                    className="w-full p-3 text-sm text-white transition-all border bg-black/40 border-white/10 rounded-xl focus:outline-none " />
-                </FieldShell>
-                <FieldShell label="পূর্ণমান">
-                  <input type="text" name="totalMarks" value={headerInfo.totalMarks} onChange={handleHeaderChange}
-                    className="w-full p-3 text-sm text-white transition-all border bg-black/40 border-white/10 rounded-xl focus:outline-none " />
-                </FieldShell>
-              </div>
-              <div className="flex justify-end pt-4 mt-5 border-t border-white/5">
-                <button
-                  onClick={() => setStep(2)}
-                  className="flex items-center gap-2 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white font-bold py-3 px-6 sm:py-3.5 sm:px-8 rounded-xl sm:rounded-2xl transition shadow-lg shadow-indigo-900/30 active:scale-[0.98]"
-                >
-                  <span>প্রশ্ন নির্বাচনে যান</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════ */}
-        {/* STEP 2: Question Bank */}
-        {/* ══════════════════════════════════════════════════════════ */}
-        {step === 2 && (
-          <div className="qb-shell">
-            <div className="mx-auto flex h-full min-h-0 max-w-[1700px] flex-col gap-5 p-5">
-              <div className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] xl:flex-row xl:items-center">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-2 text-indigo-600">
-                    <BookOpenCheck className="h-5 w-5" />
-                  </div>
-                  <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
-                    স্মার্ট প্রশ্নপত্র নির্মাতা
-                  </h1>
-                </div>
-                <div className="flex w-full items-center justify-between gap-0.5 overflow-x-auto py-2 sm:justify-start sm:gap-1 xl:w-auto custom-scrollbar">
-                  {[
-                    { num: 1, label: 'হেডার', icon: Settings },
-                    { num: 2, label: 'নির্বাচন', icon: LayoutList },
-                    { num: 3, label: 'প্রিভিউ', icon: Printer },
-                    { num: 4, label: 'উত্তরপত্র', icon: Check },
-                  ].map((s, i) => (
-                    <React.Fragment key={s.num}>
-                      <button
-                        onClick={() => ((s.num !== 3 && s.num !== 4) || canPreview) ? setStep(s.num) : null}
-                        disabled={(s.num === 3 || s.num === 4) && !canPreview}
-                        className={`flex items-center gap-1 px-1 py-1 text-[11px] font-bold transition-all duration-200 sm:gap-1.5 sm:px-2 sm:text-[13px] ${step === s.num ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-30'
-                          }`}
-                      >
-                        <s.icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-                        <span className="whitespace-nowrap">{s.label}</span>
-                      </button>
-                      {i < 3 && <ChevronRight className="h-3 w-3 shrink-0 text-slate-300 sm:h-3.5 sm:w-3.5" />}
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-              <div className="qb-dashboard">
-                {/* Filter Sidebar */}
-                <FilterSidebar
-                  isCollapsed={isSidebarCollapsed}
-                  onToggleCollapse={() => setIsSidebarCollapsed((v) => !v)}
-                  isMobileOpen={mobileFilterOpen}
-                  onMobileClose={() => setMobileFilterOpen(false)}
-                  selectedLevel={selectedLevel}
-                  setSelectedLevel={setSelectedLevel}
-                  selectedSubjectId={selectedSubjectId}
-                  setSelectedSubjectId={setSelectedSubjectId}
-                  availableSubjects={availableSubjects}
-                  activeSubjectConfig={activeSubjectConfig}
-                  chapters={chapters}
-                  selectedChapters={selectedChapters}
-                  toggleChapter={toggleChapter}
-                  availableTopics={availableTopics}
-                  selectedTopics={selectedTopics}
-                  toggleTopic={toggleTopic}
-                  selectedType={selectedType}
-                  setSelectedType={setSelectedType}
-                />
-
-
-                {/* Question Panel */}
-                <div className="qb-content-panel flex-1 min-w-0">
-                  {/* Panel Header */}
-                  <div className="qb-content-head flex items-center justify-between gap-2">
-                    <div className="flex items-center flex-1 min-w-0 gap-2">
-                      <button onClick={() => setMobileFilterOpen(true)} className="qb-tablet-toggle p-2 text-indigo-600 transition border border-indigo-100 bg-indigo-50 rounded-xl hover:bg-indigo-100 active:scale-95">
-                        <SlidersHorizontal className="w-4 h-4" />
-                      </button>
-                      <div className="hidden p-2 text-indigo-600 border sm:flex bg-indigo-50 border-indigo-100 rounded-xl">
-                        <BookOpen className="w-4 h-4" />
-                      </div>
-                      <h2 className="text-sm font-extrabold text-slate-900 truncate sm:text-base">প্রশ্নব্যাংক</h2>
-                      {filteredQuestions.length > 0 && (
-                        <span className="whitespace-nowrap rounded-md border border-indigo-100 bg-indigo-50 px-2 py-1 text-[10px] font-bold text-indigo-700">
-                          {filteredQuestions.length} টি পাওয়া গেছে
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Category Tabs */}
-                  {selectedChapters.length > 0 && (
-                    <div className="grid grid-cols-4 gap-1.5 bg-[#090d16]/80 p-1.5 border border-slate-800/80 rounded-2xl mb-5 shadow-inner">
-                      <CategoryTab active={selectedType === 'all'} onClick={() => setSelectedType('all')} label="সব" count={questionCounts.all} />
-                      <CategoryTab active={selectedType === 'cq'} onClick={() => setSelectedType('cq')} label="সৃজনশীল" count={questionCounts.cq} />
-                      <CategoryTab active={selectedType === 'mcq'} onClick={() => setSelectedType('mcq')} label="MCQ" count={questionCounts.mcq} />
-                      <CategoryTab active={selectedType === 'k_kh'} onClick={() => setSelectedType('k_kh')} label="জ্ঞান/অনু." count={questionCounts.kKh} />
-                    </div>
-                  )}
-
-                  {/* Question List */}
-                  <div className="flex-1 space-y-3 sm:space-y-4">
-                    {loading && <EmptyState icon={Loader2} title="প্রশ্নসমূহ লোড হচ্ছে..." spinning />}
-                    {!loading && !selectedSubjectId && <EmptyState icon={BookOpen} title="বিষয় নির্বাচন করুন" hint="বাম পাশের ফিল্টার থেকে একটি বিষয় ও অধ্যায় বেছে নিন।" />}
-                    {!loading && selectedSubjectId && selectedChapters.length === 0 && <EmptyState icon={SlidersHorizontal} title="অধ্যায় নির্বাচন করুন" hint="বাম পাশ থেকে একটি বা একাধিক অধ্যায় বেছে নিন।" />}
-                    {!loading && selectedChapters.length > 0 && filteredQuestions.length === 0 && <EmptyState icon={HelpCircle} title="এই ফিল্টারে কোনো প্রশ্ন পাওয়া যায়নি" hint="ফিল্টার পরিবর্তন করে আবার চেষ্টা করুন।" />}
-                    {!loading && filteredQuestions.slice(0, visibleCount).map((q, qi) => (
-                      <QuestionCard key={q.uniqueId} q={q} qIndex={qi} isAdded={cartIdSet.has(q.uniqueId)} onAdd={addToCart} onRemove={removeFromCart} expandedCQs={expandedCQs} setExpandedCQs={setExpandedCQs} />
-                    ))}
-                    {!loading && filteredQuestions.length > visibleCount && (
-                      <button
-                        onClick={() => setVisibleCount((v) => v + 10)}
-                        className="w-full py-3.5 mt-2 rounded-2xl border border-dashed border-slate-700 text-slate-400 hover:border-indigo-500/50 hover:text-indigo-300 hover:bg-indigo-500/5 transition-all duration-200 text-[13px] font-bold flex items-center justify-center gap-2"
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                        আরো দেখান ({filteredQuestions.length - visibleCount} টি বাকি)
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Right dashboard */}
-                <RightSidebar
-                  cart={cart}
-                  counts={rightSidebarCounts}
-                  stats={rightSidebarStats}
-                  progressTarget={25}
-                  clearCart={clearCart}
-                  onPreview={() => setStep(3)}
-                  onGenerate={() => setStep(4)}
-                  onBrowse={() => setMobileFilterOpen(true)}
-                  isOpen={mobileCartOpen}
-                  onClose={() => setMobileCartOpen(false)}
-                />
-
-                {/* Mobile bottom bar */}
-                <div className="fixed bottom-0 left-0 right-0 z-30 border-t shadow-2xl lg:hidden bg-slate-900/95 backdrop-blur-xl border-slate-800">
-                  <div className="grid grid-cols-[auto_1fr] gap-2 sm:gap-3 px-3 py-3">
-                    <button onClick={() => setMobileCartOpen(true)} className="relative flex items-center justify-center gap-1.5 bg-slate-800/60 hover:bg-slate-700/80 backdrop-blur-md text-white px-3.5 py-2.5 rounded-xl border border-white/10 shadow-lg transition active:scale-95">
-                      <ShoppingCart className="w-4 h-4 text-emerald-400" />
-                      <span className="text-[11px] font-semibold tracking-wide">{cart.length === 0 ? 'কার্ট' : `${cart.length}টি`}</span>
-                    </button>
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                      <button
-                        onClick={() => setStep(4)}
-                        disabled={cartCounts.mcq === 0}
-                        className="flex items-center justify-center gap-1.5 bg-gradient-to-br from-indigo-500 to-indigo-700 hover:from-indigo-400 hover:to-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 px-2 rounded-xl transition-all shadow-[0_0_15px_-3px_rgba(99,102,241,0.4)] border border-indigo-400/20 text-[11px] sm:text-xs"
-                      >
-                        <Check className="w-3.5 h-3.5 shrink-0 opacity-90" />
-                        <span className="truncate">উত্তরপত্র</span>
-                      </button>
-                      <button
-                        onClick={() => setStep(3)}
-                        disabled={!canPreview}
-                        className="flex items-center justify-center gap-1.5 bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 px-2 rounded-xl transition-all shadow-[0_0_15px_-3px_rgba(16,185,129,0.4)] border border-emerald-400/20 text-[11px] sm:text-xs"
-                      >
-                        <Printer className="w-3.5 h-3.5 shrink-0 opacity-90" />
-                        <span className="truncate">প্রিন্ট প্রিভিউ</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
+      <PaperInfoPanel
+        isOpen={paperInfoOpen}
+        onClose={() => setPaperInfoOpen(false)}
+        headerInfo={headerInfo}
+        onHeaderChange={handleHeaderChange}
+        marksConfig={marksConfig}
+        onMarksChange={handleMarksChange}
+        summary={summary}
+        onLogoUpload={handleLogoUpload}
+        onLogoRemove={handleLogoRemove}
+        logoUploading={logoUploading}
+      />
+
+      <AutoPickDialog
+        isOpen={autoPickOpen}
+        onClose={() => setAutoPickOpen(false)}
+        pool={filteredQuestions}
+        cartIdSet={cartIdSet}
+        marksConfig={marksConfig}
+        onConfirm={addManyToCart}
+      />
+
+      <SavedPapersPanel
+        isOpen={savedPapersOpen}
+        onClose={() => setSavedPapersOpen(false)}
+        uid={currentUser?.uid}
+        cart={cart}
+        headerInfo={headerInfo}
+        marksConfig={marksConfig}
+        printSettings={printSettings}
+        onLoad={loadSavedPaper}
+        confirm={confirm}
+      />
+
+      <CompleteCQModal
+        isOpen={Boolean(completingCq)}
+        onClose={() => setCompletingCq(null)}
+        cq={completingCq}
+        knowledgePool={knowledgePool}
+        onSave={handleSaveCompletedCq}
+      />
+
+      {confirmDialog}
     </div>
   );
 }

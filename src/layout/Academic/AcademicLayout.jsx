@@ -9,7 +9,7 @@ const AcademicLayout = () => {
       <main className="flex-1 flex flex-col relative w-full">
         {/* Subtle background glow effect for academic section */}
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 via-transparent to-purple-900/10 pointer-events-none" />
-        <div className="relative z-10 flex-1">
+        <div className="relative flex-1">
           <Outlet />
         </div>
       </main>

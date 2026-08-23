@@ -4,6 +4,7 @@ import { doc, getDoc, collection, query, orderBy, getDocs } from 'firebase/fires
 import { db } from '../../../config/firebase';
 import { Trophy, Medal, ArrowLeft, Loader2, Crown, Star, AlertCircle, Clock } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { Skeleton, SkeletonList } from '../../../components/UI/Skeleton';
 
 const enToBnNumber = (numStr) => {
   if (!numStr) return numStr;
@@ -78,9 +79,11 @@ export default function LiveExamLeaderboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#050914] flex flex-col items-center justify-center pt-20">
-        <Loader2 className="h-12 w-12 text-amber-500 animate-spin mb-4" />
-        <p className="text-amber-400 font-medium animate-pulse">Loading Leaderboard...</p>
+      <div className="min-h-screen bg-[#050914] pt-24 pb-20 px-4 sm:px-6 lg:px-8 font-bangla">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Skeleton className="h-48 w-full rounded-3xl" />
+          <SkeletonList count={6} />
+        </div>
       </div>
     );
   }

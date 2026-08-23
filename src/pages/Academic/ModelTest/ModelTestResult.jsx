@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { Trophy, CheckCircle2, XCircle, Clock, ArrowRight, RotateCcw, AlertTriangle, Send, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -7,8 +7,10 @@ import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import 'katex/dist/katex.min.css';
 import { useAuth } from '../../../contexts/AuthContext';
-import { doc, getDoc, setDoc, updateDoc, arrayUnion, increment, collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebase'; // Added db import
+import { recordMistake } from '../../../lib/mistakes';
+import { recordExamProgress } from '../../../lib/examProgress';
 
 const enToBnNumber = (numStr) => {
   if (!numStr) return numStr;
@@ -31,12 +33,13 @@ export default function ModelTestResult() {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { questions, answers, totalTime, timeTaken, subjectTitle } = location.state || {};
+  const { questions, answers, totalTime, timeTaken, subjectTitle, subjectId } = location.state || {};
   const [reportingQ, setReportingQ] = useState(null);
   const [reportType, setReportType] = useState('wrong_answer');
   const [reportMsg, setReportMsg] = useState('');
   const [reportLoading, setReportLoading] = useState(false);
   const [reportedSet, setReportedSet] = useState(new Set());
+  const hasSaved = useRef(false);
 
   if (!questions) {
     return <Navigate to="/academic/model-test" replace />;
@@ -67,95 +70,34 @@ export default function ModelTestResult() {
 
   // Save result to Firestore
   useEffect(() => {
-    if (!currentUser || !questions) return;
+    if (!currentUser || !questions || hasSaved.current) return;
+    hasSaved.current = true;
+    
     const saveResult = async () => {
-      const result = {
-        id: Date.now(),
-        subjectTitle: subjectTitle || 'মডেল টেস্ট',
-        date: new Date().toISOString(),
-        totalQuestions: questions.length,
-        correct: correctCount,
-        wrong: wrongCount,
-        skipped: skippedCount,
-        percentage,
-        timeTaken: timeTaken || 0,
-      };
-
-      // Detect subject key for progress tracking
-      const title = (subjectTitle || '').toLowerCase();
-      let subjectKey = 'other';
-      if (title.includes('পদার্থ') || title.includes('physics')) subjectKey = 'physics';
-      else if (title.includes('রসায়') || title.includes('chemistry')) subjectKey = 'chemistry';
-      else if (title.includes('জীব') || title.includes('biology')) subjectKey = 'biology';
-      else if (title.includes('গণিত') || title.includes('math')) subjectKey = 'math';
-      else if (title.includes('তথ্য') || title.includes('ict')) subjectKey = 'ict';
-
-      // Fetch dynamic gamification settings
-      let baseXp = 10;
-      let xpPerCorrect = 2;
-      try {
-        const settingsSnap = await getDoc(doc(db, 'admin_settings', 'gamification'));
-        if (settingsSnap.exists()) {
-          const data = settingsSnap.data();
-          if (data.baseXp !== undefined) baseXp = Number(data.baseXp);
-          if (data.xpPerCorrect !== undefined) xpPerCorrect = Number(data.xpPerCorrect);
-        }
-      } catch (err) {
-        console.error("Failed to fetch gamification settings", err);
-      }
-
-      // XP earned dynamically
-      const xpEarned = baseXp + (correctCount * xpPerCorrect);
-
-      // Calculate Chapter Stats for Weakness Analyzer
-      const chapterUpdates = {};
+      // ভুল হওয়া প্রশ্নগুলো "ভুলের খাতা"য় জমা — মূল সেভ ব্যর্থ হলেও যেন
+      // এটা আটকে না যায়, তাই ফলাফলের অপেক্ষা না করেই
       questions.forEach((q, idx) => {
-        const chapter = q.chapterName || 'অন্যান্য';
-        if (!chapterUpdates[chapter]) {
-          chapterUpdates[chapter] = { attempted: 0, correct: 0, wrong: 0 };
-        }
-        
-        if (answers[idx] !== undefined) {
-          chapterUpdates[chapter].attempted += 1;
-          if (answers[idx] === q.answer) {
-            chapterUpdates[chapter].correct += 1;
-          } else {
-            chapterUpdates[chapter].wrong += 1;
-          }
+        if (answers[idx] !== undefined && answers[idx] !== q.answer) {
+          recordMistake(currentUser.uid, q, {
+            subjectId,
+            subjectTitle: subjectTitle || 'মডেল টেস্ট',
+            userAnswer: answers[idx],
+          }).catch(console.error);
         }
       });
 
+      // XP, chapterStats, questionsBySubject ও পরীক্ষার ইতিহাস — সবই এখন
+      // একটাই শেয়ার্ড হেল্পারে, যেটা লাইভ এক্সামও ব্যবহার করে
       try {
-        const docRef = doc(db, 'users', currentUser.uid);
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          const existingData = snap.data();
-          const existingChapterStats = existingData.chapterStats || {};
-          
-          const mergedChapterStats = { ...existingChapterStats };
-          Object.keys(chapterUpdates).forEach(chapter => {
-            if (!mergedChapterStats[chapter]) {
-              mergedChapterStats[chapter] = { attempted: 0, correct: 0, wrong: 0 };
-            }
-            mergedChapterStats[chapter].attempted += chapterUpdates[chapter].attempted;
-            mergedChapterStats[chapter].correct += chapterUpdates[chapter].correct;
-            mergedChapterStats[chapter].wrong += chapterUpdates[chapter].wrong;
-          });
-
-          await updateDoc(docRef, {
-            examHistory: arrayUnion(result),
-            xp: increment(xpEarned),
-            [`questionsBySubject.${subjectKey}`]: increment(correctCount),
-            chapterStats: mergedChapterStats
-          });
-        } else {
-          await setDoc(docRef, {
-            examHistory: [result],
-            xp: xpEarned,
-            questionsBySubject: { [subjectKey]: correctCount },
-            chapterStats: chapterUpdates
-          }, { merge: true });
-        }
+        await recordExamProgress({
+          uid: currentUser.uid,
+          questions,
+          answers,
+          subjectId,
+          subjectTitle: subjectTitle || 'মডেল টেস্ট',
+          timeTaken: timeTaken || 0,
+          source: 'model-test',
+        });
       } catch (err) {
         console.error('Failed to save exam result', err);
       }

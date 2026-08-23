@@ -1,22 +1,16 @@
 import React from 'react';
 
+/** আসল ProfessionalQuestionCard এখন ফ্ল্যাট (বর্ডার/বক্স ছাড়া) — স্কেলিটনও
+ * তার সাথে মিলিয়ে রাখা, না হলে লোড হওয়ার মুহূর্তে হঠাৎ ডিজাইন বদলে যেত */
 const QuestionCardSkeleton = React.memo(() => (
-  <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-[0_14px_35px_rgba(0,0,0,0.18)]">
-    <div className="animate-pulse space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="h-5 w-32 rounded bg-slate-800" />
-        <div className="h-9 w-20 rounded-xl bg-slate-800" />
-      </div>
-      <div className="space-y-2">
-        <div className="h-4 w-full rounded bg-slate-800" />
-        <div className="h-4 w-11/12 rounded bg-slate-800" />
-        <div className="h-4 w-8/12 rounded bg-slate-800" />
-      </div>
-      <div className="flex gap-2">
-        <div className="h-6 w-24 rounded-full bg-slate-800" />
-        <div className="h-6 w-20 rounded-full bg-slate-800" />
-      </div>
+  <div className="flex animate-pulse items-start gap-3 rounded-xl p-3.5 sm:p-4">
+    <div className="mt-0.5 h-5 w-5 shrink-0 rounded-md bg-white/[0.06]" />
+    <div className="min-w-0 flex-1 space-y-2">
+      <div className="h-2.5 w-28 rounded bg-white/[0.06]" />
+      <div className="h-4 w-full rounded bg-white/[0.06]" />
+      <div className="h-4 w-8/12 rounded bg-white/[0.06]" />
     </div>
+    <div className="mt-0.5 h-3.5 w-10 shrink-0 rounded bg-white/[0.06]" />
   </div>
 ));
 

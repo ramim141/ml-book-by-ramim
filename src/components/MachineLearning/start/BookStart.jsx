@@ -112,7 +112,7 @@ export default function BookStart() {
 
           {/* --- Start Reading CTA Section --- */}
           <motion.div variants={itemVariants} className="flex justify-center pt-8 border-t md:pt-10 border-white/5">
-            <Link to="/word/artificial-intelligence" className="w-full sm:w-auto">
+            <Link to="/ml/word/artificial-intelligence" className="w-full sm:w-auto">
               <button className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 md:px-10 md:py-5 rounded-xl bg-[#1f3a46] text-slate-100 font-extrabold text-sm md:text-lg shadow-md hover:bg-[#294957] transition-all hover:scale-[1.02] active:scale-95 group">
                 <Play size={18} className="fill-current md:w-5 md:h-5" />
                 <span className="truncate">প্রথম অধ্যায়: {startData.getting_started_cta}</span>

@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useSubjectsByLevel } from '../../../hooks/useAcademicSubjects';
+import { SkeletonCard } from '../../../components/UI/Skeleton';
 import { 
   BookOpen, Calculator, CalendarDays, ChevronRight, FileText, 
   GraduationCap, LayoutDashboard, Library, Lightbulb, 
-  Settings, Target, Trophy, Clock, Search, Zap, Microscope, Globe, Activity, Cpu, School, Loader2, FlaskConical
+  Settings, Target, Trophy, Clock, Search, Zap, Microscope, Globe, Activity, Cpu, School, FlaskConical
 } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../../config/firebase';
 
 export default function AdmissionDashboard() {
   useEffect(() => {
@@ -20,45 +20,27 @@ export default function AdmissionDashboard() {
     { title: 'শর্টকাট', icon: Zap, path: '/academic/shortcut/all/all/all', color: 'from-emerald-400 to-teal-500', shadow: 'shadow-emerald-500/20' },
   ];
 
-  const [categories, setCategories] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
+  const { data: admissionSubjects, isLoading } = useSubjectsByLevel('Admission');
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const snap = await getDoc(doc(db, 'admin_settings', 'subjects'));
-        if (snap.exists() && snap.data().list) {
-          const presets = [
-            'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20',
-            'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20',
-            'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20',
-            'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 hover:bg-fuchsia-500/20',
-            'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
-            'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
-          ];
+  const categories = React.useMemo(() => {
+    const presets = [
+      'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20',
+      'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20',
+      'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20',
+      'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 hover:bg-fuchsia-500/20',
+      'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
+      'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
+    ];
 
-          const admissionCategories = snap.data().list.filter(s => s.level === 'Admission').map((s, idx) => {
-            let path = '/academic/admission/' + s.id.replace('admission-', '');
-            
-            return {
-              id: s.id,
-              title: s.label,
-              subtitle: s.chapters?.length ? s.chapters.length + ' টি বিষয়' : 'বিস্তারিত দেখুন',
-              emoji: s.emoji,
-              path: path,
-              color: presets[idx % presets.length]
-            };
-          });
-          setCategories(admissionCategories);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCategories();
-  }, []);
+    return admissionSubjects.map((s, idx) => ({
+      id: s.id,
+      title: s.label,
+      subtitle: s.chapters?.length ? s.chapters.length + ' টি বিষয়' : 'বিস্তারিত দেখুন',
+      emoji: s.emoji,
+      path: '/academic/admission/' + s.id.replace('admission-', ''),
+      color: presets[idx % presets.length],
+    }));
+  }, [admissionSubjects]);
 
   const studyTools = [
     { title: 'পর্যায় সারণি', icon: FlaskConical, path: '/academic/periodic-table' },
@@ -134,8 +116,10 @@ export default function AdmissionDashboard() {
             </h2>
           </div>
 
-          {loading ? (
-            <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-rose-500" /></div>
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {Array.from({ length: 6 }, (_, i) => <SkeletonCard key={i} lines={0} />)}
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {categories.map((category, idx) => (

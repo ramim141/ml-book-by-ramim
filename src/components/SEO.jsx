@@ -2,8 +2,8 @@ import React from 'react';
 import { Helmet } from 'react-helmet-async';
 
 export default function SEO({ title, description, canonical, type, author, schema }) {
-  const siteName = "শব্দে শব্দে মেশিন লার্নিং"; 
-  const fullTitle = title ? `${title} | ${siteName}` : siteName;
+  const siteName = "Learn with Ramim";
+  const fullTitle = title && title !== siteName ? `${title} | ${siteName}` : siteName;
 
   return (
     <Helmet>

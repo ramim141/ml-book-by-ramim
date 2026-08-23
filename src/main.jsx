@@ -47,6 +47,16 @@ const queryClient = new QueryClient({
   },
 });
 
+// অ্যাপের খোলস ক্যাশ করে রাখি, যাতে দুর্বল সংযোগেও পাতা খোলে।
+// শুধু প্রোডাকশনে — ডেভে থাকলে HMR এর সাথে দ্বন্দ্ব বাধত।
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // রেজিস্ট্রেশন ব্যর্থ হলে অ্যাপ আগের মতোই চলবে, শুধু অফলাইন সুবিধা থাকবে না
+    });
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>

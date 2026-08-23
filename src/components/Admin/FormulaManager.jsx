@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { Sigma, Plus, Trash2, Loader2, Edit2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useConfirm } from '../../hooks/useConfirm';
+import { Plus, Trash2, Loader2, Edit2 } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import { BlockMath } from 'react-katex';
 import ReactMarkdown from 'react-markdown';
@@ -9,6 +11,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 
 export default function FormulaManager() {
+  const [confirm, confirmDialog] = useConfirm();
   const [formulas, setFormulas] = useState([]);
   const [availableSubjects, setAvailableSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -93,7 +96,7 @@ export default function FormulaManager() {
       fetchFormulas();
     } catch (error) {
       console.error('Error saving formula:', error);
-      alert('ফর্মুলা সেভ করতে সমস্যা হয়েছে!');
+      toast.error('ফর্মুলা সেভ করতে সমস্যা হয়েছে।');
     }
     setSaving(false);
   };
@@ -118,13 +121,13 @@ export default function FormulaManager() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('আপনি কি নিশ্চিত?')) return;
+    if (!(await confirm({ title: 'ফর্মুলা মুছে ফেলবেন?', message: 'মুছে ফেললে এটি আর ফিরে পাওয়া যাবে না।' }))) return;
     try {
       await deleteDoc(doc(db, 'smart_formulas', id));
       fetchFormulas();
     } catch (e) {
       console.error(e);
-      alert('ডিলিট করতে সমস্যা হয়েছে!');
+      toast.error('ডিলিট করতে সমস্যা হয়েছে।');
     }
   };
 
@@ -153,9 +156,8 @@ export default function FormulaManager() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-        <Sigma className="text-indigo-400" /> স্মার্ট ফর্মুলা ম্যানেজমেন্ট
-      </h2>
+      {confirmDialog}
+      {/* শিরোনাম প্যানেল হেডারেই আছে — এখানে রাখলে ডেস্কটপে দুবার দেখাত */}
 
       {/* Add / Edit Form */}
       <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700 mb-8">
@@ -166,7 +168,7 @@ export default function FormulaManager() {
             <select
               value={subjectId}
               onChange={(e) => setSubjectId(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 text-base sm:text-sm"
               required
             >
               {availableSubjects.map(sub => (
@@ -180,7 +182,7 @@ export default function FormulaManager() {
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 text-base sm:text-sm"
               required
             >
               {currentChapters.length > 0 ? (
@@ -199,7 +201,7 @@ export default function FormulaManager() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Newton's Second Law"
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 text-base sm:text-sm"
               required
             />
           </div>
@@ -209,7 +211,7 @@ export default function FormulaManager() {
               value={latexCode}
               onChange={(e) => setLatexCode(e.target.value)}
               placeholder="e.g. F = m \\cdot a"
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 h-24 font-mono"
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 h-24 font-mono text-base sm:text-sm"
               required
             />
           </div>
@@ -230,7 +232,7 @@ export default function FormulaManager() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. Here $m$ = mass, $a$ = acceleration"
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 h-20"
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 h-20 text-base sm:text-sm"
             />
           </div>
 

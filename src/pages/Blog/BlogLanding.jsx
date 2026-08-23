@@ -54,7 +54,7 @@ export default function BlogLanding() {
       <SEO 
         title="ব্লগ | Blog" 
         description="মেশিন লার্নিং, এআই, ক্যারিয়ার গাইড এবং আধুনিক ওয়েব প্রযুক্তি নিয়ে সহজ, পরিষ্কার ও চিন্তাশীল লেখা। Machine Learning, AI, and Career Guide Blog in Bengali." 
-        canonical="https://learnwithramim.com/blog"
+        canonical="https://learnwithramim.com/ml/blog"
       />
       {/* Background Ambient Glow Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-gradient-to-br from-[#5b5dfa]/5 to-transparent blur-[120px] pointer-events-none"></div>
@@ -126,7 +126,7 @@ export default function BlogLanding() {
                 transition={{ duration: 0.35 }}
                 className="group mb-12 overflow-hidden rounded-3xl border border-slate-800/80 bg-gradient-to-b from-[#111729]/60 to-[#0c101d]/60 shadow-xl hover:border-slate-700/60 transition-all duration-300"
               >
-                <Link to={`/blog/${featuredPost.slug}`} className="grid min-h-[360px] md:grid-cols-[0.95fr_1.05fr]">
+                <Link to={`/ml/blog/${featuredPost.slug}`} className="grid min-h-[360px] md:grid-cols-[0.95fr_1.05fr]">
                   <div className="relative min-h-[230px] overflow-hidden bg-slate-900">
                     <img
                       src={featuredPost.image}
@@ -175,7 +175,7 @@ export default function BlogLanding() {
                       transition={{ duration: 0.2 }}
                       className="group flex overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-b from-[#111729]/40 to-[#0c101d]/40 shadow-lg hover:shadow-xl hover:border-slate-700/60 transition-all"
                     >
-                      <Link to={`/blog/${post.slug}`} className="flex flex-col w-full">
+                      <Link to={`/ml/blog/${post.slug}`} className="flex flex-col w-full">
                         <div className="relative h-48 overflow-hidden bg-slate-900">
                           <img
                             src={post.image}
@@ -269,7 +269,7 @@ export default function BlogLanding() {
                 </h3>
                 <div className="mt-5 space-y-4">
                   {allBlogs.slice(0, 4).map((post) => (
-                    <Link to={`/blog/${post.slug}`} key={post.id} className="group flex gap-3.5 items-center">
+                    <Link to={`/ml/blog/${post.slug}`} key={post.id} className="group flex gap-3.5 items-center">
                       <div className="overflow-hidden h-14 w-14 shrink-0 rounded-xl bg-slate-900">
                         <img
                           src={post.image}

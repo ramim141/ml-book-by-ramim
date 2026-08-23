@@ -4,9 +4,12 @@ import { db } from '../../config/firebase';
 import { MessageSquareWarning, Check, Eye, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import ReportQuestionEditor from './ReportQuestionEditor';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import { useConfirm } from '../../hooks/useConfirm';
 
 export default function FeedbackManager() {
   const queryClient = useQueryClient();
+  const [confirm, confirmDialog] = useConfirm();
   const [expandedReportId, setExpandedReportId] = useState(null);
 
   const { data: reports, isLoading, isError } = useQuery({
@@ -22,7 +25,7 @@ export default function FeedbackManager() {
       await updateDoc(doc(db, 'reported_errors', id), { status: 'resolved' });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin_reports'] }),
-    onError: () => alert('স্ট্যাটাস আপডেট করতে সমস্যা হয়েছে।')
+    onError: () => toast.error('স্ট্যাটাস আপডেট করতে সমস্যা হয়েছে।')
   });
 
   const deleteMutation = useMutation({
@@ -37,8 +40,8 @@ export default function FeedbackManager() {
     resolveMutation.mutate(id);
   };
 
-  const deleteReport = (id) => {
-    if (!window.confirm("রিপোর্টটি মুছে ফেলতে চান?")) return;
+  const deleteReport = async (id) => {
+    if (!(await confirm({ title: 'রিপোর্ট মুছে ফেলবেন?', message: 'রিপোর্টটি স্থায়ীভাবে মুছে যাবে।' }))) return;
     deleteMutation.mutate(id);
   };
 
@@ -47,6 +50,7 @@ export default function FeedbackManager() {
 
   return (
     <div>
+      {confirmDialog}
       <h2 className="text-xl font-bold flex items-center gap-2 mb-6"><MessageSquareWarning className="text-amber-400" /> স্টুডেন্ট রিপোর্ট ও ফিডব্যাক</h2>
 
       {reports.length === 0 ? (
