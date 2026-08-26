@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../config/firebase';
 import { doc, getDoc, updateDoc, increment, collection, getDocs } from 'firebase/firestore';
 import { Swords, Zap, CheckCircle, X as CloseIcon, Flame, Gift } from 'lucide-react';
+import { optionsOf } from '../../lib/questionUtils';
 
 const getDayOfYear = () => {
   const now = new Date();
@@ -173,7 +174,7 @@ export default function DailyChallengeWidget() {
 
                   {/* Options */}
                   <div className="space-y-3 mb-5">
-                    {todayQuestion.options.map((opt, idx) => {
+                    {optionsOf(todayQuestion).map((opt, idx) => {
                       let cls = 'border-slate-700/50 bg-slate-800/40 hover:border-indigo-500/50 hover:bg-indigo-500/5 cursor-pointer';
                       if (challengeSubmitted) {
                         if (idx === todayQuestion.answer) cls = 'border-emerald-500/60 bg-emerald-500/10 cursor-default';

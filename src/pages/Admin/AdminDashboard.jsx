@@ -1,13 +1,19 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { LogOut, Database, Quote, BookOpen, Swords, LayoutDashboard, Users, Star, MessageSquareWarning, Megaphone, Bell, CalendarClock, ChevronRight, Activity, Lightbulb, Search, Menu, Wallet, Tag } from 'lucide-react';
+import { 
+  LogOut, Database, Quote, BookOpen, Swords, LayoutDashboard, 
+  Users, Star, MessageSquareWarning, Megaphone, Bell, CalendarClock, 
+  ChevronRight, Activity, Lightbulb, Search, Menu, Wallet, Tag, 
+  GraduationCap, PanelLeftClose, PanelLeftOpen, Settings, FileSpreadsheet 
+} from 'lucide-react';
 
 // Import all modularized components
 import AdminCommandPalette from '../../components/Admin/AdminCommandPalette';
 import OverviewManager from '../../components/Admin/OverviewManager';
 import UserManagement from '../../components/Admin/UserManagement';
 import QuestionBankManager from '../../components/Admin/QuestionBankManager';
+import BulkQuestionUploader from '../../components/Admin/BulkQuestionUploader';
 import QuotesManager from '../../components/Admin/QuotesManager';
 import SubjectsManager from '../../components/Admin/SubjectsManager';
 import DailyChallengeManager from '../../components/Admin/DailyChallengeManager';
@@ -22,6 +28,8 @@ import SuggestionManager from '../../components/Admin/SuggestionManager';
 import AdminActivityFeed from '../../components/Admin/AdminActivityFeed';
 import PaymentManager from '../../components/Admin/PaymentManager';
 import PlanManager from '../../components/Admin/PlanManager';
+import AdmissionManager from '../../components/Admin/AdmissionManager';
+import SiteSettingsManager from '../../components/Admin/SiteSettingsManager';
 
 /**
  * প্রতিটি ট্যাবের নিজস্ব এক লাইন — আগে সব ট্যাবেই একই ইংরেজি বাক্য
@@ -30,8 +38,11 @@ import PlanManager from '../../components/Admin/PlanManager';
 const TAB_DESCRIPTIONS = {
   overview: 'প্ল্যাটফর্মের সারসংক্ষেপ ও সাম্প্রতিক অবস্থা',
   question_bank: 'প্রশ্ন, নোট ও ভিডিও যোগ করুন, খুঁজুন ও সম্পাদনা করুন',
+  bulk_upload: 'এক্সেল বা CSV ফাইল থেকে একসাথে একাধিক প্রশ্ন আপলোড ও ভ্যালিডেশন করুন',
   live_exams: 'নির্দিষ্ট সময়ের পরীক্ষা তৈরি ও অংশগ্রহণকারী দেখুন',
   subjects: 'বিষয় ও অধ্যায়ের তালিকা — পুরো হাবের ভিত্তি',
+  admission: 'ভর্তি প্রোগ্রামসমূহ, শর্টকাট ও ট্রিকস এবং অ্যাডমিশন কনফিগ',
+  settings: 'সাইট ও ডেভেলপার সেটিংস, সোশ্যাল লিংক, যোগাযোগ তথ্য ও জরুরি নোটিশ',
   users: 'শিক্ষার্থীদের তালিকা, অগ্রগতি ও অ্যাকাউন্ট ব্যবস্থাপনা',
   payments: 'বিকাশ পেমেন্ট যাচাই করে প্রিমিয়াম চালু করুন',
   plans: 'প্ল্যানের দাম, মেয়াদ ও কুপন/ছাড় নিয়ন্ত্রণ',
@@ -56,6 +67,19 @@ export default function AdminDashboard() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   
+  // Sidebar minimize/collapse state with localStorage persistence
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('admin_sidebar_collapsed') === 'true';
+  });
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('admin_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
+  
   const handleLogout = async () => {
     try {
       await logout();
@@ -74,7 +98,9 @@ export default function AdminDashboard() {
     {
       title: 'একাডেমিক',
       tabs: [
+        { id: 'admission', label: 'অ্যাডমিশন', icon: GraduationCap, keywords: 'admission medical engineering varsity admission অ্যাডমিশন ভর্তি শর্টকাট' },
         { id: 'question_bank', label: 'কোশ্চেন ব্যাংক', icon: Database, keywords: 'question bank mcq cq প্রশ্ন ব্যাংক' },
+        { id: 'bulk_upload', label: 'বাল্ক আপলোড (Excel/CSV)', icon: FileSpreadsheet, keywords: 'bulk upload excel csv প্রশ্ন বাল্ক আপলোড' },
         { id: 'live_exams', label: 'লাইভ এক্সাম', icon: CalendarClock, keywords: 'live exam পরীক্ষা এক্সাম' },
         { id: 'subjects', label: 'সাবজেক্ট ম্যানেজমেন্ট', icon: BookOpen, keywords: 'subject chapter বিষয় অধ্যায়' },
       ]
@@ -100,8 +126,9 @@ export default function AdminDashboard() {
       ]
     },
     {
-      title: 'সিস্টেম',
+      title: 'সিস্টেম ও কনফিগারেশন',
       tabs: [
+        { id: 'settings', label: 'সাইট ও ডেভেলপার সেটিংস', icon: Settings, keywords: 'settings developer site social footer contact সেটিংস ডেভেলপার' },
         { id: 'activity_feed', label: 'অ্যাক্টিভিটি ফিড', icon: Activity, keywords: 'activity log অ্যাক্টিভিটি লগ' },
         { id: 'reports', label: 'রিপোর্টস', icon: MessageSquareWarning, keywords: 'report feedback রিপোর্ট ফিডব্যাক' },
         { id: 'migration', label: 'ডাটা মাইগ্রেশন', icon: Database, keywords: 'migration data ডাটা মাইগ্রেশন' },
@@ -148,6 +175,19 @@ export default function AdminDashboard() {
         <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
           <div className="flex h-14 items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-2.5">
+              <button
+                onClick={toggleSidebar}
+                className="hidden lg:flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-white transition-colors"
+                title={sidebarCollapsed ? 'সাইডবার প্রসারিত করুন' : 'সাইডবার মিনিমাইজ করুন'}
+                aria-label="Toggle Sidebar"
+              >
+                {sidebarCollapsed ? (
+                  <PanelLeftOpen className="h-4 w-4 text-indigo-400" />
+                ) : (
+                  <PanelLeftClose className="h-4 w-4 text-slate-400" />
+                )}
+              </button>
+
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-indigo-500/15 ring-1 ring-indigo-400/25">
                 <Database className="h-3.5 w-3.5 text-indigo-300" />
               </div>
@@ -191,15 +231,18 @@ export default function AdminDashboard() {
         <div className="flex flex-col gap-5 lg:flex-row lg:gap-7">
           
           {/* Sidebar */}
-          <div className="w-full lg:w-60 shrink-0">
-            {/* Desktop Sidebar — জ্বলজ্বলে বাক্সের বদলে বাঁ পাশে সরু অ্যাকসেন্ট
-                রেখা। সারিগুলো ঘন, তাই ১৫টা ট্যাবই এক পর্দায় ধরে। */}
+          <div className={`w-full shrink-0 transition-all duration-300 ${sidebarCollapsed ? 'lg:w-[64px]' : 'lg:w-60'}`}>
+            {/* Desktop Sidebar */}
             <nav className="sticky top-[72px] hidden lg:block">
               {tabCategories.map((category, idx) => (
-                <div key={idx} className="mb-5 last:mb-0">
-                  <h3 className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-600">
-                    {category.title}
-                  </h3>
+                <div key={idx} className={`${sidebarCollapsed ? 'mb-2' : 'mb-5'} last:mb-0`}>
+                  {sidebarCollapsed ? (
+                    idx > 0 && <div className="my-2 border-t border-white/[0.06]" />
+                  ) : (
+                    <h3 className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-600">
+                      {category.title}
+                    </h3>
+                  )}
                   <div className="space-y-0.5">
                     {category.tabs.map(tab => {
                       const on = activeTab === tab.id;
@@ -208,15 +251,20 @@ export default function AdminDashboard() {
                           key={tab.id}
                           onClick={() => setActiveTab(tab.id)}
                           aria-current={on ? 'page' : undefined}
-                          className={`group relative flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-[13.5px] transition-colors ${
+                          title={tab.label}
+                          className={`group relative flex w-full items-center rounded-md text-[13.5px] transition-all ${
+                            sidebarCollapsed 
+                              ? 'justify-center px-0 py-2' 
+                              : 'gap-2.5 px-2 py-1.5'
+                          } ${
                             on
-                              ? 'bg-white/[0.06] font-semibold text-white'
+                              ? 'bg-white/[0.06] font-semibold text-white shadow-inner'
                               : 'font-medium text-slate-400 hover:bg-white/[0.03] hover:text-slate-200'
                           }`}
                         >
                           <span className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-indigo-400 transition-opacity ${on ? 'opacity-100' : 'opacity-0'}`} />
-                          <tab.icon className={`h-4 w-4 shrink-0 ${on ? 'text-indigo-300' : 'text-slate-600 group-hover:text-slate-400'}`} />
-                          <span className="truncate">{tab.label}</span>
+                          <tab.icon className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-110 ${on ? 'text-indigo-300' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                          {!sidebarCollapsed && <span className="truncate">{tab.label}</span>}
                         </button>
                       );
                     })}
@@ -337,11 +385,13 @@ export default function AdminDashboard() {
               </div>
 
               {activeTab === 'overview' && <OverviewManager />}
+              {activeTab === 'admission' && <AdmissionManager />}
               {activeTab === 'live_exams' && <LiveExamManager />}
               {activeTab === 'users' && <UserManagement />}
               {activeTab === 'payments' && <PaymentManager />}
               {activeTab === 'plans' && <PlanManager />}
               {activeTab === 'question_bank' && <QuestionBankManager />}
+              {activeTab === 'bulk_upload' && <BulkQuestionUploader />}
               {activeTab === 'quotes' && <QuotesManager />}
               {activeTab === 'subjects' && <SubjectsManager />}
               {activeTab === 'challenges' && <DailyChallengeManager />}
@@ -350,6 +400,7 @@ export default function AdminDashboard() {
               {activeTab === 'notifications' && <NotificationManager />}
               {activeTab === 'formulas' && <FormulaManager />}
               {activeTab === 'suggestions' && <SuggestionManager />}
+              {activeTab === 'settings' && <SiteSettingsManager />}
               {activeTab === 'activity_feed' && <AdminActivityFeed />}
               {activeTab === 'reports' && <FeedbackManager />}
               {activeTab === 'migration' && <DatabaseMigrationHelper />}

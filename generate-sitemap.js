@@ -9,6 +9,8 @@ const staticRoutes = [
   '/',
   '/about',
   '/contact',
+  '/terms',
+  '/privacy',
   // সাব-সাইট ০১: এমএল বই
   '/ml',
   '/ml/dashboard',
@@ -18,13 +20,11 @@ const staticRoutes = [
   '/ml/blog',
   '/ml/bookmarks',
   // সাব-সাইট ০২: একাডেমিক হাব
+  // শুধু /academic ইনডেক্স পেজটাই লগইন ছাড়া খোলে (src/App.jsx দেখুন) —
+  // ssc/hsc/admission/question-bank/model-test/shortcut ProtectedRoute-এর
+  // ভেতরে, তাই আগে সাইটম্যাপে থাকলেও Googlebot এখানে /login-এ রিডাইরেক্ট
+  // হয়ে যেত। পেজগুলো পাবলিক হলে আবার ফিরিয়ে আনতে হবে।
   '/academic',
-  '/academic/ssc',
-  '/academic/hsc',
-  '/academic/admission',
-  '/academic/question-bank',
-  '/academic/model-test',
-  '/academic/shortcut/all/all/all',
   // suggestion / syllabus / routine / result / timer এখনো "শীঘ্রই আসছে" পেজ —
   // তৈরি না হওয়া পেজ sitemap এ দিলে Google এ খালি ফলাফল দেখায়।
   // পেজগুলো তৈরি হলে এখানে ফিরিয়ে আনতে হবে।

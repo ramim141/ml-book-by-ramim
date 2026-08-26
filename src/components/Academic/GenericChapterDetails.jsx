@@ -1,4 +1,4 @@
-import { useState, Suspense, useEffect } from 'react';
+import { useState, Suspense, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import SharedMCQItem from './SharedMCQItem';
@@ -11,6 +11,7 @@ import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { recordMistake } from '../../lib/mistakes';
 import { SkeletonList } from '../UI/Skeleton';
+import { shuffle } from '../../lib/questionUtils';
 
 function getYouTubeEmbedUrl(url) {
   if (!url) return null;
@@ -161,23 +162,25 @@ function ModelTestTabContent({ chapter, subjectId, subjectTitle }) {
   const [submitted, setSubmitted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
 
-  if (!allMcqs.length) return (<div className='flex flex-col items-center justify-center py-24 text-slate-500'><Timer className='w-14 h-14 mb-4 opacity-20' /><h3 className='text-lg font-bold text-slate-300 mb-1'>মডেল টেস্ট তৈরি হচ্ছে</h3><p className='text-sm'>MCQ যুক্ত হলে মডেল টেস্ট স্বয়ংক্রিয়ভাবে সক্রিয় হবে।</p></div>);
+  // সময় শেষে জমা দেওয়ার জন্য সর্বশেষ handleSubmit — আগে টাইমারের ইফেক্ট
+  // যে রেন্ডারে তৈরি হয়েছিল সেই রেন্ডারের handleSubmit ধরে রাখত, ফলে সময়
+  // শেষ হয়ে অটো-জমা হলে পুরনো (খালি) `answers` দিয়ে স্কোর ০ বসে যেত।
+  const handleSubmitRef = useRef(null);
 
   // Timer logic
   useEffect(() => {
-    let timer;
-    if (isConfigured && !submitted && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            handleSubmit();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
+    if (!isConfigured || submitted) return undefined;
+    const timer = setInterval(() => {
+      setTimeLeft(prev => (prev <= 0 ? 0 : prev - 1));
+    }, 1000);
     return () => clearInterval(timer);
+  }, [isConfigured, submitted]);
+
+  // সময় ফুরালে জমা — setState আপডেটারের ভেতরে জমা দেওয়া হতো, সেটি রেন্ডার
+  // ফেজে সাইড-ইফেক্ট বলে React দুইবার চালালে দুইবার XP যোগ হতে পারত
+  useEffect(() => {
+    if (!isConfigured || submitted || timeLeft > 0) return;
+    handleSubmitRef.current?.();
   }, [isConfigured, submitted, timeLeft]);
 
   const handleSubmit = async () => {
@@ -191,8 +194,10 @@ function ModelTestTabContent({ chapter, subjectId, subjectTitle }) {
     // Record mistakes
     if (currentUser) {
       const mistakePromises = testMcqs.map((q, i) => {
-        const userAnswer = answers[i] !== undefined ? answers[i] : null;
-        if (userAnswer !== q.answer) {
+        const userAnswer = answers[i];
+        // আগে উত্তর না দেওয়া প্রশ্নও (userAnswer = null) ভুলের খাতায় ঢুকত,
+        // ফলে টেস্ট শেষে খাতা অকারণে ভরে যেত
+        if (userAnswer !== undefined && userAnswer !== q.answer) {
           return recordMistake(
             currentUser.uid, 
             {
@@ -224,9 +229,16 @@ function ModelTestTabContent({ chapter, subjectId, subjectTitle }) {
     }
   };
 
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit;
+  });
+
+  // সব hook কল হওয়ার পরেই early return — hook ক্রম স্থির রাখতে
+  if (!allMcqs.length) return (<div className='flex flex-col items-center justify-center py-24 text-slate-500'><Timer className='w-14 h-14 mb-4 opacity-20' /><h3 className='text-lg font-bold text-slate-300 mb-1'>মডেল টেস্ট তৈরি হচ্ছে</h3><p className='text-sm'>MCQ যুক্ত হলে মডেল টেস্ট স্বয়ংক্রিয়ভাবে সক্রিয় হবে।</p></div>);
+
   const startTest = () => {
     // Randomly pick questions
-    const shuffled = [...allMcqs].sort(() => 0.5 - Math.random());
+    const shuffled = shuffle(allMcqs);
     const selected = shuffled.slice(0, config.questionCount);
     
     setTestMcqs(selected);

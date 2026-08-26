@@ -1,0 +1,49 @@
+rules_version = '2';
+
+/**
+ * Firebase Storage নিরাপত্তা নিয়ম
+ *
+ * নীতি: ডিফল্ট সবকিছু বন্ধ। প্রতিটি পাথের জন্য আলাদা করে অনুমতি দেওয়া হয়।
+ *
+ * এই ফাইলটি আগে repo-তে ছিল না — src/ এ পাওয়া দুটো storage ব্যবহারের জায়গা
+ * (ProfileDashboard.jsx এর profile_pictures, QuestionBuilder/logoUpload.js এর
+ * question_paper_logos) ধরে লেখা হয়েছে। Console-এ এখন যা ডিপ্লয় করা আছে সেটা
+ * এই রিপোর অজানা ছিল — deploy করার আগে Firebase Console > Storage > Rules
+ * এ বর্তমান নিয়মের সাথে মিলিয়ে দেখুন, কিছু বাদ পড়েছে কিনা।
+ */
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isValidImage() {
+      return request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // প্রোফাইল ছবি — লিডারবোর্ড ও অন্যদের প্রোফাইলে দেখানো হয়, তাই পাবলিক রিড।
+    // লেখা/মোছা শুধু নিজের uid দিয়ে।
+    match /profile_pictures/{uid} {
+      allow read: if true;
+      allow write, delete: if isSelf(uid) && isValidImage();
+    }
+
+    // প্রশ্নপত্র বিল্ডারের লোগো — পেপারটাই ব্যক্তিগত (দেখুন firestore.rules এর
+    // question_papers), তাই লোগোও শুধু নিজে পড়তে/লিখতে/মুছতে পারবে।
+    match /question_paper_logos/{uid}/{fileName} {
+      allow read: if isSelf(uid);
+      allow write, delete: if isSelf(uid) && isValidImage();
+    }
+
+    // ডিফল্ট: বাকি সব বন্ধ
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

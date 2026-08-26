@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Check, ChevronDown, Sparkles } from 'lucide-react';
 import { enToBn, MarkdownRenderer, cleanPrefix } from '../../helpers.jsx';
 import { getQuestionTypeMeta } from './QuestionCardParts.jsx';
+import { optionsOf } from '../../../../../lib/questionUtils';
 
 const CQ_PARTS = [
   { key: 'ka', label: '(ক)' },
@@ -22,9 +23,21 @@ const ProfessionalQuestionCard = React.memo(({ q, isAdded, onAdd, onRemove, mark
     : (q.question || q.title || '');
 
   const boards = [
-    ...(Array.isArray(q.boards) ? q.boards.map((b) => `${b.name || ''}${b.year ? `-${enToBn(b.year)}` : ''}`) : []),
-    ...(Array.isArray(q.board) ? q.board.map(String) : []),
-  ].filter(Boolean);
+    ...(Array.isArray(q.boards)
+      ? q.boards.map((b) =>
+          typeof b === 'object' && b !== null
+            ? `${b.name || b.type || ''}${b.year || b.session ? ` ${b.year || b.session}` : ''}`.trim()
+            : String(b).trim()
+        )
+      : []),
+    ...(Array.isArray(q.board) && !Array.isArray(q.boards)
+      ? q.board.map((b) =>
+          typeof b === 'object' && b !== null
+            ? `${b.name || b.type || ''}${b.year || b.session ? ` ${b.year || b.session}` : ''}`.trim()
+            : String(b).trim()
+        )
+      : []),
+  ].filter((str) => Boolean(str) && str !== '[object Object]');
 
   const toggleSelect = () => (isAdded ? onRemove(q.uniqueId) : onAdd(q));
   const usedIn = usageIndex?.get(q.uniqueId);
@@ -100,7 +113,7 @@ const ProfessionalQuestionCard = React.memo(({ q, isAdded, onAdd, onRemove, mark
           expanded ? (
             <div className="mt-1.5 space-y-2 text-[13px] leading-relaxed text-slate-300">
               {imageSrc && (
-                <img src={imageSrc} alt="" loading="lazy" className="max-h-52 rounded-lg object-contain" />
+                <img src={imageSrc} alt="Question figure" loading="lazy" className="max-h-52 rounded-lg object-contain" />
               )}
               <MarkdownRenderer content={q.stem} className="prose-p:my-1.5 text-slate-300 text-[13px]" />
             </div>
@@ -132,7 +145,7 @@ const ProfessionalQuestionCard = React.memo(({ q, isAdded, onAdd, onRemove, mark
         {/* MCQ Options — সবসময় দেখা যায়, ক্লিক করে খুলতে হয় না */}
         {q.type === 'mcq' && Array.isArray(q.options) && q.options.length > 0 && (
           <div className="mt-1.5 grid grid-cols-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
-            {q.options.map((opt, idx) => (
+            {optionsOf(q).map((opt, idx) => (
               <div key={idx} className="flex gap-1.5">
                 <span className="shrink-0 text-[11.5px] font-bold text-slate-600">
                   {['ক', 'খ', 'গ', 'ঘ'][idx] || idx + 1}.

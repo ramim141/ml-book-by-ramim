@@ -56,6 +56,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ⚠️ academic_content এর মতোই — এই ডকুমেন্টেও `answer` ফিল্ড থাকে, তাই একই সতর্কতা প্রযোজ্য।
+    match /question_bank/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     match /smart_formulas/{docId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();

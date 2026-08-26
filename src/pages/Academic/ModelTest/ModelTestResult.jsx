@@ -1,19 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { Trophy, CheckCircle2, XCircle, Clock, ArrowRight, RotateCcw, AlertTriangle, Send, Loader2 } from 'lucide-react';
+import { Trophy, CheckCircle2, XCircle, Clock, ArrowRight, RotateCcw, AlertTriangle, Send, Loader2, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import 'katex/dist/katex.min.css';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../../contexts/AuthContext';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebase'; // Added db import
 import { recordMistake } from '../../../lib/mistakes';
 import { recordExamProgress } from '../../../lib/examProgress';
+import ExamPdfExportModal from '../../../components/Academic/ExamPdfExportModal';
 
 const enToBnNumber = (numStr) => {
-  if (!numStr) return numStr;
+  if (numStr === null || numStr === undefined || numStr === '') return numStr;
   const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
   return String(numStr).replace(/[0-9]/g, w => bn[w]);
 };
@@ -39,11 +41,8 @@ export default function ModelTestResult() {
   const [reportMsg, setReportMsg] = useState('');
   const [reportLoading, setReportLoading] = useState(false);
   const [reportedSet, setReportedSet] = useState(new Set());
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const hasSaved = useRef(false);
-
-  if (!questions) {
-    return <Navigate to="/academic/model-test" replace />;
-  }
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60);
@@ -56,7 +55,7 @@ export default function ModelTestResult() {
   let wrongCount = 0;
   let skippedCount = 0;
 
-  questions.forEach((q, idx) => {
+  (questions || []).forEach((q, idx) => {
     if (answers[idx] === undefined) {
       skippedCount++;
     } else if (answers[idx] === q.answer) {
@@ -66,28 +65,39 @@ export default function ModelTestResult() {
     }
   });
 
-  const percentage = Math.round((correctCount / questions.length) * 100);
+  const percentage = questions?.length ? Math.round((correctCount / questions.length) * 100) : 0;
 
-  // Save result to Firestore
+  // Save result to Firestore and Mistake Notebook
   useEffect(() => {
-    if (!currentUser || !questions || hasSaved.current) return;
+    if (!questions || hasSaved.current) return;
     hasSaved.current = true;
     
     const saveResult = async () => {
-      // ভুল হওয়া প্রশ্নগুলো "ভুলের খাতা"য় জমা — মূল সেভ ব্যর্থ হলেও যেন
-      // এটা আটকে না যায়, তাই ফলাফলের অপেক্ষা না করেই
+      // ভুল হওয়া প্রশ্নগুলো "ভুলের খাতা"য় জমা
+      let mistakeCount = 0;
       questions.forEach((q, idx) => {
-        if (answers[idx] !== undefined && answers[idx] !== q.answer) {
-          recordMistake(currentUser.uid, q, {
-            subjectId,
-            subjectTitle: subjectTitle || 'মডেল টেস্ট',
-            userAnswer: answers[idx],
+        const userAns = answers[idx] ?? answers[q.id] ?? answers[q.firebaseId];
+        if (userAns !== undefined && userAns !== null && userAns !== q.answer) {
+          mistakeCount++;
+          recordMistake(currentUser?.uid || 'guest', q, {
+            subjectId: subjectId || q.subject || '',
+            subjectTitle: subjectTitle || q.subject || 'মডেল টেস্ট',
+            userAnswer: userAns,
+            program: q.program || ''
           }).catch(console.error);
         }
       });
 
-      // XP, chapterStats, questionsBySubject ও পরীক্ষার ইতিহাস — সবই এখন
-      // একটাই শেয়ার্ড হেল্পারে, যেটা লাইভ এক্সামও ব্যবহার করে
+      if (mistakeCount > 0) {
+        toast.success(`${mistakeCount}টি ভুল প্রশ্ন ভুলের খাতায় (Mistake Book) যুক্ত হয়েছে।`, {
+          icon: '📓',
+          duration: 3500
+        });
+      }
+
+      if (!currentUser) return;
+
+      // XP, chapterStats, questionsBySubject ও পরীক্ষার ইতিহাস
       try {
         await recordExamProgress({
           uid: currentUser.uid,
@@ -100,11 +110,17 @@ export default function ModelTestResult() {
         });
       } catch (err) {
         console.error('Failed to save exam result', err);
+        toast.error('ফলাফল সেভ করা যায়নি। ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।');
       }
     };
     saveResult();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // সব hook কল হওয়ার পরেই early return — hook ক্রম স্থির রাখতে
+  if (!questions) {
+    return <Navigate to="/academic/model-test" replace />;
+  }
 
   const handleReportSubmit = async (q, qIdx) => {
     if (!currentUser) return alert('লগইন প্রয়োজন!');
@@ -133,7 +149,7 @@ export default function ModelTestResult() {
 
   return (
     <div className="min-h-screen bg-[#0a0f1c] pt-16 sm:pt-24 pb-16 sm:pb-24 px-3 sm:px-6 lg:px-8 font-bangla selection:bg-fuchsia-500/30">
-      <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
+      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
         
         {/* Score Card */}
         <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl sm:rounded-3xl p-5 sm:p-10 shadow-2xl relative overflow-hidden">
@@ -193,6 +209,13 @@ export default function ModelTestResult() {
             <div className="flex-1 w-full sm:w-auto"></div>
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
               <button
+                type="button"
+                onClick={() => setIsPdfModalOpen(true)}
+                className="px-5 sm:px-6 py-2.5 rounded-xl text-sm sm:text-base font-bold flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-colors w-full sm:w-auto"
+              >
+                <FileText className="w-4 h-4" /> প্রশ্ন ও উত্তরপত্র PDF
+              </button>
+              <button
                 onClick={() => navigate('/academic/model-test')}
                 className="px-5 sm:px-6 py-2.5 rounded-xl text-sm sm:text-base font-bold flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white transition-colors w-full sm:w-auto"
               >
@@ -207,6 +230,19 @@ export default function ModelTestResult() {
             </div>
           </div>
         </div>
+
+        {/* Printable PDF Export Modal */}
+        <ExamPdfExportModal
+          isOpen={isPdfModalOpen}
+          onClose={() => setIsPdfModalOpen(false)}
+          examTitle={subjectTitle || 'মডেল টেস্ট প্রশ্ন ও উত্তরপত্র'}
+          questions={questions}
+          examInfo={{
+            totalMarks: questions.length,
+            timeLimitMinutes: Math.round((totalTime || 3600) / 60),
+            subject: subjectTitle || 'সাধারণ',
+          }}
+        />
 
         {/* Answer Review Section */}
         <div className="pt-8">
@@ -240,7 +276,7 @@ export default function ModelTestResult() {
                         <MarkdownRenderer content={q.question} />
                         {q.imageUrl && (
                           <div className="mt-3 mb-2 rounded-xl overflow-hidden border border-slate-700/50 bg-slate-900/50 flex justify-center max-h-[300px]">
-                            <img src={q.imageUrl} alt="Question figure" className="max-w-full h-auto object-contain" />
+                            <img src={q.imageUrl} alt="Question figure" loading="lazy" className="max-w-full h-auto object-contain" />
                           </div>
                         )}
                       </div>

@@ -68,6 +68,11 @@ const SharedMCQItem = memo(({ mcq, index, chapterName }) => {
             <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
               {chapterName || mcq.chapterName || (mcq.chapterId ? `অধ্যায় ${mcq.chapterId.replace('ch_', '')}` : 'Unknown')}
             </span>
+            {mcq.examTags?.map((tag, idx) => (
+              <span key={"tag-"+idx} className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                {tag.type || tag.name} {tag.session || tag.year}
+              </span>
+            ))}
             {mcq.boards?.map((board, idx) => (
               <span key={"board-"+idx} className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                 {board.name} {board.year}

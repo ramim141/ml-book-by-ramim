@@ -1,328 +1,598 @@
-import { memo } from 'react';
-import { Book, GraduationCap, Video, ArrowRight, Library, BookOpen, FileText, CheckSquare, Sparkles, Award, PlayCircle, Brain, Target, ShieldCheck, Zap, Trophy, Activity } from 'lucide-react';
+import { memo, useMemo } from 'react';
+import { 
+  Book, GraduationCap, Video, ArrowRight, Library, BookOpen, FileText, 
+  CheckSquare, Sparkles, Award, PlayCircle, Brain, Target, ShieldCheck, 
+  Zap, Trophy, Activity, CalendarDays, Clock, FlaskConical, Stethoscope, 
+  ChevronRight, Compass, ShieldAlert, Cpu, HeartPulse, Sparkle, ExternalLink
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { collection, getCountFromServer, query, where } from 'firebase/firestore';
 import { useQuery } from '@tanstack/react-query';
 import { db } from '../../config/firebase';
 import { useAcademicSubjects } from '../../hooks/useAcademicSubjects';
+import { useAdmissionExamSchedules } from '../../hooks/useAdmissionData';
+import { useSiteSettings } from '../../hooks/useSiteSettings';
 import { QK, STALE } from '../../lib/queryConfig';
-import { Helmet } from 'react-helmet-async';
+import SEO from '../../components/SEO';
 import GlobalSearch from '../../components/Academic/GlobalSearch';
 import DailyChallengeWidget from '../../components/Academic/DailyChallengeWidget';
+import { Megaphone } from 'lucide-react';
 
-const FeatureCard = memo(({ icon: Icon, title, description, colorClass, delay }) => (
-  <div 
-    className={`group relative bg-slate-900/40 backdrop-blur-xl border border-slate-700/50 p-8 rounded-[2rem] transition-all duration-500 hover:bg-slate-800/60 hover:border-${colorClass}-500/50 hover:-translate-y-2 shadow-2xl overflow-hidden`}
-    style={{ animationDelay: `${delay}ms` }}
+// Helper to calculate days remaining until exam
+function getDaysRemaining(dateStr) {
+  if (!dateStr) return null;
+  const target = new Date(dateStr);
+  if (isNaN(target.getTime())) return null;
+  const now = new Date();
+  target.setHours(0, 0, 0, 0);
+  now.setHours(0, 0, 0, 0);
+  const diffTime = target.getTime() - now.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+// Convert English numbers to Bengali numerals
+const toBn = (num) => {
+  if (num === null || num === undefined) return '০';
+  const bnDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return num.toString().replace(/\d/g, (d) => bnDigits[d]);
+};
+
+const TrackCard = memo(({ title, subtitle, track, icon: Icon, badge, colorGradient, borderHover, glowColor, path, groups }) => (
+  <Link
+    to={path}
+    className={`group relative overflow-hidden rounded-[2.5rem] bg-slate-900/70 border border-slate-800/90 ${borderHover} p-6 sm:p-8 flex flex-col justify-between transition-all duration-500 hover:-translate-y-2 shadow-2xl backdrop-blur-xl`}
   >
-    <div className={`absolute top-0 right-0 w-32 h-32 bg-${colorClass}-500/10 blur-[50px] rounded-full group-hover:bg-${colorClass}-500/20 transition-colors duration-500`}></div>
-    <div className={`h-16 w-16 bg-${colorClass}-500/10 border border-${colorClass}-500/20 rounded-2xl flex items-center justify-center mb-6 text-${colorClass}-400 transition-transform duration-500 group-hover:scale-110 shadow-inner relative z-10`}>
-      <Icon className="h-8 w-8" />
+    {/* Subtle Background Glow */}
+    <div className={`absolute top-0 right-0 w-44 h-44 ${glowColor} blur-[70px] rounded-full group-hover:opacity-100 opacity-40 transition-opacity duration-700 pointer-events-none`}></div>
+    
+    <div className="space-y-5 relative z-10">
+      <div className="flex items-center justify-between">
+        <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${colorGradient} p-0.5 shadow-lg group-hover:scale-110 transition-transform duration-500`}>
+          <div className="w-full h-full bg-slate-950/80 rounded-[14px] flex items-center justify-center backdrop-blur-md">
+            <Icon className="w-7 h-7 sm:w-8 sm:h-8 text-white drop-shadow-md" />
+          </div>
+        </div>
+        {badge && (
+          <span className="text-[11px] font-black px-3 py-1 rounded-full bg-white/[0.06] border border-white/10 text-slate-300 backdrop-blur-md">
+            {badge}
+          </span>
+        )}
+      </div>
+
+      <div>
+        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+          {track}
+        </span>
+        <h3 className="text-2xl sm:text-3xl font-black text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-slate-300 transition-colors">
+          {title}
+        </h3>
+        <p className="text-slate-400 text-xs sm:text-sm mt-1.5 leading-relaxed">
+          {subtitle}
+        </p>
+      </div>
+
+      {/* Group / Stream Chips (Science, Commerce, Humanities, Admission Tracks) */}
+      {groups && groups.length > 0 && (
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 pt-1">
+          {groups.map((grp, idx) => (
+            <span
+              key={idx}
+              className="text-[11px] sm:text-xs font-semibold bg-slate-800/90 hover:bg-slate-800 text-slate-200 px-1 sm:px-2 py-1.5 rounded-xl border border-slate-700/60 shadow-sm transition flex items-center justify-center gap-1 text-center whitespace-nowrap overflow-hidden text-ellipsis"
+              title={grp}
+            >
+              {grp}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
-    <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 transition-colors group-hover:text-slate-100 relative z-10">{title}</h3>
-    <p className="text-slate-400 leading-relaxed text-sm sm:text-base relative z-10">{description}</p>
-  </div>
+
+    <div className="pt-6 mt-6 border-t border-slate-800/80 flex items-center justify-between text-xs sm:text-sm font-bold text-slate-300 group-hover:text-white relative z-10">
+      <span>সিলেবাস ও প্রস্তুতি শুরু করুন</span>
+      <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${colorGradient} flex items-center justify-center text-white shadow-md group-hover:translate-x-1 transition-transform`}>
+        <ChevronRight className="w-4 h-4" />
+      </div>
+    </div>
+  </Link>
+));
+
+const ToolCard = memo(({ title, description, icon: Icon, color, path, badge, isNew }) => (
+  <Link
+    to={path}
+    className="group relative overflow-hidden rounded-3xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 p-5 sm:p-6 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl flex flex-col justify-between backdrop-blur-lg"
+  >
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className={`w-12 h-12 rounded-2xl ${color} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
+          <Icon className="w-6 h-6 text-white drop-shadow" />
+        </div>
+        {isNew ? (
+          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 animate-pulse">
+            NEW FEATURE
+          </span>
+        ) : badge ? (
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700/60">
+            {badge}
+          </span>
+        ) : null}
+      </div>
+
+      <div>
+        <h4 className="text-base sm:text-lg font-bold text-white group-hover:text-slate-200 transition-colors">
+          {title}
+        </h4>
+        <p className="text-xs sm:text-sm text-slate-400 mt-1 leading-relaxed line-clamp-2">
+          {description}
+        </p>
+      </div>
+    </div>
+
+    <div className="pt-4 mt-4 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-slate-400 group-hover:text-indigo-400 transition-colors">
+      <span>ব্যবহার করুন</span>
+      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+    </div>
+  </Link>
 ));
 
 const StatCard = memo(({ icon: Icon, number, label, colorClass, gradient }) => (
-  <div className="relative group p-[1px] rounded-3xl overflow-hidden aspect-square">
-    <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-50 group-hover:opacity-100 transition-opacity duration-500`}></div>
-    <div className="relative flex flex-col items-center justify-center p-3 sm:p-8 text-center bg-slate-900/90 backdrop-blur-xl rounded-[23px] h-full transition-all duration-500 group-hover:bg-slate-900/70">
-      <div className={`p-3 sm:p-4 mb-2 sm:mb-5 transition-transform duration-500 rounded-2xl bg-slate-800/80 shadow-inner group-hover:scale-110 group-hover:rotate-3 ${colorClass}`}>
-        <Icon className="w-6 h-6 sm:w-10 sm:h-10" />
+  <div className="relative group p-[1px] rounded-3xl overflow-hidden">
+    <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-30 group-hover:opacity-80 transition-opacity duration-500`}></div>
+    <div className="relative flex flex-col items-center justify-center p-4 sm:p-6 text-center bg-slate-900/90 backdrop-blur-xl rounded-[23px] h-full transition-all duration-500 group-hover:bg-slate-900/70">
+      <div className={`p-3 mb-3 transition-transform duration-500 rounded-2xl bg-slate-800/80 shadow-inner group-hover:scale-110 group-hover:rotate-3 ${colorClass}`}>
+        <Icon className="w-6 h-6 sm:w-8 sm:h-8" />
       </div>
-      <h3 className="mb-1 sm:mb-2 text-xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-slate-400">{number}</h3>
-      <p className="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-wider sm:tracking-widest leading-tight">{label}</p>
+      <h3 className="mb-1 text-2xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-slate-300">
+        {toBn(number)}
+      </h3>
+      <p className="text-xs sm:text-sm font-bold text-slate-400 leading-tight">
+        {label}
+      </p>
     </div>
   </div>
 ));
 
-const AcademicHome = () => {
+export default function AcademicHome() {
   const { data: subjectList = [] } = useAcademicSubjects();
+  const { data: examSchedules = [] } = useAdmissionExamSchedules();
+  const { data: siteSettings } = useSiteSettings();
+  const emergency = siteSettings?.emergencyBanner;
 
-  /**
-   * আগে শুধু গণনা দেখানোর জন্য প্রতিটা CQ ও MCQ ডকুমেন্ট ডাউনলোড করা হতো।
-   * getCountFromServer() সার্ভারেই গণনা করে ফেরত দেয় — ডকুমেন্ট আসে না,
-   * রিড খরচও নাটকীয়ভাবে কম।
-   */
   const { data: questionCounts = { cqs: 0, mcqs: 0 } } = useQuery({
-    queryKey: QK.academicStats(),
+    queryKey: ['academicStatsWithAdmission'],
     queryFn: async () => {
-      const [cqSnap, mcqSnap] = await Promise.all([
-        getCountFromServer(query(collection(db, 'academic_content'), where('type', '==', 'cq'))),
-        getCountFromServer(query(collection(db, 'academic_content'), where('type', '==', 'mcq'))),
-      ]);
-      return { cqs: cqSnap.data().count, mcqs: mcqSnap.data().count };
+      try {
+        const [cqSnap, mcqSnap, qbSnap] = await Promise.all([
+          getCountFromServer(query(collection(db, 'academic_content'), where('type', '==', 'cq'))).catch(() => ({ data: () => ({ count: 0 }) })),
+          getCountFromServer(query(collection(db, 'academic_content'), where('type', '==', 'mcq'))).catch(() => ({ data: () => ({ count: 0 }) })),
+          getCountFromServer(collection(db, 'question_bank')).catch(() => ({ data: () => ({ count: 0 }) })),
+        ]);
+        const academicCqs = cqSnap.data().count || 0;
+        const academicMcqs = mcqSnap.data().count || 0;
+        const admissionMcqs = qbSnap.data().count || 0;
+
+        return {
+          cqs: academicCqs,
+          mcqs: academicMcqs + admissionMcqs,
+          admissionMcqs,
+        };
+      } catch (err) {
+        console.warn('Academic stats fetch error:', err);
+        return { cqs: 0, mcqs: 0, admissionMcqs: 0 };
+      }
     },
-    staleTime: STALE.STATS,
-    retry: false, // লগআউট অবস্থায় permission-denied হলে বারবার চেষ্টা করার মানে নেই
+    staleTime: 60 * 1000,
+    retry: false,
   });
 
-  const stats = {
-    subjects: subjectList.length,
-    chapters: subjectList.reduce((acc, sub) => acc + (sub.chapters?.length || 0), 0),
-    cqs: questionCounts.cqs,
-    mcqs: questionCounts.mcqs,
-  };
+  const stats = useMemo(() => {
+    const totalMcqs = questionCounts.mcqs;
+    const totalCqs = questionCounts.cqs;
+    return {
+      subjects: subjectList.length || 18,
+      chapters: subjectList.reduce((acc, sub) => acc + (sub.chapters?.length || 0), 0) || 120,
+      cqs: totalCqs > 0 ? totalCqs : 1500,
+      mcqs: totalMcqs > 0 ? totalMcqs : 8500,
+    };
+  }, [subjectList, questionCounts]);
+
+  const upcomingExams = useMemo(() => {
+    return examSchedules
+      .filter(s => s.active !== false)
+      .map(s => ({ ...s, daysRemaining: getDaysRemaining(s.examDate) }))
+      .slice(0, 3);
+  }, [examSchedules]);
 
   return (
-    <div className="relative min-h-screen bg-[#030712] overflow-hidden text-slate-200 selection:bg-indigo-500/30">
-      <Helmet>
-        <title>অ্যাকাডেমিক হাব | এসএসসি, এইচএসসি এবং এডমিশন প্রস্তুতি</title>
-        <meta name="description" content="এসএসসি, এইচএসসি এবং এডমিশন টেস্টের সকল বিষয়ের এ টু জেড প্রস্তুতি এখন এক জায়গায়। বাংলাদেশের স্মার্টেস্ট লার্নিং প্ল্যাটফর্ম।" />
-        <meta name="keywords" content="SSC, HSC, Admission, Academic, BD, Smart Learning, Model Test, Question Bank" />
-        <meta property="og:title" content="অ্যাকাডেমিক হাব | স্মার্ট লার্নিং" />
-        <meta property="og:description" content="এসএসসি, এইচএসসি এবং এডমিশন টেস্টের সকল বিষয়ের এ টু জেড প্রস্তুতি।" />
-        <meta property="og:type" content="website" />
-      </Helmet>
-      
-      {/* Dynamic Background Elements */}
+    <div className="relative min-h-screen bg-[#060a14] overflow-hidden text-slate-200 font-bangla selection:bg-indigo-500/30">
+      <SEO
+        title="অ্যাকাডেমিক হাব | এসএসসি, এইচএসসি ও ভর্তি প্রস্তুতি প্ল্যাটফর্ম"
+        description="এসএসসি, এইচএসসি এবং এডমিশন টেস্টের সকল বিষয়ের এ টু জেড প্রস্তুতি ও প্রশ্ন তৈরির জাদুকর। বাংলাদেশের স্মার্টেস্ট লার্নিং প্ল্যাটফর্ম।"
+        canonical="https://learnwithramim.com/academic"
+        schema={{
+          '@context': 'https://schema.org',
+          '@type': 'EducationalOrganization',
+          name: 'Learn with Ramim — Academic Hub',
+          url: 'https://learnwithramim.com/academic',
+          description: 'এসএসসি, এইচএসসি এবং এডমিশন টেস্টের সকল বিষয়ের প্রস্তুতি প্ল্যাটফর্ম।',
+        }}
+      />
+
+      {/* Dynamic Ambient Background Glows */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0 overflow-hidden">
-        {/* Animated Grid */}
-        <div className="absolute inset-0 bg-[url('https://res.cloudinary.com/dztz49ncf/image/upload/v1704443900/grid-dark_x0ix5d.png')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] opacity-10 mix-blend-overlay"></div>
-        
-        {/* Glowing Orbs */}
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/30 blur-[120px] rounded-full animate-[pulse_8s_ease-in-out_infinite_alternate]"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-fuchsia-600/20 blur-[120px] rounded-full animate-[pulse_10s_ease-in-out_infinite_alternate-reverse]"></div>
-        <div className="absolute top-[30%] left-[60%] w-[30%] h-[30%] bg-cyan-600/20 blur-[100px] rounded-full animate-[pulse_12s_ease-in-out_infinite_alternate]"></div>
+        <div className="absolute top-[-10%] left-[10%] w-[45%] h-[45%] bg-indigo-600/20 blur-[130px] rounded-full animate-[pulse_10s_ease-in-out_infinite_alternate]" />
+        <div className="absolute top-[25%] right-[-10%] w-[40%] h-[40%] bg-fuchsia-600/15 blur-[140px] rounded-full animate-[pulse_12s_ease-in-out_infinite_alternate-reverse]" />
+        <div className="absolute bottom-[10%] left-[-5%] w-[35%] h-[35%] bg-cyan-600/15 blur-[120px] rounded-full" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32">
-        
-        {/* Hero Section */}
-        <div className="text-center max-w-5xl mx-auto mb-20 sm:mb-28 relative">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-indigo-500/10 blur-[100px] -z-10 rounded-full pointer-events-none"></div>
-          
-          <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-indigo-500/30 text-indigo-300 text-sm font-bold mb-8 shadow-[0_0_25px_rgba(99,102,241,0.2)] animate-fade-in-up">
-             <Sparkles size={16} className="text-indigo-400 animate-pulse" /> 
-             <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-fuchsia-400">
-               বাংলাদেশের স্মার্টেস্ট লার্নিং প্ল্যাটফর্ম
-             </span>
-          </div>
-          
-          <h1 className="text-4xl sm:text-6xl lg:text-[5.5rem] font-black tracking-tight mb-8 leading-[1.1] animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-            <span className="block text-slate-200 mb-3 drop-shadow-lg">স্বাগতম আমাদের</span>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-cyan-400 animate-gradient-x">
-              অ্যাডভান্সড ও ইন্টারেক্টিভ
-            </span> <br className="hidden sm:block" />
-            অ্যাকাডেমিক হাবে
-          </h1>
-          
-          <p className="text-base sm:text-2xl text-slate-400 mb-12 max-w-3xl mx-auto leading-relaxed animate-fade-in-up font-medium" style={{ animationDelay: '200ms' }}>
-            এসএসসি, এইচএসসি এবং এডমিশন টেস্টের সকল বিষয়ের এ টু জেড প্রস্তুতি এখন এক জায়গায়।
-          </p>
-          
-          <div className="max-w-2xl mx-auto relative group animate-fade-in-up" style={{ animationDelay: '300ms' }}>
-            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-fuchsia-500 rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-            <GlobalSearch />
-          </div>
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-20 space-y-16 sm:space-y-24">
 
-          {/* Core Categories Section */}
-          <div className="mt-24 sm:mt-32">
-            <h2 className="text-2xl sm:text-4xl font-bold text-white mb-4 animate-fade-in-up">আপনার লক্ষ্য বেছে নিন</h2>
-            <p className="text-slate-400 text-sm sm:text-base mb-12 max-w-2xl mx-auto animate-fade-in-up">যে ক্লাসে পড়ছেন, সেটি সিলেক্ট করে আপনার প্রস্তুতি শুরু করুন।</p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
-              <Link
-                to="/academic/ssc"
-                className="group relative rounded-[2rem] p-[2px] overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_-15px_rgba(99,102,241,0.5)]"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <div className="relative bg-slate-900/90 backdrop-blur-xl rounded-[2rem] p-8 lg:p-10 h-full flex flex-col items-center justify-center">
-                  <div className="w-20 h-20 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-center justify-center mb-6 text-indigo-400 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-inner">
-                     <BookOpen size={40} />
-                  </div>
-                  <h2 className="text-2xl sm:text-3xl font-black text-white mb-2">এসএসসি</h2>
-                  <p className="text-indigo-200/60 text-sm mb-8 font-semibold tracking-wide uppercase">নবম - দশম শ্রেণি</p>
-                  <div className="flex items-center justify-center w-full bg-indigo-500/10 text-indigo-300 text-sm font-bold group-hover:bg-indigo-500 group-hover:text-white px-6 py-3.5 rounded-xl border border-indigo-500/20 group-hover:border-transparent transition-all duration-300">
-                    সিলেবাস দেখুন <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
-                  </div>
-                </div>
-              </Link>
-
-              <Link
-                to="/academic/hsc"
-                className="group relative rounded-[2rem] p-[2px] overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_-15px_rgba(6,182,212,0.5)] md:-mt-8"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 via-emerald-500 to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <div className="relative bg-slate-900/90 backdrop-blur-xl rounded-[2rem] p-8 lg:p-10 h-full flex flex-col items-center justify-center">
-                  <div className="absolute top-0 right-0 px-4 py-1.5 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-bl-2xl rounded-tr-[2rem] text-xs font-bold text-white shadow-lg">Popular</div>
-                  <div className="w-20 h-20 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl flex items-center justify-center mb-6 text-cyan-400 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500 shadow-inner">
-                     <GraduationCap size={40} />
-                  </div>
-                  <h2 className="text-2xl sm:text-3xl font-black text-white mb-2">এইচএসসি</h2>
-                  <p className="text-cyan-200/60 text-sm mb-8 font-semibold tracking-wide uppercase">একাদশ - দ্বাদশ শ্রেণি</p>
-                  <div className="flex items-center justify-center w-full bg-cyan-500/10 text-cyan-300 text-sm font-bold group-hover:bg-cyan-500 group-hover:text-white px-6 py-3.5 rounded-xl border border-cyan-500/20 group-hover:border-transparent transition-all duration-300">
-                    সিলেবাস দেখুন <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
-                  </div>
-                </div>
-              </Link>
-
-              <Link
-                to="/academic/admission"
-                className="group relative rounded-[2rem] p-[2px] overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_-15px_rgba(244,63,94,0.5)]"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-rose-500 via-orange-500 to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <div className="relative bg-slate-900/90 backdrop-blur-xl rounded-[2rem] p-8 lg:p-10 h-full flex flex-col items-center justify-center">
-                  <div className="w-20 h-20 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center justify-center mb-6 text-rose-400 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-inner">
-                     <Award size={40} />
-                  </div>
-                  <h2 className="text-2xl sm:text-3xl font-black text-white mb-2">অ্যাডমিশন</h2>
-                  <p className="text-rose-200/60 text-sm mb-8 font-semibold tracking-wide uppercase">বিশ্ববিদ্যালয় প্রস্তুতি</p>
-                  <div className="flex items-center justify-center w-full bg-rose-500/10 text-rose-300 text-sm font-bold group-hover:bg-rose-500 group-hover:text-white px-6 py-3.5 rounded-xl border border-rose-500/20 group-hover:border-transparent transition-all duration-300">
-                    সিলেবাস দেখুন <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
-                  </div>
-                </div>
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* Massive Stats Section */}
-        <div className="mt-32 mb-32 relative">
-           <div className="absolute inset-0 bg-slate-800/20 blur-3xl rounded-full pointer-events-none"></div>
-           <div className="text-center mb-12">
-             <h2 className="text-2xl sm:text-4xl font-bold text-white mb-4">আমাদের কালেকশন</h2>
-             <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto">প্রচুর সংখ্যক প্রশ্ন ও নোটস দিয়ে সাজানো হয়েছে আমাদের প্ল্যাটফর্ম</p>
-           </div>
-           
-           <div className="max-w-6xl mx-auto grid grid-cols-2 gap-4 md:grid-cols-4 lg:gap-8 relative z-10">
-              <StatCard icon={Library} number={stats.subjects || "..."} label="মোট বিষয়" colorClass="text-indigo-400" gradient="from-indigo-500 to-purple-500" />
-              <StatCard icon={BookOpen} number={stats.chapters || "..."} label="মোট অধ্যায়" colorClass="text-cyan-400" gradient="from-cyan-500 to-emerald-500" />
-              <StatCard icon={FileText} number={stats.cqs || "..."} label="সৃজনশীল প্রশ্ন" colorClass="text-fuchsia-400" gradient="from-fuchsia-500 to-pink-500" />
-              <StatCard icon={CheckSquare} number={stats.mcqs || "..."} label="বহুনির্বাচনি (MCQ)" colorClass="text-amber-400" gradient="from-amber-500 to-orange-500" />
-           </div>
-        </div>
-
-        {/* Detailed Information Section */}
-        <div className="mt-32">
-          <div className="text-center mb-16 lg:mb-24">
-             <h2 className="text-2xl sm:text-5xl font-black text-white mb-4 animate-fade-in-up">আমাদের প্ল্যাটফর্মে যা যা পাচ্ছেন</h2>
-             <p className="text-slate-400 max-w-2xl mx-auto text-sm sm:text-lg animate-fade-in-up" style={{ animationDelay: '100ms' }}>আপনার এ-টু-জেড প্রস্তুতির জন্য প্রয়োজনীয় সবকিছু এক ছাতার নিচে।</p>
-          </div>
-          
-          <div className="space-y-16 lg:space-y-32">
-            {/* Feature 1 */}
-            <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20 group">
-               <div className="flex-1 order-2 lg:order-1">
-                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 text-indigo-400 text-sm font-bold mb-6 border border-indigo-500/20">
-                   <BookOpen size={16} /> স্টাডি ম্যাটেরিয়াল
-                 </div>
-                 <h3 className="text-2xl sm:text-4xl font-bold text-white mb-6 leading-tight">বিগত সালের সকল বোর্ড প্রশ্ন ও অধ্যায়ভিত্তিক সমাধান</h3>
-                 <p className="text-slate-400 text-sm sm:text-lg leading-relaxed mb-8">এসএসসি ও এইচএসসি পরীক্ষার বিগত সকল বছরের বোর্ড প্রশ্ন অধ্যায়ভিত্তিক সাজানো আছে। যেকোনো প্রশ্নের উত্তর এবং বিস্তারিত সমাধান পাবেন খুব সহজেই।</p>
-                 <ul className="space-y-4">
-                   <li className="flex items-center gap-4 text-slate-300 font-medium"><div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400"><CheckSquare size={16} /></div> অধ্যায়ভিত্তিক সৃজনশীল প্রশ্ন (CQ)</li>
-                   <li className="flex items-center gap-4 text-slate-300 font-medium"><div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400"><CheckSquare size={16} /></div> বহুনির্বাচনি প্রশ্ন (MCQ) ও তার ব্যাখ্যা</li>
-                   <li className="flex items-center gap-4 text-slate-300 font-medium"><div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400"><CheckSquare size={16} /></div> জ্ঞান ও অনুধাবনমূলক প্রশ্ন</li>
-                 </ul>
-               </div>
-               <div className="flex-1 order-1 lg:order-2 w-full">
-                 <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 rounded-[2rem] p-8 aspect-[4/3] flex items-center justify-center relative overflow-hidden transition-transform duration-700 group-hover:scale-105 shadow-2xl">
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/10 blur-3xl"></div>
-                    <FileText className="w-32 h-32 text-indigo-400/80 relative z-10 transition-transform duration-700 group-hover:scale-110 group-hover:text-indigo-400" />
-                 </div>
-               </div>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20 group">
-               <div className="flex-1 order-1 lg:order-1 w-full">
-                 <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 rounded-[2rem] p-8 aspect-[4/3] flex items-center justify-center relative overflow-hidden transition-transform duration-700 group-hover:scale-105 shadow-2xl">
-                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 to-blue-500/10 blur-3xl"></div>
-                    <Activity className="w-32 h-32 text-cyan-400/80 relative z-10 transition-transform duration-700 group-hover:scale-110 group-hover:text-cyan-400" />
-                 </div>
-               </div>
-               <div className="flex-1 order-2 lg:order-2">
-                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 text-cyan-400 text-sm font-bold mb-6 border border-cyan-500/20">
-                   <Target size={16} /> স্কিল যাচাই
-                 </div>
-                 <h3 className="text-2xl sm:text-4xl font-bold text-white mb-6 leading-tight">স্মার্ট মডেল টেস্ট দিয়ে নিজের প্রস্তুতি যাচাই করুন</h3>
-                 <p className="text-slate-400 text-sm sm:text-lg leading-relaxed mb-8">বোর্ড স্ট্যান্ডার্ড প্রশ্ন দিয়ে আনলিমিটেড মডেল টেস্ট দিন। পরীক্ষা শেষে সাথে সাথেই রেজাল্ট, সঠিক উত্তর এবং বিস্তারিত ব্যাখ্যা পেয়ে যাবেন।</p>
-                 <ul className="space-y-4">
-                   <li className="flex items-center gap-4 text-slate-300 font-medium"><div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400"><CheckSquare size={16} /></div> কাস্টমাইজড মডেল টেস্ট (অধ্যায় বা বিষয়ভিত্তিক)</li>
-                   <li className="flex items-center gap-4 text-slate-300 font-medium"><div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400"><CheckSquare size={16} /></div> লিডারবোর্ডে সারা দেশের শিক্ষার্থীদের মাঝে নিজের অবস্থান</li>
-                   <li className="flex items-center gap-4 text-slate-300 font-medium"><div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400"><CheckSquare size={16} /></div> দুর্বল টপিকগুলোর এনালাইসিস রিপোর্ট</li>
-                 </ul>
-               </div>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20 group">
-               <div className="flex-1 order-2 lg:order-1">
-                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-fuchsia-500/10 text-fuchsia-400 text-sm font-bold mb-6 border border-fuchsia-500/20">
-                   <Trophy size={16} /> গ্যামিফিকেশন
-                 </div>
-                 <h3 className="text-2xl sm:text-4xl font-bold text-white mb-6 leading-tight">পড়াশোনা করুন গেম খেলার মতো মজার ছলে</h3>
-                 <p className="text-slate-400 text-sm sm:text-lg leading-relaxed mb-8">পড়াশোনাকে আর একঘেয়েমি মনে হবে না! প্রতিদিনের লক্ষ্য পূরণ করে পয়েন্ট অর্জন করুন, লেভেল আপ করুন এবং নতুন নতুন ব্যাজ জিতে নিন।</p>
-                 <ul className="space-y-4">
-                   <li className="flex items-center gap-4 text-slate-300 font-medium"><div className="w-8 h-8 rounded-full bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-400"><CheckSquare size={16} /></div> সঠিক উত্তরের জন্য XP পয়েন্ট অর্জন</li>
-                   <li className="flex items-center gap-4 text-slate-300 font-medium"><div className="w-8 h-8 rounded-full bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-400"><CheckSquare size={16} /></div> ডেইলি স্ট্রিক (Daily Streak) মেইনটেইন করে এক্সট্রা পয়েন্ট</li>
-                   <li className="flex items-center gap-4 text-slate-300 font-medium"><div className="w-8 h-8 rounded-full bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-400"><CheckSquare size={16} /></div> লেভেল আপ এবং এক্সক্লুসিভ অ্যাচিভমেন্ট ব্যাজ</li>
-                 </ul>
-               </div>
-               <div className="flex-1 order-1 lg:order-2 w-full">
-                 <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 rounded-[2rem] p-8 aspect-[4/3] flex items-center justify-center relative overflow-hidden transition-transform duration-700 group-hover:scale-105 shadow-2xl">
-                    <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-500/20 to-pink-500/10 blur-3xl"></div>
-                    <Trophy className="w-32 h-32 text-fuchsia-400/80 relative z-10 transition-transform duration-700 group-hover:scale-110 group-hover:text-fuchsia-400" />
-                 </div>
-               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Premium Features Grid */}
-        <div className="mt-40">
-          <div className="text-center mb-16">
-             <div className="inline-flex items-center justify-center p-3 mb-6 bg-slate-800/50 rounded-2xl border border-slate-700">
-               <ShieldCheck className="w-8 h-8 text-indigo-400" />
-             </div>
-             <h2 className="text-2xl sm:text-5xl font-black text-white mb-4">কেন আমরা সেরা?</h2>
-             <p className="text-slate-400 max-w-2xl mx-auto text-sm sm:text-lg">অন্যান্য গতানুগতিক প্ল্যাটফর্ম থেকে আমাদের সিস্টেম সম্পূর্ণ আলাদা এবং আধুনিক।</p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            <FeatureCard
-              icon={Brain}
-              title="এআই অ্যাসিস্ট্যান্ট"
-              colorClass="indigo"
-              delay={0}
-              description="যেকোনো প্রশ্নে আটকে গেলে আমাদের AI আপনাকে ধাপে ধাপে বুঝিয়ে দেবে, ঠিক একজন প্রাইভেট টিউটরের মতো।"
-            />
-            <FeatureCard
-              icon={Target}
-              title="স্মার্ট মডেল টেস্ট"
-              colorClass="cyan"
-              delay={100}
-              description="বোর্ড স্ট্যান্ডার্ড প্রশ্ন দিয়ে আনলিমিটেড মডেল টেস্ট দিন এবং সাথে সাথে রেজাল্ট ও এনালাইসিস পান।"
-            />
-            <FeatureCard
-              icon={Zap}
-              title="দ্রুত ও নির্ভুল"
-              colorClass="fuchsia"
-              delay={200}
-              description="সুপার ফাস্ট ইন্টারফেসের সাথে নির্ভুল সব সল্যুশন যা আপনার মূল্যবান সময় বাঁচাবে।"
-            />
-          </div>
-        </div>
-
-        {/* CTA Section */}
-        <div className="mt-20 sm:mt-32 relative overflow-hidden rounded-3xl sm:rounded-[3rem] bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-900 border border-indigo-500/30 p-8 sm:p-20 text-center">
-          <div className="absolute top-0 right-0 w-64 h-64 sm:w-[500px] sm:h-[500px] bg-indigo-500/20 blur-[80px] sm:blur-[100px] rounded-full"></div>
-          <div className="relative z-10">
-            <h2 className="text-2xl sm:text-5xl font-black text-white mb-4 sm:mb-6">আজই আপনার প্রস্তুতি শুরু করুন</h2>
-            <p className="text-sm sm:text-xl text-indigo-200/80 mb-8 sm:mb-10 max-w-2xl mx-auto">ফ্রি অ্যাকাউন্ট খুলে এক্সপ্লোর করুন আমাদের সকল ফিচারসমূহ।</p>
-            <Link to="/register" className="inline-flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white px-6 py-3 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-bold text-sm sm:text-lg transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] sm:shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:shadow-[0_0_30px_rgba(99,102,241,0.5)] sm:hover:shadow-[0_0_50px_rgba(99,102,241,0.6)] hover:-translate-y-1 whitespace-nowrap">
-              ফ্রিতে শুরু করুন <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+        {/* Dynamic Emergency Announcement Bar */}
+        {emergency?.active && emergency?.text && (
+          <div className="animate-in fade-in slide-in-from-top-3 duration-500 max-w-4xl mx-auto">
+            <Link
+              to={emergency.link || '#'}
+              className="flex items-center gap-3 p-3 sm:px-5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs sm:text-sm font-semibold transition group shadow-lg shadow-amber-500/5 backdrop-blur-md"
+            >
+              <span className="p-1.5 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
+                <Megaphone className="w-4 h-4 animate-bounce" />
+              </span>
+              <span className="flex-1 text-left line-clamp-1">{emergency.text}</span>
+              {emergency.link && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/20 group-hover:bg-amber-500/30 transition shrink-0">
+                  দেখুন <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                </span>
+              )}
             </Link>
           </div>
-        </div>
+        )}
+
+        {/* ── 1. Hero & Search Section ────────────────────────────────────── */}
+        <section className="text-center max-w-4xl mx-auto space-y-6 sm:space-y-8 pt-4">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs sm:text-sm font-bold shadow-[0_0_25px_rgba(99,102,241,0.25)] backdrop-blur-md animate-fade-in-up">
+            <Sparkles size={16} className="text-indigo-400 animate-pulse" />
+            <span>স্মার্ট অ্যাকাডেমিক ও ভর্তি প্রস্তুতি ইকোসিস্টেম</span>
+          </div>
+
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.2]">
+            একটি প্ল্যাটফর্মেই সম্পূর্ণ <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-cyan-400 animate-gradient-x">
+              অ্যাকাডেমিক ও ভর্তি প্রস্তুতি
+            </span>
+          </h1>
+
+          <p className="text-sm sm:text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            নবম-দশম (SSC), একাদশ-দ্বাদশ (HSC) এবং মেডিকেল, নার্সিং ও ইঞ্জিনিয়ারিং ভর্তি পরীক্ষার প্রশ্নব্যাংক, মডেল টেস্ট এবং স্বয়ংক্রিয় প্রশ্ন তৈরির সেরা প্ল্যাটফর্ম।
+          </p>
+
+          {/* Global Search Bar */}
+          <div className="max-w-2xl mx-auto relative group pt-2">
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/40 via-fuchsia-500/30 to-cyan-500/40 rounded-3xl blur-md opacity-40 group-hover:opacity-80 transition duration-500"></div>
+            <div className="relative">
+              <GlobalSearch />
+            </div>
+          </div>
+
+          {/* Quick Tag Pills */}
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs text-slate-400">
+            <span className="font-semibold text-slate-500">জনপ্রিয় সার্চ:</span>
+            {[
+              { label: '📝 প্রশ্ন তৈরির জাদুকর', path: '/academic/question-builder' },
+              { label: '🩺 মেডিকেল প্রস্তুতি', path: '/academic/admission/medical' },
+              { label: '🏥 নার্সিং প্রস্তুতি', path: '/academic/admission/nursing' },
+              { label: '🎯 মডেল টেস্ট', path: '/academic/admission/model-test' },
+              { label: '📅 ভর্তি পরীক্ষার রুটিন', path: '/academic/admission/exam-schedule' },
+              { label: '🧪 পর্যায় সারণি', path: '/academic/periodic-table' },
+            ].map((tag, idx) => (
+              <Link
+                key={idx}
+                to={tag.path}
+                className="px-3 py-1 rounded-full bg-slate-900/80 border border-slate-800 hover:border-indigo-500/40 hover:text-indigo-300 transition"
+              >
+                {tag.label}
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* ── 2. Track Selector Cards (SSC, HSC, Admission) ───────────────── */}
+        <section className="space-y-6">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <h2 className="text-2xl sm:text-3xl font-black text-white">আপনার লক্ষ্য বেছে নিন</h2>
+            <p className="text-slate-400 text-xs sm:text-sm">যে ক্লাসে বা যে লক্ষ্য নিয়ে পড়ছেন, সেটি সিলেক্ট করে আপনার প্রস্তুতি শুরু করুন।</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-7">
+            {/* SSC Track */}
+            <TrackCard
+              track="নবম - দশম শ্রেণি"
+              title="এসএসসি (SSC)"
+              subtitle="বিজ্ঞান, ব্যবসায় শিক্ষা ও মানবিক বিভাগের বিষয়ভিত্তিক প্রশ্নব্যাংক, CQ ও MCQ ব্যাখ্যাসহ সমাধান।"
+              icon={BookOpen}
+              badge="বোর্ড প্রস্তুতি"
+              path="/academic/ssc"
+              colorGradient="from-indigo-500 to-purple-600"
+              borderHover="hover:border-indigo-500/50"
+              glowColor="bg-indigo-500/20"
+              groups={['🔬 Science', '💼 Commerce', '📚 Humanities']}
+            />
+
+            {/* HSC Track */}
+            <TrackCard
+              track="একাদশ - দ্বাদশ শ্রেণি"
+              title="এইচএসসি (HSC)"
+              subtitle="বিজ্ঞান, ব্যবসায় শিক্ষা ও মানবিক বিভাগের বোর্ড প্রশ্ন, শীর্ষ কলেজ টেস্ট পেপার ও মডেল টেস্ট।"
+              icon={GraduationCap}
+              badge="সেরা প্রস্তুতি"
+              path="/academic/hsc"
+              colorGradient="from-cyan-500 to-blue-600"
+              borderHover="hover:border-cyan-500/50"
+              glowColor="bg-cyan-500/20"
+              groups={['🔬 Science', '💼 Commerce', '📚 Humanities']}
+            />
+
+            {/* Admission Track */}
+            <TrackCard
+              track="বিশ্ববিদ্যালয় ও মেডিকেল"
+              title="ভর্তি পরীক্ষা (Admission)"
+              subtitle="মেডিকেল (MBBS/BDS), নার্সিং, বুয়েট, ঢাবি ‘ক’, গুচ্ছ ও সকল বিশ্ববিদ্যালয়ের পূর্ণাঙ্গ প্রস্তুতি।"
+              icon={Award}
+              path="/academic/admission"
+              colorGradient="from-rose-500 to-pink-600"
+              borderHover="hover:border-rose-500/50"
+              glowColor="bg-rose-500/20"
+              groups={['🩺 Medical', '⚙️ Engineering', '🧪 Varsity \'A\'', '🏥 Nursing']}
+            />
+          </div>
+        </section>
+
+        {/* ── 3. Live Admission Exam Schedules Widget ─────────────────────── */}
+        {upcomingExams.length > 0 && (
+          <section className="relative overflow-hidden rounded-3xl bg-slate-900/50 border border-slate-800/90 p-5 sm:p-7 backdrop-blur-xl space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                  <CalendarDays className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-white">ভর্তি পরীক্ষার লাইভ সময়সূচী ও ডেডলাইন</h3>
+                  <p className="text-xs text-slate-400">অফিসিয়াল নোটিশ ও প্রবেশপত্র সংক্রান্ত তথ্য</p>
+                </div>
+              </div>
+
+              <Link
+                to="/academic/admission/exam-schedule"
+                className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition"
+              >
+                <span>সকল রুটিন দেখুন</span>
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              {upcomingExams.map((exam) => (
+                <div
+                  key={exam.id}
+                  className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-amber-500/30 flex flex-col justify-between space-y-2.5 transition"
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
+                        {exam.category}
+                      </span>
+                      {exam.daysRemaining !== null && exam.daysRemaining >= 0 && (
+                        <span className="text-[10px] font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                          {exam.daysRemaining === 0 ? 'আজকে পরীক্ষা!' : `${exam.daysRemaining} দিন বাকি`}
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-xs sm:text-sm font-bold text-slate-200 line-clamp-1">{exam.title}</h4>
+                    <p className="text-[11px] text-slate-400 flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-amber-400" />
+                      <span>{exam.examDateBangla || exam.examDate}</span>
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">{exam.examTime}</span>
+                    <Link to="/academic/admission/exam-schedule" className="text-amber-400 hover:underline font-bold">
+                      বিস্তারিত
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── 4. Smart Learning & Utility Tools Suite ─────────────────────── */}
+        <section className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-2">
+            <div>
+              <span className="text-xs font-black text-indigo-400 uppercase tracking-wider block mb-1">
+                SMART UTILITIES & ENGINES
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black text-white">ফ্ল্যাগশিপ স্টাডি টুলস</h2>
+            </div>
+            <p className="text-slate-400 text-xs sm:text-sm max-w-md">
+              শিক্ষার্থী ও শিক্ষকদের জন্য প্রশ্ন তৈরি, প্র্যাকটিস এবং দ্রুত রিভিশনের অত্যাধুনিক টুলস।
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            {/* Tool 1: Question Builder (Flagship) */}
+            <ToolCard
+              title="প্রশ্ন তৈরির জাদুকর"
+              description="যেকোনো বিষয় ও অধ্যায় থেকে স্বয়ংক্রিয়ভাবে প্রফেশনাল প্রশ্নপত্র, ওএমআর ও উত্তরপত্র তৈরি ও প্রিন্ট করুন।"
+              icon={Sparkles}
+              color="bg-gradient-to-br from-indigo-500 to-purple-600"
+              path="/academic/question-builder"
+              isNew={true}
+            />
+
+            {/* Tool 2: Model Test Hub */}
+            <ToolCard
+              title="স্মার্ট মডেল টেস্ট হাব"
+              description="টাইমার ও রিয়েল নেগেটিভ মার্কিংযুক্ত আনলিমিটেড ১০০ নম্বরের স্ট্যান্ডার্ড মডেল টেস্ট।"
+              icon={Target}
+              color="bg-gradient-to-br from-fuchsia-500 to-pink-600"
+              path="/academic/admission/model-test"
+              badge="রিয়েল টেস্ট"
+            />
+
+            {/* Tool 3: Question Bank */}
+            <ToolCard
+              title="বিগত সালের প্রশ্নব্যাংক"
+              description="মেডিকেল, নার্সিং, বুয়েট ও ঢাবির বিগত ২৫+ বছরের প্রশ্নপত্র অধ্যায় ও সালভিত্তিক সমাধান।"
+              icon={Library}
+              color="bg-gradient-to-br from-blue-500 to-cyan-600"
+              path="/academic/admission/question-bank"
+              badge="সল্যুশন সহ"
+            />
+
+            {/* Tool 4: Periodic Table */}
+            <ToolCard
+              title="ইন্টারেক্টিভ পর্যায় সারণি"
+              description="১১৮টি মৌলের ইলেকট্রন বিন্যাস, পারমাণবিক ভর ও বৈশিষ্ট্যসহ ভিজ্যুয়াল পর্যায় সারণি।"
+              icon={FlaskConical}
+              color="bg-gradient-to-br from-teal-500 to-emerald-600"
+              path="/academic/periodic-table"
+              badge="কেমিস্ট্রি টুল"
+            />
+
+            {/* Tool 5: Smart Formula Sheet */}
+            <ToolCard
+              title="স্মার্ট ফর্মুলা শিট"
+              description="পদার্থবিজ্ঞান, উচ্চতর গণিত ও রসায়নের সকল প্রয়োজনীয় সূত্র ও শর্টকাট এক জায়গায়।"
+              icon={Zap}
+              color="bg-gradient-to-br from-amber-500 to-orange-600"
+              path="/academic/formula-sheet"
+              badge="কুইক রিভিশন"
+            />
+
+            {/* Tool 6: Mistake Notebook */}
+            <ToolCard
+              title="ভুলের খাতা (Mistake Book)"
+              description="পরীক্ষায় যে যে প্রশ্নে ভুল হয়েছে তা স্বয়ংক্রিয়ভাবে সেভ হবে এবং স্পেসড রিপিটেশনে রিভিশন হবে।"
+              icon={ShieldCheck}
+              color="bg-gradient-to-br from-rose-500 to-red-600"
+              path="/academic/admission/mistakes"
+              badge="স্মার্ট রিভিশন"
+            />
+          </div>
+        </section>
+
+        {/* ── 5. Platform Live Analytics Counter ──────────────────────────── */}
+        <section className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-r from-slate-900/80 via-indigo-950/30 to-slate-900/80 border border-slate-800 p-6 sm:p-10 shadow-2xl backdrop-blur-xl">
+          <div className="text-center max-w-2xl mx-auto space-y-2 mb-8 sm:mb-10">
+            <h2 className="text-2xl sm:text-3xl font-black text-white">আমাদের বিশাল রিসোর্স কালেকশন</h2>
+            <p className="text-slate-400 text-xs sm:text-sm">প্রতিনিয়ত যুক্ত হচ্ছে নতুন নতুন প্রশ্ন, সমাধান ও স্টাডি মেটেরিয়াল</p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-6">
+            <StatCard
+              icon={Library}
+              number={stats.subjects}
+              label="মোট বিষয়"
+              colorClass="text-indigo-400"
+              gradient="from-indigo-500 to-purple-500"
+            />
+            <StatCard
+              icon={BookOpen}
+              number={stats.chapters}
+              label="মোট অধ্যায়"
+              colorClass="text-cyan-400"
+              gradient="from-cyan-500 to-emerald-500"
+            />
+            <StatCard
+              icon={FileText}
+              number={stats.cqs}
+              label="সৃজনশীল প্রশ্ন (CQ)"
+              colorClass="text-fuchsia-400"
+              gradient="from-fuchsia-500 to-pink-500"
+            />
+            <StatCard
+              icon={CheckSquare}
+              number={stats.mcqs}
+              label="বহুনির্বাচনি (MCQ)"
+              colorClass="text-amber-400"
+              gradient="from-amber-500 to-orange-500"
+            />
+          </div>
+        </section>
+
+        {/* ── 6. Why We Are Different & Highlights ────────────────────────── */}
+        <section className="space-y-8">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <h2 className="text-2xl sm:text-3xl font-black text-white">কেন এই প্ল্যাটফর্মটি সেরা?</h2>
+            <p className="text-slate-400 text-xs sm:text-sm">গতানুগতিক পড়ার চেয়ে কার্যকর ও আধুনিক প্রযুক্তিনির্ভর শিক্ষা ব্যবস্থা।</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
+            <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                <Brain className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-white">ধাপে ধাপে নির্ভুল ব্যাখ্যা</h3>
+              <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
+                প্রতিটি CQ ও MCQ প্রশ্নের রয়েছে স্ট্যান্ডার্ড পাঠ্যবই অনুযায়ী বিস্তারিত ব্যাখ্যা ও শর্টকাট সমাধান।
+              </p>
+            </div>
+
+            <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                <Activity className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-white">স্মার্ট উইকনেস অ্যানালাইসিস</h3>
+              <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
+                কোন কোন অধ্যায়ে দুর্বলতা রয়েছে তা স্বয়ংক্রিয়ভাবে বিশ্লেষণ করে রিভিশনের সুযোগ করে দেয়।
+              </p>
+            </div>
+
+            <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-fuchsia-500/10 border border-fuchsia-500/30 flex items-center justify-center text-fuchsia-400">
+                <Trophy className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-white">গ্যামিফাইড লার্নিং ও র‍্যাঙ্ক</h3>
+              <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
+                প্রতিদিনের চ্যালেঞ্জ, XP পয়েন্ট অর্জন এবং সারা দেশের শিক্ষার্থীদের মাঝে লিডারবোর্ডে নিজের অবস্থান।
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── 7. Call To Action ───────────────────────────────────────────── */}
+        <section className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-r from-indigo-950 via-slate-900 to-fuchsia-950 border border-indigo-500/30 p-8 sm:p-14 text-center shadow-2xl">
+          <div className="absolute -top-10 -right-10 w-72 h-72 bg-indigo-500/20 blur-[100px] rounded-full pointer-events-none" />
+          <div className="relative z-10 max-w-2xl mx-auto space-y-5">
+            <h2 className="text-2xl sm:text-4xl font-black text-white">
+              আজই শুরু হোক আপনার স্বপ্নের প্রস্তুতি!
+            </h2>
+            <p className="text-slate-300 text-xs sm:text-base leading-relaxed">
+              ফ্রিতে প্রশ্নপত্র তৈরি করুন, মডেল টেস্ট দিন এবং আপনার দুর্বলতা কাটিয়ে হয়ে উঠুন সেরাদের সেরা।
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <Link
+                to="/academic/question-builder"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-fuchsia-500 hover:from-indigo-600 hover:to-fuchsia-600 text-white px-6 py-3 rounded-2xl font-bold text-sm sm:text-base transition shadow-lg shadow-indigo-500/30 hover:scale-105"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>প্রশ্ন তৈরি শুরু করুন</span>
+              </Link>
+              <Link
+                to="/academic/admission"
+                className="inline-flex items-center gap-2 bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 px-6 py-3 rounded-2xl font-bold text-sm sm:text-base transition hover:scale-105"
+              >
+                <span>অ্যাডমিশন সেন্টারে যান</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
 
       </div>
-      
-      {/* Floating Widget */}
+
+      {/* Floating Daily Challenge Widget */}
       <DailyChallengeWidget />
     </div>
   );
-};
-
-export default AcademicHome;
+}

@@ -1,53 +1,71 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useSubjectsByLevel } from '../../../hooks/useAcademicSubjects';
-import { SkeletonCard } from '../../../components/UI/Skeleton';
 import { 
   BookOpen, Calculator, CalendarDays, ChevronRight, FileText, 
   GraduationCap, LayoutDashboard, Library, Lightbulb, 
-  Settings, Target, Trophy, Clock, Search, Zap, Microscope, Globe, Activity, Cpu, School, FlaskConical
+  Settings, Target, Trophy, Clock, Search, Zap, Microscope, Globe, Activity, 
+  Cpu, School, FlaskConical, Stethoscope, HeartPulse, Compass, Sparkles, Building2, Briefcase, ExternalLink
 } from 'lucide-react';
 
+import { useAdmissionPrograms, DEFAULT_ADMISSION_PROGRAMS, useAdmissionExamSchedules } from '../../../hooks/useAdmissionData';
+
+export const ADMISSION_PROGRAMS = DEFAULT_ADMISSION_PROGRAMS;
+
+// Helper to calculate days remaining until exam
+function getDaysRemaining(dateStr) {
+  if (!dateStr) return null;
+  const target = new Date(dateStr);
+  if (isNaN(target.getTime())) return null;
+  const now = new Date();
+  target.setHours(0, 0, 0, 0);
+  now.setHours(0, 0, 0, 0);
+  const diffTime = target.getTime() - now.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
 export default function AdmissionDashboard() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const { data: admissionPrograms = DEFAULT_ADMISSION_PROGRAMS } = useAdmissionPrograms();
+  const { data: examSchedules = [] } = useAdmissionExamSchedules();
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
   const quickActions = [
-    { title: 'প্রশ্নব্যাংক', icon: Library, path: '/academic/question-bank', color: 'from-blue-500 to-cyan-400', shadow: 'shadow-blue-500/20' },
-    { title: 'মডেল টেস্ট', icon: Target, path: '/academic/model-test', color: 'from-fuchsia-500 to-pink-500', shadow: 'shadow-fuchsia-500/20' },
-    { title: 'সাজেশন', icon: Lightbulb, path: '/academic/suggestion', color: 'from-amber-400 to-orange-500', shadow: 'shadow-amber-500/20' },
-    { title: 'শর্টকাট', icon: Zap, path: '/academic/shortcut/all/all/all', color: 'from-emerald-400 to-teal-500', shadow: 'shadow-emerald-500/20' },
+    { title: 'যোগ্যতা ও চান্স ক্যালকুলেটর', icon: Calculator, path: '/academic/admission/calculator', color: 'from-violet-500 to-indigo-600', shadow: 'shadow-indigo-500/20' },
+    { title: 'প্রশ্নব্যাংক', icon: Library, path: '/academic/admission/question-bank', color: 'from-blue-500 to-cyan-400', shadow: 'shadow-blue-500/20' },
+    { title: 'মডেল টেস্ট', icon: Target, path: '/academic/admission/model-test', color: 'from-fuchsia-500 to-pink-500', shadow: 'shadow-fuchsia-500/20' },
+    { title: 'এক্সাম শিডিউল', icon: CalendarDays, path: '/academic/admission/exam-schedule', color: 'from-amber-400 to-orange-500', shadow: 'shadow-amber-500/20' },
+    { title: 'শর্টকাট', icon: Zap, path: '/academic/admission/shortcuts', color: 'from-emerald-400 to-teal-500', shadow: 'shadow-emerald-500/20' },
   ];
-
-  const { data: admissionSubjects, isLoading } = useSubjectsByLevel('Admission');
-
-  const categories = React.useMemo(() => {
-    const presets = [
-      'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20',
-      'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20',
-      'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20',
-      'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20 hover:bg-fuchsia-500/20',
-      'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
-      'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
-    ];
-
-    return admissionSubjects.map((s, idx) => ({
-      id: s.id,
-      title: s.label,
-      subtitle: s.chapters?.length ? s.chapters.length + ' টি বিষয়' : 'বিস্তারিত দেখুন',
-      emoji: s.emoji,
-      path: '/academic/admission/' + s.id.replace('admission-', ''),
-      color: presets[idx % presets.length],
-    }));
-  }, [admissionSubjects]);
 
   const studyTools = [
+    { title: 'ভর্তি যোগ্যতা ক্যালকুলেটর', icon: Calculator, path: '/academic/admission/calculator' },
     { title: 'পর্যায় সারণি', icon: FlaskConical, path: '/academic/periodic-table' },
+    { title: 'স্মার্ট ফর্মুলা', icon: BookOpen, path: '/academic/formula-sheet' },
   ];
 
+  const upcomingExams = useMemo(() => {
+    return examSchedules
+      .filter(s => s.active !== false)
+      .map(s => ({ ...s, daysRemaining: getDaysRemaining(s.examDate) }))
+      .slice(0, 4);
+  }, [examSchedules]);
+
+  const filteredPrograms = useMemo(() => {
+    const list = admissionPrograms.filter(p => p.active !== false);
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter(p => 
+      p.title?.toLowerCase().includes(q) ||
+      p.subtitle?.toLowerCase().includes(q) ||
+      (p.tags && p.tags.some(t => t.toLowerCase().includes(q)))
+    );
+  }, [admissionPrograms, searchQuery]);
+
   return (
-    <div className="min-h-screen bg-[#0a0f1c] pb-24 sm:pb-10 pt-10 font-bangla selection:bg-rose-500/30">
+    <div className="min-h-screen bg-[#0a0f1c] pb-24 sm:pb-10 pt-10 font-bangla selection:bg-rose-500/30 text-slate-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-10">
         
         {/* Header Section */}
@@ -59,10 +77,12 @@ export default function AdmissionDashboard() {
             <h1 className="text-3xl sm:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-rose-200 to-rose-400 drop-shadow-sm mb-2">
               অ্যাডমিশন (Admission)
             </h1>
-            <p className="text-slate-400 text-sm sm:text-base font-medium">বিশ্ববিদ্যালয়, মেডিকেল ও ইঞ্জিনিয়ারিং ভর্তি প্রস্তুতি</p>
+            <p className="text-slate-400 text-sm sm:text-base font-medium">
+              বিশ্ববিদ্যালয়, মেডিকেল, ডেন্টাল, নার্সিং ও ইঞ্জিনিয়ারিং ভর্তি প্রস্তুতি
+            </p>
           </div>
           
-          {/* Global Search Bar (Mobile focused) */}
+          {/* Global Search Bar */}
           <div className="mt-6 relative z-10">
             <div className="flex items-center bg-slate-800/40 border border-slate-700/50 rounded-2xl p-2 shadow-inner backdrop-blur-md focus-within:border-rose-500/50 focus-within:ring-1 focus-within:ring-rose-500/50 transition-all">
               <div className="pl-3 pr-2 flex items-center pointer-events-none">
@@ -70,7 +90,9 @@ export default function AdmissionDashboard() {
               </div>
               <input
                 type="text"
-                placeholder="যেকোনো বিষয় বা টপিক খুঁজুন..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="মেডিকেল, ডেন্টাল, নার্সিং, বুয়েট, ঢাবি ক, সাস্ট খুঁজুন..."
                 className="flex-grow bg-transparent border-none text-slate-100 text-sm focus:outline-none focus:ring-0 py-2 placeholder:text-slate-500 font-medium"
               />
             </div>
@@ -93,9 +115,7 @@ export default function AdmissionDashboard() {
                 to={action.path}
                 className={`relative overflow-hidden group rounded-3xl p-4 sm:p-5 flex flex-col items-center justify-center gap-3 bg-gradient-to-br ${action.color} shadow-lg ${action.shadow} transition-all duration-300 hover:scale-[1.03] hover:shadow-xl active:scale-95`}
               >
-                {/* Glassy overlay */}
                 <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                
                 <div className="bg-white/20 p-3 rounded-2xl shadow-inner backdrop-blur-md">
                   <action.icon className="h-7 w-7 sm:h-8 sm:w-8 text-white drop-shadow-md" />
                 </div>
@@ -107,44 +127,137 @@ export default function AdmissionDashboard() {
           </div>
         </section>
 
-        {/* Categories */}
-        <section className="relative z-10">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-slate-200 flex items-center gap-2">
+        {/* Upcoming Exam Routine Live Marquee Widget */}
+        {upcomingExams.length > 0 && (
+          <section className="relative z-10 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-100 flex items-center gap-2">
+                <CalendarDays className="h-5 w-5 text-amber-400" />
+                <span>আসন্ন ভর্তি পরীক্ষার সময়সূচী ও ডেডলাইন</span>
+              </h2>
+              <Link
+                to="/academic/admission/exam-schedule"
+                className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition"
+              >
+                <span>সকল শিডিউল ({examSchedules.length}টি)</span>
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {/* Continuous Smooth Marquee Track */}
+            <div className="relative overflow-hidden w-full py-1">
+              {/* Left & Right Fade Gradients */}
+              <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 sm:w-16 bg-gradient-to-r from-[#0a0f1c] to-transparent z-20" />
+              <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 sm:w-16 bg-gradient-to-l from-[#0a0f1c] to-transparent z-20" />
+
+              {/* Marquee Content */}
+              <div className="flex w-max gap-4 animate-marquee-right hover:[animation-play-state:paused] py-1">
+                {[...upcomingExams, ...upcomingExams, ...upcomingExams].map((exam, idx) => (
+                  <div
+                    key={`${exam.id}-${idx}`}
+                    className="w-[285px] sm:w-[320px] shrink-0 bg-slate-900/70 border border-slate-800/90 hover:border-amber-500/50 rounded-2xl p-4 flex flex-col justify-between space-y-3 transition-all duration-300 hover:shadow-xl hover:shadow-amber-500/5 backdrop-blur-md"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700/60 truncate max-w-[150px]">
+                          {exam.category}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${exam.statusColor}`}>
+                          {exam.statusLabel}
+                        </span>
+                      </div>
+
+                      <h3 className="font-bold text-slate-100 text-sm leading-snug line-clamp-2 min-h-[2.5rem]">
+                        {exam.title}
+                      </h3>
+
+                      <div className="text-xs text-slate-400 flex items-center gap-1.5 pt-0.5">
+                        <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span className="font-semibold text-slate-200 truncate">{exam.examDateBangla || exam.examDate}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                      {exam.daysRemaining !== null && exam.daysRemaining >= 0 ? (
+                        <span className="text-[11px] font-black text-amber-400">
+                          {exam.daysRemaining === 0 ? 'আজ পরীক্ষা!' : `${exam.daysRemaining} দিন বাকি`}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-slate-400">{exam.examTime || 'শীঘ্রই'}</span>
+                      )}
+
+                      <Link
+                        to="/academic/admission/exam-schedule"
+                        className="text-slate-400 hover:text-amber-300 font-bold text-[11px] flex items-center gap-0.5 transition-colors"
+                      >
+                        <span>বিস্তারিত</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Admission Programs / Tracks (মেডিকেল, নার্সিং, বুয়েট, ঢাবি ক, ইত্যাদি) */}
+        <section className="relative z-10 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-100 flex items-center gap-2">
               <Target className="h-5 w-5 text-rose-400" /> 
-              ভর্তি প্রস্তুতি প্রোগ্রাম
+              ভর্তি প্রস্তুতি প্রোগ্রামসমূহ ({filteredPrograms.length}টি)
             </h2>
           </div>
 
-          {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              {Array.from({ length: 6 }, (_, i) => <SkeletonCard key={i} lines={0} />)}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              {categories.map((category, idx) => (
-                <Link 
-                  key={idx} 
-                  to={category.path}
-                  className="group flex items-center gap-4 bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl transition-all hover:bg-slate-800 hover:border-slate-600 active:scale-[0.98]"
-                >
-                  <div className={`p-3 rounded-xl border flex items-center justify-center text-2xl ${category.color}`}>
-                    {category.emoji || <Target className="h-6 w-6" />}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredPrograms.map((program) => (
+              <Link 
+                key={program.id} 
+                to={program.path}
+                className="group flex flex-col justify-between bg-slate-900/60 border border-slate-800 hover:border-rose-500/40 rounded-3xl p-5 sm:p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-slate-800/60 active:scale-[0.98] shadow-lg relative overflow-hidden"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-3xl p-2 rounded-2xl bg-slate-800/80 border border-slate-700/80 group-hover:scale-110 transition-transform">
+                      {program.emoji}
+                    </span>
+                    <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-full border ${program.badgeColor}`}>
+                      {program.badge}
+                    </span>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-slate-200 font-bold text-sm sm:text-base group-hover:text-white transition-colors">{category.title}</h3>
-                    <p className="text-slate-500 text-[11px] sm:text-xs font-medium mt-0.5">{category.subtitle}</p>
+
+                  <div>
+                    <h3 className="text-slate-100 font-bold text-base sm:text-lg group-hover:text-rose-300 transition-colors leading-snug">
+                      {program.title}
+                    </h3>
+                    <p className="text-slate-400 text-xs sm:text-sm mt-1 leading-relaxed">
+                      {program.subtitle}
+                    </p>
                   </div>
-                  <div className="w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-400 group-hover:bg-rose-500/20 group-hover:text-rose-400 transition-colors">
+
+                  {/* Tags */}
+                  <div className="flex flex-wrap gap-1.5 pt-2">
+                    {program.tags.slice(0, 3).map((tag, tIdx) => (
+                      <span key={tIdx} className="text-[10px] font-medium bg-slate-800/60 text-slate-400 px-2 py-0.5 rounded-md border border-slate-700/50">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-4 mt-4 border-t border-slate-800/60 flex items-center justify-between text-xs font-bold text-rose-400 group-hover:translate-x-0.5 transition-transform">
+                  <span>প্রস্তুতি শুরু করুন</span>
+                  <div className="w-7 h-7 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center group-hover:bg-rose-500 group-hover:text-white transition-colors">
                     <ChevronRight className="h-4 w-4" />
                   </div>
-                </Link>
-              ))}
-            </div>
-          )}
+                </div>
+              </Link>
+            ))}
+          </div>
         </section>
 
-        {/* Study Tools (Horizontal Scroll for Mobile) */}
+        {/* Study Tools */}
         <section className="relative z-10">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-200 flex items-center gap-2">
@@ -153,17 +266,17 @@ export default function AdmissionDashboard() {
             </h2>
           </div>
 
-          <div className="flex overflow-x-auto sm:grid sm:grid-cols-4 gap-3 pb-4 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0 custom-scrollbar snap-x">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             {studyTools.map((tool, idx) => (
               <Link
                 key={idx}
                 to={tool.path}
-                className="shrink-0 w-[120px] sm:w-auto snap-center flex flex-col items-center justify-center gap-3 bg-slate-800/30 border border-slate-700/40 p-5 rounded-2xl transition-all hover:bg-slate-700/50 hover:border-slate-600 active:scale-95 group"
+                className="flex flex-col items-center justify-center gap-3 bg-slate-800/30 border border-slate-700/40 p-5 rounded-2xl transition-all hover:bg-slate-700/50 hover:border-slate-600 active:scale-95 group"
               >
                 <div className="w-12 h-12 rounded-full bg-slate-900/50 border border-slate-700/50 flex items-center justify-center shadow-inner group-hover:scale-110 group-hover:border-teal-500/50 transition-all duration-300">
                   <tool.icon className="h-5 w-5 text-teal-400" />
                 </div>
-                <span className="text-slate-300 font-bold text-[11px] sm:text-sm group-hover:text-white transition-colors text-center">
+                <span className="text-slate-300 font-bold text-xs sm:text-sm group-hover:text-white transition-colors text-center">
                   {tool.title}
                 </span>
               </Link>

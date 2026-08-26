@@ -24,18 +24,7 @@ const footerGroups = [
   },
 ];
 
-const socialLinks = [
-  {
-    label: "LinkedIn",
-    href: "https://www.linkedin.com/in/ramim-ahmed/",
-    icon: <LinkedInIcon className="h-4 w-4" />,
-  },
-  {
-    label: "Facebook",
-    href: "https://www.facebook.com/profile.php?id=100069728434533",
-    icon: <FacebookIcon className="h-4 w-4" />,
-  },
-];
+import { useSiteSettings } from "../hooks/useSiteSettings";
 
 function smoothToTop() {
   window.setTimeout(() => {
@@ -44,28 +33,53 @@ function smoothToTop() {
 }
 
 export default function Footer() {
+  const { data: siteSettings } = useSiteSettings();
+  const dev = siteSettings?.developer || {};
+  const soc = siteSettings?.social || {};
+
+  const socialLinks = [
+    {
+      label: `LinkedIn (${soc.linkedinUser || 'ramim-ahmed'})`,
+      href: soc.linkedin || "https://www.linkedin.com/in/ramim-ahmed",
+      icon: <LinkedInIcon className="h-4 w-4" />,
+    },
+    {
+      label: `Facebook (${soc.facebookUser || 'ramim141'})`,
+      href: soc.facebook || "https://www.facebook.com/ramim141",
+      icon: <FacebookIcon className="h-4 w-4" />,
+    },
+    {
+      label: `YouTube (${soc.youtubeUser || '@codewithramuu'})`,
+      href: soc.youtube || "https://www.youtube.com/@codewithramuu",
+      icon: <YouTubeIcon className="h-4 w-4" />,
+    },
+  ];
+
   return (
     <footer className="mt-auto border-t border-cyan-100/[0.08] bg-[#050b12] px-5 py-10 text-slate-300 sm:px-8 lg:px-12">
       <div className="mx-auto max-w-7xl">
         <div className="grid gap-10 lg:grid-cols-[1.25fr_1fr_1fr_1.1fr]">
           <div className="max-w-md">
-            <Link to="/" onClick={smoothToTop} className="inline-flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-md bg-teal-300 text-[#06111d] shadow-[0_0_24px_rgba(45,212,191,0.18)]">
-                <BrainCircuit size={23} />
-              </span>
-              <span>
-                <span className="block text-lg font-black leading-tight text-white">
-                  Learn with Ramim
-                </span>
-                <span className="mt-1 block text-xs font-semibold text-slate-500">
-                  রামীম আহমেদের লার্নিং প্ল্যাটফর্ম
-                </span>
-              </span>
+            <Link to="/" onClick={smoothToTop} className="inline-flex items-center transition hover:opacity-90 group">
+              <img 
+                src="/assets/images/logo.png" 
+                alt="Learn with Ramim" 
+                className="h-12 sm:h-14 w-auto object-contain transition-transform group-hover:scale-105" 
+              />
             </Link>
 
-            <p className="mt-5 text-sm leading-7 text-slate-400">
+            <p className="mt-4 text-sm leading-6 text-slate-400">
               বাংলায় AI/ML শেখার ইন্টারেক্টিভ বই এবং SSC, HSC ও ভর্তি পরীক্ষার একাডেমিক হাব — দুইটাই এক ঠিকানায়।
             </p>
+
+            <div className="mt-5 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3.5 backdrop-blur-md space-y-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block">
+                DEVELOPED BY
+              </span>
+              <p className="text-sm font-bold text-white">{dev.name || 'Ramim Ahmed'}</p>
+              <p className="text-xs text-slate-300 font-medium">{dev.degree || 'BSc in CSE'}</p>
+              <p className="text-xs text-slate-400">{dev.university || 'Metropolitan University'}</p>
+            </div>
           </div>
 
           {footerGroups.map((group) => (
@@ -153,8 +167,8 @@ export default function Footer() {
           <p>
             © 2026 <span className="font-bold text-slate-300">Learn with Ramim</span>. All rights reserved.
           </p>
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-slate-600">
-            Powered by React & Vite
+          <p className="text-slate-400">
+            Developed with ❤️ by <span className="font-bold text-teal-300">Ramim Ahmed</span> (BSc in CSE, Metropolitan University)
           </p>
         </div>
       </div>
@@ -174,6 +188,14 @@ function FacebookIcon({ className }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
       <path d="M13.5 22v-8.2h2.76l.41-3.2H13.5V8.55c0-.93.26-1.56 1.6-1.56h1.7V4.13c-.83-.09-1.66-.13-2.5-.13-2.5 0-4.22 1.52-4.22 4.3v2.38H7.07v3.2h2.99V22h3.44Z" />
+    </svg>
+  );
+}
+
+function YouTubeIcon({ className }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
     </svg>
   );
 }

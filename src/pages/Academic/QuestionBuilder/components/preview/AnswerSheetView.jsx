@@ -79,19 +79,30 @@ const AnswerSheetView = ({ headerInfo, cart, page, setLabel }) => {
         }
       `}</style>
 
-      <div className="relative pb-4 mb-6 text-center border-b-2 border-black">
-        <PaperLogo url={headerInfo.logoUrl} />
-        {setLabel && (
-          <span className="absolute right-0 top-0 rounded-md border border-black px-2 py-0.5 text-xs font-black">
-            সেট: {setLabel}
-          </span>
-        )}
-        <h1 className="text-2xl font-bold">{headerInfo.schoolName || 'শিক্ষা প্রতিষ্ঠানের নাম'}</h1>
-        <h2 className="mt-1 text-lg font-semibold">{headerInfo.examName || 'পরীক্ষার নাম'}</h2>
-        <div className="mt-2 font-bold text-md">উত্তরপত্র</div>
-        <div className="flex flex-wrap items-center justify-between gap-2 mt-4 text-sm font-bold">
-          <span>বিষয়: {headerInfo.subject}</span>
-          <span>বিষয় কোড: {headerInfo.subjectCode}</span>
+      <div className="relative pb-4 mb-6 border-b-2 border-black">
+        {/* Top Row: Left Logo, Center Titles & Subject, Right Set Badge */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="w-20 shrink-0 flex items-center justify-start pt-1">
+            <PaperLogo url={headerInfo.logoUrl} />
+          </div>
+
+          <div className="min-w-0 flex-1 text-center">
+            <h1 className="text-2xl font-bold tracking-tight">{headerInfo.schoolName || 'শিক্ষা প্রতিষ্ঠানের নাম'}</h1>
+            <h2 className="mt-0.5 text-lg font-semibold">{headerInfo.examName || 'পরীক্ষার নাম'}</h2>
+            <div className="mt-1 text-base font-bold">
+              <span>বিষয়: {headerInfo.subject || '—'}</span>
+              {headerInfo.subjectCode && <span className="ml-2 font-semibold">({`বিষয় কোড: ${headerInfo.subjectCode}`})</span>}
+            </div>
+            <div className="mt-1 font-bold text-sm bg-black/5 py-0.5 px-3 rounded inline-block">উত্তরপত্র</div>
+          </div>
+
+          <div className="w-20 shrink-0 flex items-center justify-end pt-1">
+            {setLabel ? (
+              <span className="rounded-md border border-black px-2.5 py-1 text-xs font-black">
+                সেট: {setLabel}
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
 

@@ -12,9 +12,10 @@ import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import 'katex/dist/katex.min.css';
 import { Skeleton, SkeletonList } from '../../../components/UI/Skeleton';
+import { optionsOf, shuffle } from '../../../lib/questionUtils';
 
 const enToBnNumber = (numStr) => {
-  if (!numStr) return numStr;
+  if (numStr === null || numStr === undefined || numStr === '') return numStr;
   const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
   return String(numStr).replace(/[0-9]/g, w => bn[w]);
 };
@@ -84,6 +85,7 @@ export default function LiveExamEngine() {
       const examDoc = await getDoc(doc(db, 'live_exams', examId));
       if (!examDoc.exists()) {
         setError('Exam not found');
+        setLoading(false);
         return;
       }
 
@@ -92,12 +94,20 @@ export default function LiveExamEngine() {
       const startTime = examData.startTime?.toDate();
       const endTime = examData.endTime?.toDate();
 
+      // সময়সূচি না থাকলে নিচে endTime.getTime() এ ক্র‍্যাশ করত — আগেই ধরি
+      if (!startTime || !endTime) {
+        setError('এই পরীক্ষার সময়সূচি ঠিকভাবে সেট করা হয়নি। অ্যাডমিনকে জানান।');
+        setLoading(false);
+        return;
+      }
       if (now < startTime) {
         setError('Exam has not started yet');
+        setLoading(false);
         return;
       }
       if (now > endTime) {
         setError('Exam has already ended');
+        setLoading(false);
         return;
       }
 
@@ -146,7 +156,8 @@ export default function LiveExamEngine() {
       }
 
       // Shuffle and slice to totalQuestions
-      fetchedQuestions = fetchedQuestions.sort(() => 0.5 - Math.random()).slice(0, examData.totalQuestions || 25);
+      fetchedQuestions = shuffle(fetchedQuestions, `${examId}:${currentUser.uid}`)
+        .slice(0, examData.totalQuestions || 25);
 
       setQuestions(fetchedQuestions);
       startedAtRef.current = Date.now();
@@ -293,25 +304,38 @@ export default function LiveExamEngine() {
       );
       setIsSubmitting(false);
     }
-  }, [answers, currentUser, examConfig, examId, isSubmitting, navigate, questions]);
+  }, [answers, answersKey, currentUser, examConfig, examId, isSubmitting, navigate, questions]);
+
+  // handleSubmit প্রতিবার উত্তর বদলালেই নতুন করে তৈরি হয়। ওটা সরাসরি
+  // ডিপেন্ডেন্সিতে থাকায় ছাত্র একটা অপশন বাছলেই interval ভেঙে আবার তৈরি হতো,
+  // অর্থাৎ দ্রুত উত্তর দিলে ঘড়ি সেকেন্ডই গুনত না। তাই ref এ ধরে রাখি।
+  const handleSubmitRef = useRef(handleSubmit);
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit;
+  }, [handleSubmit]);
 
   useEffect(() => {
     if (!examConfig || loading || error) return;
-    
-    if (timeLeft <= 0) {
-      handleSubmit();
-      return;
-    }
 
     const timer = setInterval(() => {
-      setTimeLeft(prev => prev - 1);
+      setTimeLeft(prev => (prev <= 0 ? 0 : prev - 1));
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft, examConfig, loading, error, handleSubmit]);
+  }, [examConfig, loading, error]);
+
+  // সময় শেষ হলে জমা — setState আপডেটারের ভেতরে জমা দেওয়া হতো, যেটা রেন্ডার
+  // ফেজে সাইড-ইফেক্ট (React দুইবার চালালে দুইবার জমা পড়ার ঝুঁকি)।
+  // startedAtRef ছাড়া গার্ড দিলে লোড শেষ হওয়ার আগেই timeLeft=0 দেখে
+  // খালি পরীক্ষা জমা পড়ে যেতে পারত।
+  useEffect(() => {
+    if (!examConfig || loading || error || !startedAtRef.current) return;
+    if (timeLeft > 0) return;
+    handleSubmitRef.current();
+  }, [timeLeft, examConfig, loading, error]);
 
   const formatTime = (seconds) => {
-    if (seconds < 0) return '0০:0০';
+    if (seconds < 0) return '০০:০০';
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${enToBnNumber(m.toString().padStart(2, '0'))}:${enToBnNumber(s.toString().padStart(2, '0'))}`;
@@ -392,30 +416,39 @@ export default function LiveExamEngine() {
                   <MarkdownRenderer content={q.question} />
                   {q.imageUrl && (
                     <div className="mt-4 mb-2 rounded-xl overflow-hidden border border-slate-700/50 bg-slate-900/50 flex justify-center max-h-[300px]">
-                      <img src={q.imageUrl} alt="Question figure" className="max-w-full h-auto object-contain" />
+                      <img src={q.imageUrl} alt="Question figure" loading="lazy" className="max-w-full h-auto object-contain" />
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="space-y-2.5 sm:space-y-3">
-                {(Array.isArray(q.options) ? q.options : (typeof q.options === 'object' && q.options !== null ? Object.values(q.options) : [])).map((option, optIdx) => {
+              {/* 2 Options Per Row Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-3.5">
+                {optionsOf(q).map((option, optIdx) => {
                   const isSelected = answers[qIdx] === optIdx;
+                  const prefix = ['(ক)', '(খ)', '(গ)', '(ঘ)', '(ঙ)', '(চ)'][optIdx] || `(${optIdx + 1})`;
+
                   return (
                     <button
                       key={optIdx}
+                      type="button"
                       onClick={() => handleOptionSelect(qIdx, optIdx)}
-                      className={`w-full text-left p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all duration-200 flex items-center gap-3 sm:gap-4 group
-                        ${isSelected 
-                          ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)]' 
-                          : 'bg-slate-900/50 border-slate-700/50 hover:bg-slate-800 hover:border-slate-600'
-                        }`}
+                      className={`w-full text-left p-3.5 sm:p-4 rounded-xl sm:rounded-2xl border transition-all duration-200 flex items-start gap-3 group relative cursor-pointer ${
+                        isSelected 
+                          ? 'bg-emerald-500/15 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.2)] ring-1 ring-emerald-500/40 text-white' 
+                          : 'bg-slate-950/50 border-slate-800 hover:border-slate-700 hover:bg-slate-800/40 text-slate-300'
+                      }`}
                     >
-                      <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors
-                        ${isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-slate-600 group-hover:border-slate-400'}`}>
-                        {isSelected && <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 text-white" />}
+                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 transition-colors mt-0.5 ${
+                        isSelected
+                          ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                          : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-slate-200 border border-slate-700/60'
+                      }`}>
+                        {isSelected ? <CheckCircle2 className="w-3.5 h-3.5" /> : prefix}
                       </div>
-                      <div className="text-sm sm:text-base text-slate-300">
+                      <div className={`text-sm sm:text-base leading-relaxed flex-1 ${
+                        isSelected ? 'font-bold text-white' : 'font-normal text-slate-300'
+                      }`}>
                         <MarkdownRenderer content={option} />
                       </div>
                     </button>

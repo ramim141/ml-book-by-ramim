@@ -60,10 +60,10 @@ export default function PaymentManager() {
         // তালিকায় এটা অপ্রয়োজনীয় রিড খরচ করত
         const found = {};
         if (tab === PAYMENT_STATUS.PENDING) {
-          for (const r of list) {
-            const all = await findByTrxId(r.trxId);
-            if (all.length > 1) found[r.id] = all.length;
-          }
+          const dupeResults = await Promise.all(list.map((r) => findByTrxId(r.trxId)));
+          list.forEach((r, i) => {
+            if (dupeResults[i].length > 1) found[r.id] = dupeResults[i].length;
+          });
         }
 
         if (!cancelled) setResult({ key: loadKey, rows: list, dupes: found });

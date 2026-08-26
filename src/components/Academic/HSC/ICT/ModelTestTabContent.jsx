@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Timer, Settings2, CheckCircle2, RotateCcw, AlertCircle } from 'lucide-react';
 import { MCQItem } from './MCQTabContent';
+import { shuffle } from '../../../../lib/questionUtils';
 
 const ModelTestTabContent = ({ mcqs }) => {
   const [phase, setPhase] = useState('setup'); // 'setup', 'running', 'completed'
@@ -19,7 +20,7 @@ const ModelTestTabContent = ({ mcqs }) => {
 
   // Shuffle and pick random questions
   const startTest = () => {
-    const shuffled = [...mcqs].sort(() => 0.5 - Math.random());
+    const shuffled = shuffle(mcqs);
     const selected = selectedCount === 'all' ? shuffled : shuffled.slice(0, selectedCount);
     
     setTestMcqs(selected);

@@ -257,6 +257,18 @@ function QuestionBankUpload() {
     if (file) handleFile(file);
   };
 
+  /** ফাইল ডাউনলোড না করেই ফরম্যাটটা সরাসরি ক্লিপবোর্ডে কপি — অনেকেই ফাইল
+   * ডাউনলোড/খোলার ঝামেলায় না গিয়ে সরাসরি নিজের এডিটর/শিটে পেস্ট করে বদলে নিতে চান */
+  const handleCopyFormat = async () => {
+    const text = JSON.stringify(getSampleItems(type), null, 2);
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('ফরম্যাট কপি হয়েছে! এবার নিজের ডেটা বসিয়ে নিচের বক্সে পেস্ট করুন।');
+    } catch {
+      toast.error('কপি করা যায়নি — ব্রাউজার ক্লিপবোর্ড অনুমতি দেয়নি।');
+    }
+  };
+
   /** কোন ফরম্যাটে ডেটা দিতে হবে বোঝাতে রেডিমেড নমুনা ফাইল — আগে খালি হাতে শুরু করতে হতো */
   const downloadTemplate = (format) => {
     const sample = getSampleItems(type);
@@ -494,6 +506,9 @@ function QuestionBankUpload() {
               <div className="flex items-center justify-between flex-wrap gap-3 mb-2">
                 <label className="block text-sm font-bold text-slate-300">১. ফাইল আপলোড করুন (.json, .csv) — অথবা টেনে এনে এখানে ছাড়ুন</label>
                 <div className="flex gap-2">
+                  <button type="button" onClick={handleCopyFormat} className="flex items-center gap-1.5 text-xs font-bold text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 px-2.5 py-1.5 rounded-lg border border-violet-500/20">
+                    <Copy className="w-3.5 h-3.5" /> ফরম্যাট কপি করুন
+                  </button>
                   <button type="button" onClick={() => downloadTemplate('json')} className="flex items-center gap-1.5 text-xs font-bold text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 px-2.5 py-1.5 rounded-lg border border-indigo-500/20">
                     <FileDown className="w-3.5 h-3.5" /> JSON টেমপ্লেট
                   </button>
@@ -932,8 +947,12 @@ function QuestionBankList() {
     setUploadingImage(true);
     const formData = new FormData();
     formData.append('image', file);
-    // User's provided ImgBB API key
-    const apiKey = 'ea54470f19b3b5ded1f581dadf8e2c4b'; 
+    const apiKey = import.meta.env.VITE_IMGBB_API_KEY;
+    if (!apiKey) {
+      toast.error('ImgBB API কী কনফিগার করা নেই (.env এ VITE_IMGBB_API_KEY সেট করুন)।');
+      setUploadingImage(false);
+      return;
+    }
 
     try {
       const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {

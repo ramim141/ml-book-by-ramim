@@ -49,18 +49,28 @@ const OmrAnswerSheet = ({ headerInfo, cart, settings }) => {
           }
         `}</style>
 
-        <div className="relative z-10 pb-3 mb-4 text-center border-b-4 border-double border-black">
-          <PaperLogo url={headerInfo.logoUrl} />
-          <h1 className="mb-1 font-bold" style={{ fontSize: settings.fontSize + 8 }}>
-            {headerInfo.schoolName || 'প্রতিষ্ঠানের নাম'}
-          </h1>
-          <h2 className="mb-1.5 font-semibold" style={{ fontSize: settings.fontSize + 3.5 }}>
-            {headerInfo.examName || 'পরীক্ষার নাম'}
-          </h2>
-          <div className="mt-1 font-bold" style={{ fontSize: settings.fontSize + 0.5 }}>উত্তরপত্র (OMR)</div>
-          <div className="flex flex-wrap items-center justify-between gap-2 mt-2 font-semibold" style={{ fontSize: settings.fontSize }}>
-            <span>বিষয়: {headerInfo.subject || '—'}</span>
-            {headerInfo.subjectCode && <span>বিষয় কোড: {headerInfo.subjectCode}</span>}
+        <div className="relative z-10 pb-3 mb-4 border-b-4 border-double border-black">
+          {/* Top Row: Left Logo, Center Titles & Subject, Right Spacer */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="w-20 shrink-0 flex items-center justify-start pt-1">
+              <PaperLogo url={headerInfo.logoUrl} />
+            </div>
+
+            <div className="min-w-0 flex-1 text-center">
+              <h1 className="mb-1 font-bold tracking-tight" style={{ fontSize: settings.fontSize + 8 }}>
+                {headerInfo.schoolName || 'প্রতিষ্ঠানের নাম'}
+              </h1>
+              <h2 className="mb-0.5 font-semibold" style={{ fontSize: settings.fontSize + 3.5 }}>
+                {headerInfo.examName || 'পরীক্ষার নাম'}
+              </h2>
+              <div className="font-bold" style={{ fontSize: settings.fontSize + 1 }}>
+                <span>বিষয়: {headerInfo.subject || '—'}</span>
+                {headerInfo.subjectCode && <span className="ml-2 font-semibold">({`বিষয় কোড: ${headerInfo.subjectCode}`})</span>}
+              </div>
+              <div className="mt-1 font-bold text-sm bg-black/5 py-0.5 px-3 rounded inline-block" style={{ fontSize: settings.fontSize + 0.5 }}>উত্তরপত্র (OMR)</div>
+            </div>
+
+            <div className="w-20 shrink-0 flex items-center justify-end" />
           </div>
 
           <StudentInfoBox style={settings.studentInfoStyle} />

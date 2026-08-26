@@ -76,7 +76,10 @@ export default function ReadModeWidget({ isScrollingDown }) {
     checkLabTab();
     const handleGlobalClick = () => setTimeout(checkLabTab, 50);
     document.addEventListener('click', handleGlobalClick);
-    const interval = setInterval(checkLabTab, 400);
+    // ক্লিকেই সাথে সাথে চেক হয়, তাই interval শুধু ফলব্যাক (ক্লিক ছাড়া ট্যাব
+    // বদলালে ধরার জন্য) — তাই ঘন ঘন (400ms) পুরো পেজে querySelectorAll চালানোর
+    // দরকার নেই।
+    const interval = setInterval(checkLabTab, 1000);
 
     return () => {
       document.removeEventListener('click', handleGlobalClick);

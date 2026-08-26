@@ -45,9 +45,21 @@ const AnswerLines = ({ count }) => {
 
 const getBoardList = (q) => {
   return [
-    ...(Array.isArray(q.boards) ? q.boards.map((b) => `${b.name || ''}${b.year ? `-${enToBn(b.year)}` : ''}`) : []),
-    ...(Array.isArray(q.board) ? q.board.map(String) : []),
-  ].filter(Boolean);
+    ...(Array.isArray(q.boards)
+      ? q.boards.map((b) =>
+          typeof b === 'object' && b !== null
+            ? `${b.name || b.type || ''}${b.year || b.session ? ` ${b.year || b.session}` : ''}`.trim()
+            : String(b).trim()
+        )
+      : []),
+    ...(Array.isArray(q.board) && !Array.isArray(q.boards)
+      ? q.board.map((b) =>
+          typeof b === 'object' && b !== null
+            ? `${b.name || b.type || ''}${b.year || b.session ? ` ${b.year || b.session}` : ''}`.trim()
+            : String(b).trim()
+        )
+      : []),
+  ].filter((str) => Boolean(str) && str !== '[object Object]');
 };
 
 const PrintableView = ({
@@ -481,30 +493,39 @@ const PrintableView = ({
         )}
 
         {/* Paper Header */}
-        <div className={`relative z-10 pb-3 mb-4 text-center ${headerBorderClass}`}>
-          <PaperLogo url={headerInfo.logoUrl} />
-          {setLabel && (
-            <span className="absolute right-0 top-0 rounded-md border border-black px-2 py-0.5 text-xs font-black">
-              সেট: {setLabel}
-            </span>
-          )}
-          {/* লোগো/সেট-ব্যাজের জন্য পাশে জায়গা রাখা — লম্বা নাম বা লোগো থাকলে যেন
-              শিরোনামের সাথে ওভারল্যাপ না করে */}
-          <div className={headerInfo.logoUrl || setLabel ? 'px-14 sm:px-16' : ''}>
-            <h1 className="mb-1 font-bold" style={{ fontSize: settings.fontSize + 8 }}>
-              {headerInfo.schoolName || 'প্রতিষ্ঠানের নাম'}
-            </h1>
-            <h2 className="mb-1.5 font-semibold" style={{ fontSize: settings.fontSize + 3.5 }}>
-              {headerInfo.examName || 'পরীক্ষার নাম'}
-            </h2>
-            <div className="flex flex-wrap items-center justify-between gap-2 mt-2 font-semibold" style={{ fontSize: settings.fontSize + 0.5 }}>
-              <span>বিষয়: {headerInfo.subject || '—'}</span>
-              {headerInfo.subjectCode && <span>বিষয় কোড: {headerInfo.subjectCode}</span>}
+        <div className={`relative z-10 pb-3 mb-4 ${headerBorderClass}`}>
+          {/* Top Row: Left Logo, Center Titles & Subject, Right Set Badge */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="w-20 shrink-0 flex items-center justify-start pt-1">
+              <PaperLogo url={headerInfo.logoUrl} />
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-2 mt-1" style={{ fontSize: settings.fontSize }}>
-              <span>সময়: {headerInfo.time || '—'}</span>
-              <span>পূর্ণমান: {printedTotal || '—'}</span>
+
+            <div className="min-w-0 flex-1 text-center">
+              <h1 className="mb-1 font-bold tracking-tight" style={{ fontSize: settings.fontSize + 8 }}>
+                {headerInfo.schoolName || 'প্রতিষ্ঠানের নাম'}
+              </h1>
+              <h2 className="mb-1 font-semibold" style={{ fontSize: settings.fontSize + 3.5 }}>
+                {headerInfo.examName || 'পরীক্ষার নাম'}
+              </h2>
+              <div className="font-bold" style={{ fontSize: settings.fontSize + 1.5 }}>
+                <span>বিষয়: {headerInfo.subject || '—'}</span>
+                {headerInfo.subjectCode && <span className="ml-2 font-semibold text-slate-800">({`বিষয় কোড: ${headerInfo.subjectCode}`})</span>}
+              </div>
             </div>
+
+            <div className="w-20 shrink-0 flex items-center justify-end pt-1">
+              {setLabel ? (
+                <span className="rounded-md border border-black px-2.5 py-1 text-xs font-black">
+                  সেট: {setLabel}
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Time & Full Marks Row */}
+          <div className="flex flex-wrap items-center justify-between gap-2 mt-2 pt-1 border-t border-black/15 font-semibold" style={{ fontSize: settings.fontSize }}>
+            <span>সময়: {headerInfo.time || '—'}</span>
+            <span>পূর্ণমান: {printedTotal || '—'}</span>
           </div>
 
           {/* Student Info Box */}
@@ -512,7 +533,7 @@ const PrintableView = ({
 
           {/* Special Instructions */}
           {settings.instructions && (
-            <div className="mt-2.5 text-center text-[12px] italic font-medium">
+            <div className="mt-2 text-center text-[12px] italic font-medium">
               [{settings.instructions}]
             </div>
           )}

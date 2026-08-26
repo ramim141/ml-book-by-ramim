@@ -13,7 +13,7 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import { get, set, del } from 'idb-keyval'
 
 // Disable console.log, info, warn globally to prevent data printing in console
-if (import.meta.env.PROD || true) {
+if (import.meta.env.PROD) {
   console.log = () => {};
   console.info = () => {};
   console.debug = () => {};

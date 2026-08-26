@@ -1,4 +1,25 @@
 User-agent: *
 Allow: /
 
+# এই রুটগুলো লগইন ছাড়া /login এ রিডাইরেক্ট করে দেয় (src/App.jsx এর
+# ProtectedRoute দেখুন) — ইনডেক্সযোগ্য কিছু নেই, তাই crawl budget বাঁচাতে বাদ
+Disallow: /academic/profile
+Disallow: /academic/mistakes
+Disallow: /academic/ssc
+Disallow: /academic/hsc
+Disallow: /academic/admission
+Disallow: /academic/question-bank
+Disallow: /academic/question-builder
+Disallow: /academic/shortcut
+Disallow: /academic/model-test
+Disallow: /academic/live-exam
+Disallow: /academic/live-exams
+Disallow: /academic/leaderboard
+Disallow: /academic/periodic-table
+Disallow: /academic/base-converter
+Disallow: /academic/logic-gate
+Disallow: /academic/graphing-tool
+Disallow: /academic/formula-sheet
+Disallow: /admin
+
 Sitemap: https://learnwithramim.com/sitemap.xml

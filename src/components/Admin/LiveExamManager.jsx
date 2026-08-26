@@ -5,7 +5,12 @@ import toast from 'react-hot-toast';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useAcademicSubjects } from '../../hooks/useAcademicSubjects';
 import { parseCustomQuestions, QUESTION_TEMPLATE } from '../../lib/liveExamQuestions';
-import { CalendarClock, Plus, Edit, Trash2, Loader2, Save, X, Settings2, Users, AlertTriangle, Copy, Check, Database, Code2 } from 'lucide-react';
+import { 
+  CalendarClock, Plus, Edit, Trash2, Loader2, Save, X, Settings2, 
+  Users, AlertTriangle, Copy, Check, Database, Code2, Sparkles,
+  GraduationCap, Stethoscope, Cpu, BookOpen, Clock, Trophy, Eye
+} from 'lucide-react';
+import { toBn } from '../../lib/format';
 
 /** `chapter_1` ও `chapter-1` — দুই রূপ ডেটাতেই আছে, তাই মেলানোর আগে এক করি */
 const normalizeChapter = (id) => {
@@ -14,27 +19,40 @@ const normalizeChapter = (id) => {
   return m ? `chapter-${Number(m[1])}` : String(id);
 };
 
+const ALL_LEVELS = [
+  { id: 'SSC', label: '🎒 মাধ্যমিক (SSC)' },
+  { id: 'HSC', label: '🎓 উচ্চ মাধ্যমিক (HSC)' },
+  { id: 'Admission', label: '🩺 ভর্তি পরীক্ষা (Admission)' },
+];
+
+const ADMISSION_TRACK_OPTIONS = [
+  { id: 'medical', label: '🩺 মেডিকেল ও ডেন্টাল (MBBS / BDS)' },
+  { id: 'engineering', label: '⚙️ ইঞ্জিনিয়ারিং ও বুয়েট (BUET / CKREU)' },
+  { id: 'varsity-a', label: '🧪 ঢাকা বিশ্ববিদ্যালয় ক-ইউনিট ও বিজ্ঞান অনুষদ' },
+  { id: 'nursing', label: '🏥 নার্সিং (BSc & Diploma)' },
+  { id: 'gst', label: '🔬 GST বিজ্ঞান ও প্রযুক্তি গুচ্ছ' },
+  { id: 'varsity-others', label: '🏛️ অন্যান্য বিশ্ববিদ্যালয় ও ইউনিট' },
+];
+
 export default function LiveExamManager() {
   const [confirm, confirmDialog] = useConfirm();
-  // বিষয়ের তালিকা আগে এখানে হার্ডকোড ছিল ('physics', 'chemistry'…), অথচ
-  // প্রশ্ন সেভ হয় admin_settings/subjects এর আসল id দিয়ে ('hsc-physics-1')।
-  // ফলে LiveExamEngine এর where('subject','==','physics') কোনো প্রশ্নই
-  // খুঁজে পেত না — পরীক্ষা শূন্য প্রশ্ন নিয়ে চালু হতো।
   const { data: allSubjects = [] } = useAcademicSubjects();
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [adminFilterLevel, setAdminFilterLevel] = useState('ALL');
   
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     level: 'HSC',
+    admissionTrack: 'medical',
     subject: '',
     subjectLabel: '',
-    chapters: [], // খালি = ঐ বিষয়ের সব অধ্যায়
-    questionSource: 'bank', // 'bank' | 'custom'
+    chapters: [],
+    questionSource: 'bank',
     startTime: '',
     endTime: '',
     duration: 30,
@@ -43,19 +61,10 @@ export default function LiveExamManager() {
     negativeMarking: 0.25,
   });
 
-  // নির্বাচিত বিষয়ে আসলে কতগুলো MCQ আছে — না জানলে অ্যাডমিন ২৫টা প্রশ্নের
-  // পরীক্ষা বানিয়ে ফেলতেন যেখানে হয়তো ৮টাই আছে।
-  //
-  // ফলাফলটা কোন বাছাইয়ের জন্য গোনা হয়েছে সেটাও সাথে রাখি — তাহলে "গোনা
-  // হচ্ছে" অবস্থাটা আলাদা state না রেখেই বের করা যায়, আর ইফেক্টের ভিতরে
-  // সরাসরি setState করতে হয় না (তাতে বাড়তি রেন্ডার-চক্র হতো)।
   const [countResult, setCountResult] = useState({ key: null, value: null });
-
-  // কাস্টম প্রশ্নের কাঁচা JSON — প্রতিবার টাইপে পার্স করে সাথে সাথে ফল দেখাই
   const [customJson, setCustomJson] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // কারা পরীক্ষা দিয়েছে — বাটনটা এতদিন নিষ্ক্রিয় ছিল (কোনো onClick ছিল না)
   const [participantsFor, setParticipantsFor] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
@@ -65,9 +74,6 @@ export default function LiveExamManager() {
     setParticipants([]);
     setLoadingParticipants(true);
     try {
-      // orderBy দিয়ে আনি না — Firestore এ যে ডকুমেন্টে ঐ ফিল্ডটা নেই সেটা
-      // ফলাফল থেকেই বাদ পড়ে, ফলে কোনো অংশগ্রহণকারী চুপচাপ হারিয়ে যেতে পারত।
-      // তালিকা ছোট, তাই সব এনে এখানেই সাজাই।
       const snap = await getDocs(collection(db, 'live_exams', exam.id, 'submissions'));
       const rows = snap.docs.map((d) => {
         const data = d.data();
@@ -94,24 +100,26 @@ export default function LiveExamManager() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // ক্লিপবোর্ড অনুমতি না পেলে অন্তত টেক্সট-এরিয়ায় বসিয়ে দিই
       setCustomJson(QUESTION_TEMPLATE);
       toast('ক্লিপবোর্ড পাওয়া যায়নি — নমুনাটি নিচে বসিয়ে দেওয়া হলো।');
     }
   };
 
-  const levels = useMemo(
-    () => [...new Set(allSubjects.map((s) => s.level).filter(Boolean))],
-    [allSubjects]
-  );
-  const subjectsForLevel = useMemo(
-    () => allSubjects.filter((s) => s.level === formData.level),
-    [allSubjects, formData.level]
-  );
+  // Filter subjects for selected level
+  const subjectsForLevel = useMemo(() => {
+    return allSubjects.filter((s) => {
+      const sLevel = (s.level || '').toUpperCase();
+      if (formData.level === 'SSC') return sLevel.includes('SSC');
+      if (formData.level === 'Admission') return sLevel.includes('ADMISSION');
+      return sLevel.includes('HSC') || (!sLevel.includes('SSC') && !sLevel.includes('ADMISSION'));
+    });
+  }, [allSubjects, formData.level]);
+
   const selectedSubject = useMemo(
     () => allSubjects.find((s) => s.id === formData.subject) || null,
     [allSubjects, formData.subject]
   );
+
   const subjectLabelOf = (exam) =>
     allSubjects.find((s) => s.id === exam.subject)?.label || exam.subjectLabel || exam.subject;
 
@@ -123,7 +131,7 @@ export default function LiveExamManager() {
   const countingQuestions = Boolean(formData.subject) && countResult.key !== countKey;
   const availableCount = countResult.key === countKey ? countResult.value : null;
 
-  // বিষয়/অধ্যায় বদলালে প্রশ্নসংখ্যা আবার গুনি
+  // Question count auto-check
   useEffect(() => {
     if (!formData.subject) return;
     let cancelled = false;
@@ -171,7 +179,6 @@ export default function LiveExamManager() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    // কাস্টম মোডে ভুল JSON নিয়ে সেভ হলে পরীক্ষার দিন প্রশ্নই আসত না
     if (formData.questionSource === 'custom') {
       if (parsedCustom.errors.length > 0) {
         toast.error('JSON এ ভুল আছে — নিচের বার্তাগুলো ঠিক করে আবার চেষ্টা করুন।');
@@ -191,8 +198,6 @@ export default function LiveExamManager() {
         startTime: Timestamp.fromDate(new Date(formData.startTime)),
         endTime: Timestamp.fromDate(new Date(formData.endTime)),
         duration: Number(formData.duration),
-        // কাস্টম মোডে যতগুলো প্রশ্ন দেওয়া হয়েছে ততগুলোই — আলাদা সংখ্যা
-        // লিখলে দুটোয় গরমিল হতো
         totalQuestions: isCustom ? parsedCustom.questions.length : Number(formData.totalQuestions),
         marksPerQuestion: Number(formData.marksPerQuestion),
         negativeMarking: Number(formData.negativeMarking),
@@ -202,9 +207,11 @@ export default function LiveExamManager() {
 
       if (editingId) {
         await updateDoc(doc(db, 'live_exams', editingId), payload);
+        toast.success('লাইভ পরীক্ষা সফলভাবে আপডেট হয়েছে! 🎉');
       } else {
         payload.createdAt = Timestamp.now();
         await addDoc(collection(db, 'live_exams'), payload);
+        toast.success('নতুন লাইভ পরীক্ষা তৈরি হয়েছে! 🚀');
       }
       
       setShowForm(false);
@@ -218,22 +225,20 @@ export default function LiveExamManager() {
     }
   };
 
-  const handleEdit = (exam) => {
-    // format dates for input type="datetime-local"
-    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
-    const formatForInput = (dateObj) => {
-      if (!dateObj) return '';
-      const localISOTime = (new Date(dateObj - tzoffset)).toISOString().slice(0,16);
-      return localISOTime;
-    };
+  const formatForInput = (d) => {
+    if (!d || !(d instanceof Date) || isNaN(d)) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
 
-    // পুরনো পরীক্ষায় level সেভ করা নেই — বিষয়ের id থেকে বের করে নিই
+  const handleEdit = (exam) => {
     const known = allSubjects.find((s) => s.id === exam.subject);
 
     setFormData({
       title: exam.title || '',
       description: exam.description || '',
       level: exam.level || known?.level || 'HSC',
+      admissionTrack: exam.admissionTrack || 'medical',
       subject: exam.subject || '',
       subjectLabel: exam.subjectLabel || known?.label || '',
       chapters: (exam.chapters || []).map(normalizeChapter),
@@ -245,11 +250,10 @@ export default function LiveExamManager() {
       marksPerQuestion: exam.marksPerQuestion || 1,
       negativeMarking: exam.negativeMarking || 0.25,
     });
-    // সেভ করা প্রশ্নগুলো আবার JSON আকারে দেখাই, যাতে এডিট করা যায়
+
     setCustomJson(
       exam.customQuestions?.length
         ? JSON.stringify(
-            // ভিতরে বসানো `id` বাদ দিয়ে দেখাই — ওটা সেভের সময় নিজেই তৈরি হয়
             exam.customQuestions.map((q) => {
               const copy = { ...q };
               delete copy.id;
@@ -269,125 +273,288 @@ export default function LiveExamManager() {
     try {
       await deleteDoc(doc(db, 'live_exams', id));
       setExams(prev => prev.filter(e => e.id !== id));
+      toast.success('পরীক্ষা মুছে ফেলা হয়েছে।');
     } catch (err) {
       console.error('Error deleting exam:', err);
     }
   };
 
+  // Quick Preset Helper
+  const applyPreset = (type) => {
+    const now = new Date();
+    const start = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour later
+    const end = new Date(now.getTime() + 25 * 60 * 60 * 1000); // 25 hours later
+
+    if (type === 'hsc-ict') {
+      setFormData(prev => ({
+        ...prev,
+        title: 'এইচএসসি আইসিটি বিশেষ লাইভ মডেল টেস্ট',
+        description: 'অধ্যায় ১ ও ২ এর গুরুত্বপূর্ণ বোর্ড স্ট্যান্ডার্ড প্রশ্ন',
+        level: 'HSC',
+        duration: 25,
+        totalQuestions: 25,
+        marksPerQuestion: 1,
+        negativeMarking: 0.25,
+        startTime: formatForInput(start),
+        endTime: formatForInput(end),
+      }));
+    } else if (type === 'ssc-phy') {
+      setFormData(prev => ({
+        ...prev,
+        title: 'এসএসসি পদার্থবিজ্ঞান গ্র্যান্ড লাইভ মক টেস্ট',
+        description: 'গতির সমীকরণ, বল ও কাজ ক্ষমতা শক্তির সমন্বিত পরীক্ষা',
+        level: 'SSC',
+        duration: 30,
+        totalQuestions: 25,
+        marksPerQuestion: 1,
+        negativeMarking: 0.25,
+        startTime: formatForInput(start),
+        endTime: formatForInput(end),
+      }));
+    } else if (type === 'medical') {
+      setFormData(prev => ({
+        ...prev,
+        title: 'মেডিকেল ভর্তি স্পেশাল মেগা লাইভ এক্সাম (MBBS Mock)',
+        description: 'জীববিজ্ঞান ও রসায়ন সম্পূর্ণ সিলেবাস মক টেস্ট',
+        level: 'Admission',
+        admissionTrack: 'medical',
+        duration: 45,
+        totalQuestions: 50,
+        marksPerQuestion: 1,
+        negativeMarking: 0.25,
+        startTime: formatForInput(start),
+        endTime: formatForInput(end),
+      }));
+    }
+    toast.success('প্রিসেট সফলভাবে লোড হয়েছে!');
+  };
+
   const getStatus = (start, end) => {
     const now = new Date();
-    if (now < start) return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">Upcoming</span>;
-    if (now >= start && now <= end) return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse">Ongoing</span>;
-    return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20">Completed</span>;
+    if (now < start) return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">আসন্ন (Upcoming)</span>;
+    if (now >= start && now <= end) return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 animate-pulse">🔴 লাইভ চলছে</span>;
+    return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20">সমাপ্ত (Completed)</span>;
   };
+
+  const filteredExams = useMemo(() => {
+    if (adminFilterLevel === 'ALL') return exams;
+    return exams.filter(e => (e.level || 'HSC').toUpperCase().includes(adminFilterLevel));
+  }, [exams, adminFilterLevel]);
 
   if (loading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 text-indigo-500 animate-spin" /></div>;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-bangla">
       {confirmDialog}
-      <div className="flex justify-between items-center">
+      
+      {/* ── Top Header & Stats ───────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-6 rounded-3xl border border-slate-800 backdrop-blur-xl shadow-xl">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <CalendarClock className="h-6 w-6 text-fuchsia-400" />
-            লাইভ এক্সাম ম্যানেজমেন্ট
+          <h2 className="text-2xl font-extrabold text-white flex items-center gap-2.5">
+            <CalendarClock className="h-7 w-7 text-indigo-400" />
+            <span>লাইভ এক্সাম ও মডেল টেস্ট কন্ট্রোল হাব</span>
           </h2>
-          <p className="text-slate-400 text-sm mt-1">Schedule and manage live mock tests for students.</p>
+          <p className="text-slate-400 text-xs sm:text-sm mt-1">
+            এসএসসি, এইচএসসি এবং এডমিশন (মেডিকেল/ইঞ্জিনিয়ারিং/ভার্সিটি) শিক্ষার্থীদের জন্য লাইভ পরীক্ষা পরিচালনা করুন।
+          </p>
         </div>
+
         {!showForm && (
           <button
             onClick={() => {
+              const now = new Date();
+              const start = new Date(now.getTime() + 60 * 60 * 1000);
+              const end = new Date(now.getTime() + 25 * 60 * 60 * 1000);
               setFormData({
-                title: '', description: '', level: levels[0] || 'HSC', subject: '', subjectLabel: '',
-                chapters: [], questionSource: 'bank', startTime: '', endTime: '', duration: 30,
-                totalQuestions: 25, marksPerQuestion: 1, negativeMarking: 0.25,
+                title: '', description: '', level: 'HSC', admissionTrack: 'medical', subject: '', subjectLabel: '',
+                chapters: [], questionSource: 'bank', startTime: formatForInput(start), endTime: formatForInput(end), 
+                duration: 30, totalQuestions: 25, marksPerQuestion: 1, negativeMarking: 0.25,
               });
               setCustomJson('');
               setEditingId(null);
               setShowForm(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors"
+            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl font-bold shadow-lg shadow-indigo-600/30 transition-all shrink-0"
           >
-            <Plus className="h-5 w-5" /> Create Exam
+            <Plus className="h-5 w-5" /> 
+            <span>নতুন লাইভ এক্সাম তৈরি করুন</span>
           </button>
         )}
       </div>
 
+      {/* ── Create / Edit Form Modal ─────────────────────────────────────── */}
       {showForm ? (
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-white">{editingId ? 'Edit Exam' : 'Create New Exam'}</h3>
-            <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white transition-colors">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+            <div>
+              <h3 className="text-xl font-black text-white">
+                {editingId ? 'পরীক্ষা এডিট করুন' : 'নতুন লাইভ এক্সাম সিডিউল করুন'}
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">সবগুলো ফিল্ড সঠিকভাবে পূরণ করে সেভ করুন</p>
+            </div>
+            <button onClick={() => setShowForm(false)} className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition">
               <X className="h-6 w-6" />
             </button>
           </div>
 
+          {/* Quick Presets Bar */}
+          {!editingId && (
+            <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 space-y-2">
+              <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>কুইক প্রিসেট লোড করুন:</span>
+              </span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => applyPreset('ssc-phy')}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
+                >
+                  🎒 SSC পদার্থবিজ্ঞান মক
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPreset('hsc-ict')}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
+                >
+                  🎓 HSC আইসিটি লাইভ টেস্ট
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPreset('medical')}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition"
+                >
+                  🩺 মেডিকেল MBBS ৫০ প্রশ্ন মক
+                </button>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSave} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-2">Exam Title</label>
-                <input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})}
-                  className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500 text-base sm:text-sm" placeholder="e.g. Physics Grand Mock Test" />
+              
+              {/* Title */}
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-slate-300 mb-2">পরীক্ষার নাম (Exam Title) *</label>
+                <input 
+                  required 
+                  type="text" 
+                  value={formData.title} 
+                  onChange={e => setFormData({...formData, title: e.target.value})}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 text-sm shadow-inner" 
+                  placeholder="যেমন: এইচএসসি রসায়ন ১ম পত্র স্পেশাল গ্র্যান্ড মক টেস্ট" 
+                />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+
+              {/* Level / Category */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">শিক্ষাস্তর (Program / Level) *</label>
+                <select
+                  value={formData.level}
+                  onChange={e => setFormData({ 
+                    ...formData, 
+                    level: e.target.value, 
+                    subject: '', 
+                    subjectLabel: '', 
+                    chapters: [] 
+                  })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 text-sm"
+                >
+                  {ALL_LEVELS.map(l => (
+                    <option key={l.id} value={l.id}>{l.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Admission Track (If Admission is selected) */}
+              {formData.level === 'Admission' ? (
                 <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-2">শিক্ষাস্তর</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-2">এডমিশন ট্র্যাক (Admission Track) *</label>
                   <select
-                    value={formData.level}
-                    onChange={e => setFormData({ ...formData, level: e.target.value, subject: '', subjectLabel: '', chapters: [] })}
-                    className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500 text-base sm:text-sm"
+                    value={formData.admissionTrack || 'medical'}
+                    onChange={e => setFormData({ ...formData, admissionTrack: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 text-sm"
                   >
-                    {levels.length === 0 && <option value={formData.level}>{formData.level}</option>}
-                    {levels.map(l => <option key={l} value={l}>{l}</option>)}
+                    {ADMISSION_TRACK_OPTIONS.map(track => (
+                      <option key={track.id} value={track.id}>{track.label}</option>
+                    ))}
                   </select>
                 </div>
+              ) : (
                 <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-2">বিষয়</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-2">বিষয় (Subject) *</label>
                   <select
-                    required
+                    required={formData.questionSource === 'bank'}
                     value={formData.subject}
                     onChange={e => {
                       const sub = subjectsForLevel.find(s => s.id === e.target.value);
                       setFormData({ ...formData, subject: e.target.value, subjectLabel: sub?.label || '', chapters: [] });
                     }}
-                    className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500 text-base sm:text-sm"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 text-sm"
                   >
-                    <option value="">— বেছে নিন —</option>
+                    <option value="">— বিষয় বেছে নিন —</option>
                     {subjectsForLevel.map(s => (
                       <option key={s.id} value={s.id}>{s.emoji ? `${s.emoji} ` : ''}{s.label}</option>
                     ))}
                   </select>
                 </div>
-              </div>
+              )}
+
+              {/* Description / Syllabus */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-slate-300 mb-2">Description / Syllabus</label>
-                <input type="text" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}
-                  className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500 text-base sm:text-sm" placeholder="e.g. Chapter 1 to 4" />
+                <label className="block text-xs font-bold text-slate-300 mb-2">সিলেবাস / বর্ণনা (Description & Syllabus)</label>
+                <input 
+                  type="text" 
+                  value={formData.description} 
+                  onChange={e => setFormData({...formData, description: e.target.value})}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 text-sm shadow-inner" 
+                  placeholder="যেমন: পদার্থবিজ্ঞান ১ম পত্র - অধ্যায় ০১, ০২ এবং ০৩" 
+                />
+              </div>
+
+              {/* Start Time & End Time */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">পরীক্ষা শুরুর সময় (Start Date & Time) *</label>
+                <input 
+                  required 
+                  type="datetime-local" 
+                  value={formData.startTime} 
+                  onChange={e => setFormData({...formData, startTime: e.target.value})}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 text-sm" 
+                />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-2">Start Time</label>
-                <input required type="datetime-local" value={formData.startTime} onChange={e => setFormData({...formData, startTime: e.target.value})}
-                  className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500 text-base sm:text-sm" />
+                <label className="block text-xs font-bold text-slate-300 mb-2">পরীক্ষা সমাপ্তির সময় (End Date & Time) *</label>
+                <input 
+                  required 
+                  type="datetime-local" 
+                  value={formData.endTime} 
+                  onChange={e => setFormData({...formData, endTime: e.target.value})}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 text-sm" 
+                />
               </div>
+
+              {/* Duration & Questions */}
               <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-2">End Time</label>
-                <input required type="datetime-local" value={formData.endTime} onChange={e => setFormData({...formData, endTime: e.target.value})}
-                  className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500 text-base sm:text-sm" />
+                <label className="block text-xs font-bold text-slate-300 mb-2">পরীক্ষার সময়সীমা (মিনিট) *</label>
+                <input 
+                  required 
+                  type="number" 
+                  min="1" 
+                  value={formData.duration} 
+                  onChange={e => setFormData({...formData, duration: e.target.value})}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 text-sm" 
+                />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-2">Duration (minutes)</label>
-                <input required type="number" min="1" value={formData.duration} onChange={e => setFormData({...formData, duration: e.target.value})}
-                  className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500 text-base sm:text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-2">
-                  Total Questions
+                <label className="block text-xs font-bold text-slate-300 mb-2">
+                  মোট প্রশ্ন সংখ্যা (Total Questions) *
                   {formData.questionSource === 'custom' && (
-                    <span className="ml-1.5 font-normal text-slate-500">(JSON থেকে স্বয়ংক্রিয়)</span>
+                    <span className="ml-1.5 font-normal text-indigo-400">(JSON থেকে স্বয়ংক্রিয়)</span>
                   )}
                 </label>
                 <input
@@ -397,129 +564,119 @@ export default function LiveExamManager() {
                   disabled={formData.questionSource === 'custom'}
                   value={formData.questionSource === 'custom' ? parsedCustom.questions.length : formData.totalQuestions}
                   onChange={e => setFormData({...formData, totalQuestions: e.target.value})}
-                  className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500 text-base sm:text-sm disabled:opacity-50"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 text-sm disabled:opacity-50"
+                />
+              </div>
+
+              {/* Marks per Question & Negative Marking */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">প্রতি প্রশ্নের মান (Marks per Question) *</label>
+                <input 
+                  required 
+                  type="number" 
+                  min="0.1" 
+                  step="0.1" 
+                  value={formData.marksPerQuestion} 
+                  onChange={e => setFormData({...formData, marksPerQuestion: e.target.value})}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 text-sm" 
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-2">Marks per Question</label>
-                <input required type="number" min="0.1" step="0.1" value={formData.marksPerQuestion} onChange={e => setFormData({...formData, marksPerQuestion: e.target.value})}
-                  className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500 text-base sm:text-sm" />
+                <label className="block text-xs font-bold text-slate-300 mb-2">নেগেটিভ মার্কিং (ভুল উত্তরের জন্য কর্তন) *</label>
+                <input 
+                  required 
+                  type="number" 
+                  min="0" 
+                  step="0.01" 
+                  value={formData.negativeMarking} 
+                  onChange={e => setFormData({...formData, negativeMarking: e.target.value})}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500 text-sm" 
+                />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-2">Negative Marking</label>
-                <input required type="number" min="0" step="0.01" value={formData.negativeMarking} onChange={e => setFormData({...formData, negativeMarking: e.target.value})}
-                  className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500 text-base sm:text-sm" />
-              </div>
+
             </div>
 
-            <div className="bg-slate-900/50 border border-slate-700/50 rounded-xl p-4">
-              <h4 className="text-white font-bold mb-3 flex items-center gap-2">
-                <Settings2 className="h-4 w-4" /> প্রশ্ন নির্বাচন
+            {/* Question Source Selection */}
+            <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 space-y-4">
+              <h4 className="text-white font-bold text-sm flex items-center gap-2">
+                <Settings2 className="h-4 w-4 text-indigo-400" /> 
+                <span>প্রশ্ন নির্বাচনের উৎস (Question Source)</span>
               </h4>
 
-              {/* প্রশ্নব্যাংক নাকি নিজের দেওয়া JSON */}
-              <div className="mb-4 flex gap-2">
+              <div className="flex gap-2">
                 {[
-                  { id: 'bank', label: 'প্রশ্নব্যাংক থেকে', icon: Database },
-                  { id: 'custom', label: 'কাস্টম JSON', icon: Code2 },
+                  { id: 'bank', label: 'প্রশ্নব্যাংক থেকে অটো সিলেক্ট', icon: Database },
+                  { id: 'custom', label: 'কাস্টম JSON / প্রশ্ন আপলোড', icon: Code2 },
                 ].map((opt) => (
                   <button
                     key={opt.id}
                     type="button"
                     onClick={() => setFormData({ ...formData, questionSource: opt.id })}
-                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition ${
+                    className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-bold transition ${
                       formData.questionSource === opt.id
-                        ? 'border-indigo-500 bg-indigo-500/20 text-indigo-200'
-                        : 'border-slate-700 bg-slate-800/60 text-slate-400 hover:border-slate-600'
+                        ? 'border-indigo-500 bg-indigo-600/20 text-indigo-200'
+                        : 'border-slate-800 bg-slate-900 text-slate-400 hover:border-slate-700'
                     }`}
                   >
-                    <opt.icon className="h-3.5 w-3.5" /> {opt.label}
+                    <opt.icon className="h-4 w-4" /> {opt.label}
                   </button>
                 ))}
               </div>
 
               {formData.questionSource === 'custom' ? (
                 <>
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <p className="text-xs font-semibold text-slate-400">
-                      প্রশ্নগুলো JSON অ্যারে হিসেবে দিন। <span className="text-slate-500">answer = অপশনের ক্রম, ০ = প্রথম।</span>
+                  <div className="flex items-center justify-between gap-3 pt-2">
+                    <p className="text-xs text-slate-400">
+                      নিচে প্রশ্নগুলো JSON অ্যারে হিসেবে পেস্ট করুন। <span className="text-slate-500">answer = সঠিক অপশনের ইনডেক্স (০ = ক, ১ = খ)।</span>
                     </p>
                     <button
                       type="button"
                       onClick={copyTemplate}
-                      className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-[11px] font-bold text-slate-300 transition hover:border-indigo-500/50 hover:text-indigo-200"
+                      className="flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:border-indigo-500"
                     >
                       {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                      {copied ? 'কপি হয়েছে' : 'ফরম্যাট কপি করুন'}
+                      <span>{copied ? 'কপি হয়েছে' : 'নমুনা ফরম্যাট কপি'}</span>
                     </button>
                   </div>
 
                   <textarea
                     value={customJson}
                     onChange={(e) => setCustomJson(e.target.value)}
-                    rows={10}
+                    rows={8}
                     spellCheck={false}
                     placeholder={QUESTION_TEMPLATE}
-                    className="w-full resize-y rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 font-mono text-[12px] leading-relaxed text-slate-200 outline-none focus:border-indigo-500 placeholder:text-slate-700"
+                    className="w-full resize-y rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 font-mono text-xs text-slate-200 outline-none focus:border-indigo-500"
                   />
 
-                  {/* ভুল থাকলে কোন প্রশ্নে তা আলাদা করে বলি */}
                   {parsedCustom.errors.length > 0 && (
-                    <div className="mt-2 space-y-1 rounded-lg border border-rose-500/25 bg-rose-500/10 p-3">
+                    <div className="space-y-1 rounded-xl border border-rose-500/25 bg-rose-500/10 p-3">
                       {parsedCustom.errors.map((msg, i) => (
-                        <p key={i} className="flex items-start gap-2 text-[11.5px] font-semibold text-rose-200">
+                        <p key={i} className="flex items-start gap-2 text-xs font-semibold text-rose-300">
                           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {msg}
                         </p>
                       ))}
                     </div>
                   )}
 
-                  {/* পার্স হওয়া প্রশ্ন ও কোনটি সঠিক তা দেখাই — ইনডেক্স এক ঘর
-                      এদিক-ওদিক হলে এখানেই চোখে পড়বে, পরীক্ষার পরে নয় */}
                   {parsedCustom.questions.length > 0 && (
-                    <div className="mt-3">
-                      <p className="mb-2 text-xs font-bold text-emerald-400">
-                        ✓ {parsedCustom.questions.length} টি প্রশ্ন প্রস্তুত — সঠিক উত্তর মিলিয়ে নিন
-                      </p>
-                      <div className="max-h-64 space-y-2 overflow-y-auto pr-1 custom-scrollbar">
-                        {parsedCustom.questions.map((q, i) => (
-                          <div key={i} className="rounded-lg border border-slate-800 bg-slate-950/60 p-2.5">
-                            <p className="mb-1.5 text-[12px] font-semibold text-slate-200">
-                              {i + 1}. {q.question}
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {q.options.map((opt, oi) => (
-                                <span
-                                  key={oi}
-                                  className={`rounded px-2 py-0.5 text-[11px] font-medium ${
-                                    oi === q.answer
-                                      ? 'bg-emerald-500/20 font-bold text-emerald-300'
-                                      : 'bg-slate-800 text-slate-400'
-                                  }`}
-                                >
-                                  {oi === q.answer ? '✓ ' : ''}{opt}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    <p className="text-xs font-bold text-emerald-400">
+                      ✓ {parsedCustom.questions.length} টি প্রশ্ন প্রস্তুত হয়েছে
+                    </p>
                   )}
                 </>
               ) : !formData.subject ? (
-                <p className="text-sm text-slate-400">প্রথমে একটি বিষয় বেছে নিন।</p>
+                <p className="text-xs text-slate-400">প্রথমে উপরের ড্রপডাউন থেকে একটি বিষয় বেছে নিন।</p>
               ) : (
                 <>
-                  <p className="mb-2 text-xs font-semibold text-slate-400">
-                    অধ্যায় (কিছু না বাছলে ঐ বিষয়ের সব অধ্যায় থেকে আসবে)
+                  <p className="text-xs font-bold text-slate-400">
+                    অধ্যায় নির্বাচন (কিছু না বাছলে ঐ বিষয়ের সব অধ্যায় থেকে আসবে):
                   </p>
 
                   {(selectedSubject?.chapters || []).length === 0 ? (
-                    <p className="text-sm text-slate-500">এই বিষয়ে কোনো অধ্যায় যুক্ত করা হয়নি।</p>
+                    <p className="text-xs text-slate-500">এই বিষয়ে কোনো অধ্যায় যুক্ত করা হয়নি।</p>
                   ) : (
-                    <div className="mb-4 flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {selectedSubject.chapters.map((ch) => {
                         const cid = normalizeChapter(ch.id);
                         const on = formData.chapters.includes(cid);
@@ -533,10 +690,10 @@ export default function LiveExamManager() {
                                 ? formData.chapters.filter((c) => c !== cid)
                                 : [...formData.chapters, cid],
                             })}
-                            className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+                            className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
                               on
                                 ? 'border-indigo-500 bg-indigo-500/20 text-indigo-200'
-                                : 'border-slate-700 bg-slate-800/60 text-slate-400 hover:border-slate-600'
+                                : 'border-slate-800 bg-slate-900 text-slate-400 hover:border-slate-700'
                             }`}
                           >
                             {ch.name || ch.title || ch.id}
@@ -546,23 +703,14 @@ export default function LiveExamManager() {
                     </div>
                   )}
 
-                  {/* প্রশ্ন যথেষ্ট আছে কি না — সেভ করার আগেই জানা দরকার */}
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-2 text-xs pt-2">
                     {countingQuestions ? (
                       <span className="flex items-center gap-2 text-slate-400">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> প্রশ্ন গোনা হচ্ছে…
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> প্রশ্নসংখ্যা যাচাই হচ্ছে…
                       </span>
-                    ) : availableCount === null ? (
-                      <span className="text-slate-500">প্রশ্নসংখ্যা জানা যায়নি।</span>
-                    ) : (
-                      <span className={availableCount < Number(formData.totalQuestions || 0) ? 'text-amber-400' : 'text-emerald-400'}>
-                        {availableCount < Number(formData.totalQuestions || 0) && (
-                          <AlertTriangle className="mr-1.5 inline h-4 w-4 align-text-bottom" />
-                        )}
-                        পাওয়া যাচ্ছে <strong>{availableCount}</strong> টি MCQ
-                        {availableCount < Number(formData.totalQuestions || 0)
-                          ? ` — কিন্তু ${formData.totalQuestions} টি চাওয়া হয়েছে, পরীক্ষায় ${availableCount} টিই আসবে।`
-                          : ' ✓'}
+                    ) : availableCount !== null && (
+                      <span className={availableCount < Number(formData.totalQuestions || 0) ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold'}>
+                        ডাটাবেজে মোট পাওয়া গেছে {toBn(availableCount)} টি MCQ প্রশ্ন
                       </span>
                     )}
                   </div>
@@ -570,165 +718,195 @@ export default function LiveExamManager() {
               )}
             </div>
 
-            <div className="flex gap-3 pt-4">
-              <button type="submit" disabled={saving} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 transition-colors">
+            {/* Action Save/Cancel Buttons */}
+            <div className="flex gap-3 pt-4 border-t border-slate-800">
+              <button 
+                type="submit" 
+                disabled={saving} 
+                className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 py-3 rounded-xl font-bold flex justify-center items-center gap-2 transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+              >
                 {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-                {editingId ? 'Update Exam' : 'Save Exam'}
+                <span>{editingId ? 'পরিবর্তন সংরক্ষণ করুন' : 'পরীক্ষা প্রকাশ করুন'}</span>
               </button>
-              <button type="button" onClick={() => setShowForm(false)} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold transition-colors">
-                Cancel
+              <button 
+                type="button" 
+                onClick={() => setShowForm(false)} 
+                className="px-6 bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded-xl font-bold transition"
+              >
+                বাতিল
               </button>
             </div>
           </form>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {exams.length === 0 ? (
-            <div className="col-span-full text-center py-12 bg-slate-800/20 border border-slate-700/50 rounded-2xl">
-              <CalendarClock className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-              <p className="text-slate-400 font-medium">No live exams scheduled yet.</p>
+        /* ── Admin Exam List Section ─────────────────────────────────────── */
+        <div className="space-y-4">
+          
+          {/* Level Filter Tabs */}
+          <div className="flex gap-2 border-b border-slate-800 pb-3">
+            {[
+              { id: 'ALL', label: 'সকল পরীক্ষা' },
+              { id: 'SSC', label: '🎒 এসএসসি' },
+              { id: 'HSC', label: '🎓 এইচএসসি' },
+              { id: 'ADMISSION', label: '🩺 এডমিশন' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setAdminFilterLevel(tab.id)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                  adminFilterLevel === tab.id
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-slate-900/60 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {filteredExams.length === 0 ? (
+            <div className="text-center py-16 bg-slate-900/40 border border-slate-800 rounded-3xl p-8">
+              <CalendarClock className="h-12 w-12 text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-400 font-medium">কোনো লাইভ পরীক্ষা পাওয়া যায়নি।</p>
             </div>
           ) : (
-            exams.map(exam => (
-              <div key={exam.id} className="bg-slate-800/40 backdrop-blur border border-slate-700/50 rounded-2xl p-5 hover:border-slate-600 transition-colors">
-                <div className="flex justify-between items-start mb-3">
-                  {getStatus(exam.startTime, exam.endTime)}
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => handleEdit(exam)} className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-lg transition-colors">
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => handleDelete(exam.id)} className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-                <h3 className="text-lg font-bold text-white mb-1 line-clamp-1">{exam.title}</h3>
-                <p className="text-sm text-slate-400 mb-4 line-clamp-1">{exam.description}</p>
-                
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between border-b border-slate-700/50 pb-2">
-                    <span className="text-slate-400">Subject:</span>
-                    <span className="text-white font-medium">{subjectLabelOf(exam)}</span>
-                  </div>
-                  {exam.customQuestions?.length > 0 && (
-                    <div className="flex justify-between border-b border-slate-700/50 pb-2">
-                      <span className="text-slate-400">প্রশ্নের উৎস:</span>
-                      <span className="font-medium text-fuchsia-300">কাস্টম JSON</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredExams.map(exam => (
+                <div key={exam.id} className="bg-slate-900/60 backdrop-blur border border-slate-800 rounded-3xl p-5 hover:border-slate-700 transition flex flex-col justify-between shadow-xl">
+                  
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      {getStatus(exam.startTime, exam.endTime)}
+                      <div className="flex items-center gap-1">
+                        <button 
+                          type="button"
+                          onClick={() => handleEdit(exam)} 
+                          className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-xl transition"
+                          title="এডিট করুন"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => handleDelete(exam.id)} 
+                          className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition"
+                          title="ডিলিট করুন"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                  )}
-                  {/* পুরনো পরীক্ষাগুলোর subject কোনো আসল বিষয়ের সাথে মেলে না —
-                      ওগুলো চালালে শূন্য প্রশ্ন আসবে, তাই স্পষ্ট সতর্কতা।
-                      কাস্টম প্রশ্ন থাকলে প্রশ্নব্যাংকে যাওয়াই লাগে না। */}
-                  {allSubjects.length > 0 && !exam.customQuestions?.length
-                    && !allSubjects.some((s) => s.id === exam.subject) && (
-                    <div className="flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2.5 py-2">
-                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
-                      <p className="text-[11px] font-semibold leading-snug text-amber-200">
-                        এই বিষয়টি ({exam.subject}) প্রশ্নব্যাংকে নেই — পরীক্ষায় কোনো প্রশ্ন আসবে না।
-                        এডিট করে বিষয় আবার বেছে দিন।
-                      </p>
-                    </div>
-                  )}
-                  <div className="flex justify-between border-b border-slate-700/50 pb-2">
-                    <span className="text-slate-400">Questions:</span>
-                    <span className="text-white font-medium">{exam.totalQuestions} ({exam.duration} mins)</span>
-                  </div>
-                  <div className="flex justify-between pt-1">
-                    <span className="text-slate-400 text-xs">Starts:</span>
-                    <span className="text-indigo-300 text-xs font-bold">
-                      {exam.startTime?.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
 
-                <div className="mt-4 pt-4 border-t border-slate-700/50 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openParticipants(exam)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition-colors"
-                  >
-                    <Users className="h-3.5 w-3.5" /> অংশগ্রহণকারী
-                  </button>
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/20">
+                          {exam.level || 'HSC'}
+                        </span>
+                        {exam.admissionTrack && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/20">
+                            {exam.admissionTrack}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-base font-bold text-white line-clamp-1">{exam.title}</h3>
+                      <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">{exam.description || 'লাইভ মডেল টেস্ট'}</p>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs text-slate-300 border-t border-slate-800/80 pt-2.5">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">বিষয়:</span>
+                        <strong className="text-slate-200">{subjectLabelOf(exam)}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">প্রশ্ন ও সময়:</span>
+                        <strong className="text-slate-200">{toBn(exam.totalQuestions || 25)}টি ({toBn(exam.duration || 30)} মিনিট)</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">শুরুর সময়:</span>
+                        <span className="text-indigo-400 font-mono text-[11px]">
+                          {exam.startTime?.toLocaleString('bn-BD', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-800/80">
+                    <button
+                      type="button"
+                      onClick={() => openParticipants(exam)}
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition"
+                    >
+                      <Users className="h-3.5 w-3.5 text-indigo-400" /> 
+                      <span>অংশগ্রহণকারী ও স্কোর দেখুন</span>
+                    </button>
+                  </div>
+
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
       )}
 
-      {/* ── অংশগ্রহণকারীদের তালিকা ───────────────────────────────────── */}
+      {/* ── Participants & Leaderboard Drawer Modal ──────────────────────── */}
       {participantsFor && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={() => setParticipantsFor(null)} />
-
-          <div className="relative flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-800 p-5">
-              <div className="min-w-0">
-                <h3 className="truncate text-[17px] font-semibold tracking-tight text-white">{participantsFor.title}</h3>
-                <p className="mt-0.5 text-xs font-semibold text-slate-400">
-                  {loadingParticipants
-                    ? 'তালিকা আনা হচ্ছে…'
-                    : `${participants.length} জন অংশ নিয়েছে`}
-                </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="font-bold text-white text-lg flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-amber-400" />
+                  <span>অংশগ্রহণকারী ও লাইভ স্কোর</span>
+                </h3>
+                <p className="text-xs text-slate-400">{participantsFor.title}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setParticipantsFor(null)}
-                aria-label="বন্ধ করুন"
-                className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
               >
-                <X className="h-5 w-5" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-5 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto pr-1">
               {loadingParticipants ? (
-                <div className="flex justify-center py-12">
-                  <Loader2 className="h-7 w-7 animate-spin text-indigo-500" />
-                </div>
+                <div className="py-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-indigo-400" /></div>
               ) : participants.length === 0 ? (
-                <div className="py-12 text-center">
-                  <Users className="mx-auto mb-3 h-10 w-10 text-slate-600" />
-                  <p className="font-medium text-slate-400">এখনো কেউ এই পরীক্ষা দেয়নি।</p>
-                </div>
+                <p className="text-center py-12 text-slate-500 text-sm">এখনো কেউ পরীক্ষা জমা দেয়নি।</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead className="border-b border-slate-800 text-[11px] uppercase tracking-wider text-slate-500">
-                      <tr>
-                        <th className="px-2 py-2 font-bold">#</th>
-                        <th className="px-2 py-2 font-bold">নাম</th>
-                        <th className="px-2 py-2 text-center font-bold">সঠিক</th>
-                        <th className="px-2 py-2 text-center font-bold">ভুল</th>
-                        <th className="px-2 py-2 text-center font-bold">বাদ</th>
-                        <th className="px-2 py-2 text-right font-bold">নম্বর</th>
-                        <th className="px-2 py-2 text-right font-bold">জমা</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/70">
-                      {participants.map((p, i) => (
-                        <tr key={p.id} className="transition-colors hover:bg-slate-800/40">
-                          <td className="px-2 py-2.5 font-bold text-slate-500">{i + 1}</td>
-                          <td className="px-2 py-2.5 font-semibold text-slate-200">
-                            {p.userName || 'নামহীন'}
-                          </td>
-                          <td className="px-2 py-2.5 text-center font-bold text-emerald-400">{p.correct ?? 0}</td>
-                          <td className="px-2 py-2.5 text-center font-bold text-rose-400">{p.wrong ?? 0}</td>
-                          <td className="px-2 py-2.5 text-center text-slate-500">{p.unanswered ?? 0}</td>
-                          <td className="px-2 py-2.5 text-right font-black text-indigo-300">{p.totalScore ?? 0}</td>
-                          <td className="px-2 py-2.5 text-right text-[11px] text-slate-500">
-                            {p.submittedAt ? p.submittedAt.toLocaleString('bn-BD', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-2">
+                  {participants.map((p, rank) => (
+                    <div key={p.id || rank} className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs">
+                      <div className="flex items-center gap-3">
+                        <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold font-mono ${
+                          rank === 0 ? 'bg-amber-400 text-slate-950' : rank === 1 ? 'bg-slate-300 text-slate-950' : rank === 2 ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400'
+                        }`}>
+                          {rank + 1}
+                        </span>
+                        <div>
+                          <strong className="text-slate-200 block">{p.userName || 'শিক্ষার্থী'}</strong>
+                          <span className="text-[10px] text-slate-500">{p.email || 'গোপনীয়'}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <strong className="text-emerald-400 text-sm block font-mono">
+                          {toBn(p.totalScore || 0)} নম্বর
+                        </strong>
+                        <span className="text-[10px] text-slate-500">
+                          সঠিক: {toBn(p.correct || 0)} | ভুল: {toBn(p.wrong || 0)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }

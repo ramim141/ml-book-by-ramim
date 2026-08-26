@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useDeferredValue, useRef } from 'react';
+import { Navigate } from 'react-router-dom';
 import 'katex/dist/katex.min.css';
 import PrintableView from './PrintableView.jsx';
 import AnswerSheetView from './components/preview/AnswerSheetView.jsx';
@@ -17,17 +18,18 @@ import SavedPapersPanel from './components/shell/SavedPapersPanel.jsx';
 import CompleteCQModal from './components/question/CompleteCQModal.jsx';
 import { DEFAULT_PRINT_SETTINGS, resolvePage } from './printSettings.js';
 import { useAcademicSubjects } from '../../../hooks/useAcademicSubjects';
+import { ADMISSION_BUILDER_SUBJECTS, ADMISSION_PROGRAMS } from '../../../data/academic/admissionBuilderConfig';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useConfirm } from '../../../hooks/useConfirm';
-import toast from 'react-hot-toast';
-import { useBuilderQuestions } from './useBuilderQuestions.js';
+import { useBuilderQuestions, normalizeChapterKey } from './useBuilderQuestions.js';
 import { DEFAULT_MARKS, summarizeCart, markOf } from './marks.js';
 import { listPapers } from '../../../lib/savedPapers';
 import { buildUsageIndex } from './duplicateCheck.js';
-import { uploadPaperLogo, deletePaperLogo } from './logoUpload.js';
+import { uploadPaperLogo, deletePaperLogo, readImageAsDataUrl } from './logoUpload.js';
 import { estimatePageCount } from './pageEstimate.js';
 import { materializeEdits, shuffleSetVariant } from './setUtils.js';
-import { Download, ChevronDown, ChevronLeft, FileText, Wand2, CheckCheck, History, X, Settings2, Pencil, Printer, Layers } from 'lucide-react';
+import { Download, ChevronDown, ChevronLeft, FileText, Wand2, CheckCheck, History, X, Settings2, Pencil, Printer, Layers, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { enToBn } from './helpers.jsx';
 
 // ── localStorage keys ─────────────────────────────────────────────────
@@ -124,12 +126,15 @@ const BUILDER_CSS = `
   @media (min-width: 1024px) {
     nav.academic-navbar {
       max-height: var(--qb-nav-h);
-      overflow: hidden;
+      overflow: visible;
+      transition: max-height 0.3s ease, opacity 0.2s ease;
     }
     body.qb-nav-collapsed nav.academic-navbar {
       max-height: 0;
       opacity: 0;
+      overflow: hidden;
       border-color: transparent;
+      pointer-events: none;
     }
     body.qb-nav-collapsed .qb-app { height: 100dvh; }
   }
@@ -217,6 +222,8 @@ const BUILDER_CSS = `
 `;
 
 export default function QuestionBuilder() {
+  const { currentUser, loading: authLoading } = useAuth();
+
   // আগে চার ধাপের উইজার্ড ছিল; এখন বিল্ডারই মূল পর্দা, বাকি দুটো আউটপুট ভিউ
   const [view, setView] = useState('build'); // 'build' | 'preview' | 'answers' | 'omr'
 
@@ -256,7 +263,6 @@ export default function QuestionBuilder() {
   });
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [confirm, confirmDialog] = useConfirm();
-  const { currentUser } = useAuth();
   const [savedPapersOpen, setSavedPapersOpen] = useState(false);
 
   // "এই প্রশ্নটা কি আগে অন্য কোনো কাগজে ব্যবহার হয়েছে?" — সেশনে একবারই
@@ -325,11 +331,16 @@ export default function QuestionBuilder() {
   const canEditActiveSet = activeSetIndex === 0;
 
   const [selectedLevel, setSelectedLevel] = useState('HSC');
+  const [selectedProgram, setSelectedProgram] = useState('medical');
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState(['adm-biology', 'adm-chemistry', 'adm-physics', 'adm-english', 'adm-gk']);
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
+  const [selectedSubjectTab, setSelectedSubjectTab] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
   const [selectedChapters, setSelectedChapters] = useState([]);
   const [selectedTopics, setSelectedTopics] = useState([]);
-  const [visibleCount, setVisibleCount] = useState(10);
+  const [selectedBoards, setSelectedBoards] = useState([]);
+  const [selectedYears, setSelectedYears] = useState([]);
+  const [visibleCount, setVisibleCount] = useState(20);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [paperInfoOpen, setPaperInfoOpen] = useState(false);
@@ -352,39 +363,126 @@ export default function QuestionBuilder() {
 
   const rootStyle = navHeight ? { '--qb-nav-h': `${navHeight}px` } : undefined;
 
-  // ── data: বাকি অ্যাপের মতোই admin_settings/subjects + academic_content ──
+  // ── data: বাকি অ্যাপের মতোই admin_settings/subjects + academic_content + Admission ──
   const { data: allSubjects = [], isLoading: subjectsLoading } = useAcademicSubjects();
+
+  const combinedSubjects = useMemo(() => {
+    const list = [...allSubjects];
+    ADMISSION_BUILDER_SUBJECTS.forEach((admSub) => {
+      if (!list.some((s) => s.id === admSub.id)) {
+        list.push(admSub);
+      }
+    });
+    return list;
+  }, [allSubjects]);
 
   const levels = useMemo(() => {
     const seen = [];
-    allSubjects.forEach((s) => { if (s.level && !seen.includes(s.level)) seen.push(s.level); });
+    combinedSubjects.forEach((s) => { if (s.level && !seen.includes(s.level)) seen.push(s.level); });
     return seen;
-  }, [allSubjects]);
+  }, [combinedSubjects]);
 
   // selectedLevel এর প্রাথমিক মান 'HSC'; অ্যাডমিনের তালিকায় সেটা না থাকলে
   // ইফেক্ট দিয়ে সংশোধন না করে সরাসরি প্রথম স্তরটাই ধরে নিই — এতে বাড়তি
   // রেন্ডার-চক্র তৈরি হয় না
   const effectiveLevel = levels.includes(selectedLevel) ? selectedLevel : (levels[0] || selectedLevel);
+  const isAdmission = effectiveLevel === 'Admission';
 
-  const availableSubjects = useMemo(
-    () => allSubjects.filter((s) => s.level === effectiveLevel),
-    [allSubjects, effectiveLevel]
-  );
+  const currentProgramConfig = useMemo(() => {
+    return ADMISSION_PROGRAMS.find((p) => p.id === selectedProgram) || ADMISSION_PROGRAMS[0];
+  }, [selectedProgram]);
 
-  const activeSubjectConfig = useMemo(
-    () => availableSubjects.find((s) => s.id === selectedSubjectId) || null,
-    [availableSubjects, selectedSubjectId]
-  );
+  const availableSubjects = useMemo(() => {
+    if (isAdmission) {
+      return ADMISSION_BUILDER_SUBJECTS.filter((s) =>
+        currentProgramConfig.subjectIds.includes(s.id)
+      );
+    }
+    return combinedSubjects.filter((s) => s.level === effectiveLevel);
+  }, [isAdmission, currentProgramConfig, combinedSubjects, effectiveLevel]);
 
-  const chapters = useMemo(() => activeSubjectConfig?.chapters || [], [activeSubjectConfig]);
+  const activeSubjects = useMemo(() => {
+    if (isAdmission) {
+      return availableSubjects.filter((s) => selectedSubjectIds.includes(s.id));
+    }
+    return availableSubjects.filter((s) => s.id === selectedSubjectId);
+  }, [isAdmission, availableSubjects, selectedSubjectIds, selectedSubjectId]);
 
-  const { questions: subjectQuestions, isLoading: questionsLoading } = useBuilderQuestions(activeSubjectConfig);
+  const toggleSubjectId = useCallback((id) => {
+    setSelectedSubjectIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }, []);
+
+  const selectAllSubjects = useCallback(() => {
+    setSelectedSubjectIds(availableSubjects.map((s) => s.id));
+  }, [availableSubjects]);
+
+  const unselectAllSubjects = useCallback(() => {
+    setSelectedSubjectIds([]);
+  }, []);
+
+  // প্রোগ্রাম বদলালে স্বয়ংক্রিয়ভাবে সেই প্রোগ্রামের সব বিষয় নির্বাচন করা
+  useEffect(() => {
+    if (isAdmission) {
+      setSelectedSubjectIds(availableSubjects.map((s) => s.id));
+      setSelectedSubjectTab('all');
+    }
+  }, [isAdmission, selectedProgram]);
+
+  const { questions: subjectQuestions, isLoading: questionsLoading } = useBuilderQuestions(activeSubjects);
+
+  const chapters = useMemo(() => {
+    const list = activeSubjects.flatMap((s) =>
+      (s.chapters || []).map((c) => ({
+        ...c,
+        subjectId: s.id,
+        subjectName: s.name || s.label,
+      }))
+    );
+
+    // Auto-discover any custom chapters present in Firestore questions
+    const knownIds = new Set(list.map((c) => c.id));
+    const knownNorm = new Set(list.map((c) => normalizeChapterKey(c.id)));
+
+    subjectQuestions.forEach((q) => {
+      if (!q.chapterId) return;
+      const qNorm = normalizeChapterKey(q.chapterId);
+      if (!knownIds.has(q.chapterId) && !knownNorm.has(qNorm)) {
+        const extraCh = {
+          id: q.chapterId,
+          name: q.chapterName || q.chapterId,
+          title: q.chapterName || q.chapterId,
+          subjectId: activeSubjects[0]?.id || 'adm-biology',
+          subjectName: activeSubjects[0]?.name || activeSubjects[0]?.label || 'বিষয়',
+        };
+        list.push(extraCh);
+        knownIds.add(q.chapterId);
+        knownNorm.add(qNorm);
+      }
+    });
+
+    return list;
+  }, [activeSubjects, subjectQuestions]);
+
+  // যখন বিষয় বা চ্যাপ্টার লোড হয়, প্রথমবার অধ্যায়গুলো সক্রিয় করা
+  useEffect(() => {
+    if (chapters.length > 0 && selectedChapters.length === 0) {
+      setSelectedChapters(chapters.map((c) => c.id));
+    }
+  }, [chapters]);
 
   // বিষয়ের ভিতরে অধ্যায় বদলালে আর নেটওয়ার্ক কল যায় না — কাটাকুটি ক্লায়েন্টেই
   const scopedQuestions = useMemo(() => {
     if (selectedChapters.length === 0) return [];
     const set = new Set(selectedChapters);
-    return subjectQuestions.filter((q) => set.has(q.chapterId));
+    const normSet = new Set(selectedChapters.map(normalizeChapterKey));
+
+    return subjectQuestions.filter((q) => {
+      if (set.has(q.chapterId)) return true;
+      if (normSet.has(normalizeChapterKey(q.chapterId))) return true;
+      return false;
+    });
   }, [subjectQuestions, selectedChapters]);
 
   const deferredQuestions = useDeferredValue(scopedQuestions);
@@ -404,15 +502,20 @@ export default function QuestionBuilder() {
   useEffect(() => {
     setSelectedChapters([]);
     setSelectedTopics([]);
+    setSelectedBoards([]);
+    setSelectedYears([]);
     setSelectedType('all');
     setSearchQuery('');
-    if (activeSubjectConfig) {
+    if (activeSubjects.length > 0) {
       setHeaderInfo((prev) => ({
         ...prev,
-        subject: activeSubjectConfig.label || activeSubjectConfig.name || prev.subject,
+        subject:
+          activeSubjects.length > 1
+            ? `${activeSubjects.map((s) => s.name || s.label).join(' + ')}`
+            : activeSubjects[0]?.label || activeSubjects[0]?.name || prev.subject,
       }));
     }
-  }, [activeSubjectConfig]);
+  }, [activeSubjects]);
 
   // ── derived: topics ───────────────────────────────────────────────
   const availableTopics = useMemo(() => {
@@ -425,13 +528,92 @@ export default function QuestionBuilder() {
     setSelectedTopics((prev) => prev.filter((t) => availableTopics.some((at) => at.id === t)));
   }, [availableTopics]);
 
+  // ── derived: boards ও বছর — প্রশ্নের q.boards (নতুন) ও q.board (পুরোনো)
+  const boardEntriesOf = useCallback((q) => {
+    const list = [];
+    if (Array.isArray(q.boards)) {
+      q.boards.forEach((b) => {
+        if (typeof b === 'object' && b !== null) {
+          const n = (b.name || b.type || '').toString().trim();
+          const y = (b.year || b.session || '').toString().trim();
+          if (n && n !== '[object Object]') list.push({ name: n, year: y });
+        } else if (typeof b === 'string' && b.trim() && b !== '[object Object]') {
+          list.push({ name: b.trim(), year: '' });
+        }
+      });
+    } else if (Array.isArray(q.board)) {
+      q.board.forEach((b) => {
+        if (typeof b === 'object' && b !== null) {
+          const n = (b.name || b.type || '').toString().trim();
+          const y = (b.year || b.session || '').toString().trim();
+          if (n && n !== '[object Object]') list.push({ name: n, year: y });
+        } else if (typeof b === 'string' && b.trim() && b !== '[object Object]') {
+          list.push({ name: b.trim(), year: '' });
+        }
+      });
+    }
+    return list;
+  }, []);
+
+  const { availableBoards, availableYears } = useMemo(() => {
+    const boardMap = new Map();
+    const yearMap = new Map();
+    deferredQuestions.forEach((q) => {
+      boardEntriesOf(q).forEach((b) => {
+        const name = (b?.name || '').toString().trim();
+        const year = (b?.year || '').toString().trim();
+        if (name && name !== '[object Object]') boardMap.set(name, (boardMap.get(name) || 0) + 1);
+        if (year && year !== '[object Object]') yearMap.set(year, (yearMap.get(year) || 0) + 1);
+      });
+    });
+    return {
+      availableBoards: Array.from(boardMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, count]) => ({ id: name, name, count })),
+      availableYears: Array.from(yearMap.entries())
+        .sort((a, b) => Number(b[0]) - Number(a[0]))
+        .map(([year, count]) => ({ id: year, name: year, count })),
+    };
+  }, [deferredQuestions, boardEntriesOf]);
+
+  useEffect(() => {
+    setSelectedBoards((prev) => prev.filter((b) => availableBoards.some((ab) => ab.id === b)));
+  }, [availableBoards]);
+  useEffect(() => {
+    setSelectedYears((prev) => prev.filter((y) => availableYears.some((ay) => ay.id === y)));
+  }, [availableYears]);
+
   // ── derived: filtered questions ───────────────────────────────────
   const filteredQuestions = useMemo(() => {
     let qs = deferredQuestions;
     if (selectedTopics.length > 0) qs = qs.filter((q) => q.topic && selectedTopics.includes(q.topic.trim()));
-    if (selectedType === 'cq') qs = qs.filter((q) => q.type === 'cq');
-    else if (selectedType === 'mcq') qs = qs.filter((q) => q.type === 'mcq');
-    else if (selectedType === 'k_kh') qs = qs.filter((q) => q.type === 'k' || q.type === 'kh');
+    if (selectedBoards.length > 0 || selectedYears.length > 0) {
+      qs = qs.filter((q) => {
+        const entries = boardEntriesOf(q);
+        if (entries.length === 0) return false;
+        return entries.some((b) => {
+          const name = (b?.name || '').toString().trim();
+          const year = (b?.year || '').toString().trim();
+          const boardOk = selectedBoards.length === 0 || selectedBoards.includes(name);
+          const yearOk = selectedYears.length === 0 || selectedYears.includes(year);
+          return boardOk && yearOk;
+        });
+      });
+    }
+    if (isAdmission) {
+      if (selectedSubjectTab !== 'all') {
+        qs = qs.filter(
+          (q) =>
+            q.subject === selectedSubjectTab ||
+            q.subjectId === selectedSubjectTab ||
+            activeSubjects.find((s) => s.id === selectedSubjectTab)?.chapters?.some((c) => c.id === q.chapterId)
+        );
+      }
+    } else {
+      if (selectedType === 'cq') qs = qs.filter((q) => q.type === 'cq');
+      else if (selectedType === 'mcq') qs = qs.filter((q) => q.type === 'mcq');
+      else if (selectedType === 'k_kh') qs = qs.filter((q) => q.type === 'k' || q.type === 'kh');
+    }
     const term = searchQuery.trim().toLowerCase();
     if (term) {
       qs = qs.filter((q) => [
@@ -446,12 +628,12 @@ export default function QuestionBuilder() {
       ].filter(Boolean).join(' ').toLowerCase().includes(term));
     }
     return qs;
-  }, [deferredQuestions, selectedTopics, selectedType, searchQuery]);
+  }, [deferredQuestions, selectedTopics, selectedBoards, selectedYears, boardEntriesOf, isAdmission, selectedSubjectTab, activeSubjects, selectedType, searchQuery]);
 
   // ফিল্টার বদলালে তালিকা আবার প্রথম ১০টি থেকে শুরু হবে
-  const filterSignature = `${selectedTopics.join('|')}::${selectedType}::${searchQuery}::${deferredQuestions.length}`;
+  const filterSignature = `${selectedTopics.join('|')}::${selectedBoards.join('|')}::${selectedYears.join('|')}::${selectedType}::${selectedSubjectTab}::${searchQuery}::${deferredQuestions.length}`;
   useEffect(() => {
-    setVisibleCount(10);
+    setVisibleCount(20);
   }, [filterSignature]);
 
   const questionCounts = useMemo(() => scopedQuestions.reduce((a, q) => {
@@ -466,34 +648,51 @@ export default function QuestionBuilder() {
     const counts = {};
     subjectQuestions.forEach((q) => {
       if (!q.chapterId) return;
-      counts[q.chapterId] = (counts[q.chapterId] || 0) + 1;
+      const rawId = q.chapterId;
+      const normKey = normalizeChapterKey(rawId);
+      counts[rawId] = (counts[rawId] || 0) + 1;
+      if (normKey && normKey !== rawId) {
+        counts[normKey] = (counts[normKey] || 0) + 1;
+      }
     });
     return counts;
   }, [subjectQuestions]);
 
   const cartIdSet = useMemo(() => new Set(cart.map((q) => q.uniqueId)), [cart]);
-  const isQuestionLibraryFiltered = selectedChapters.length > 0 || selectedTopics.length > 0 || selectedType !== 'all' || Boolean(searchQuery.trim());
+  const isQuestionLibraryFiltered = selectedChapters.length > 0 || selectedTopics.length > 0 || selectedBoards.length > 0 || selectedYears.length > 0 || selectedType !== 'all' || selectedSubjectTab !== 'all' || Boolean(searchQuery.trim());
   const questionLibrarySummary = useMemo(() => {
-    const subjectName = activeSubjectConfig?.label || activeSubjectConfig?.name;
+    const subjectName = isAdmission
+      ? activeSubjects.length > 1
+        ? `${enToBn(activeSubjects.length)} টি বিষয়`
+        : activeSubjects[0]?.name || activeSubjects[0]?.label
+      : activeSubjects[0]?.label || activeSubjects[0]?.name;
+
     const selectedChapterLabels = selectedChapters
       .map((id) => {
         const chapter = chapters.find((c) => c.id === id);
         return chapter?.name || chapter?.title;
       })
       .filter(Boolean);
-    const typeLabel = selectedType === 'all'
+    const typeLabel = isAdmission
+      ? selectedSubjectTab !== 'all'
+        ? activeSubjects.find((s) => s.id === selectedSubjectTab)?.name
+        : null
+      : selectedType === 'all'
       ? null
       : selectedType === 'k_kh'
-        ? 'জ্ঞান/অনু.'
-        : selectedType.toUpperCase();
+      ? 'জ্ঞান/অনু.'
+      : selectedType.toUpperCase();
+
     return [
       subjectName,
       selectedChapterLabels.length > 1 ? `${enToBn(selectedChapterLabels.length)} অধ্যায়` : selectedChapterLabels[0],
       selectedTopics.length > 1 ? `${enToBn(selectedTopics.length)} টপিক` : selectedTopics[0],
+      selectedBoards.length > 1 ? `${enToBn(selectedBoards.length)} বোর্ড` : selectedBoards[0],
+      selectedYears.length > 1 ? `${enToBn(selectedYears.length)} সাল` : (selectedYears[0] ? enToBn(selectedYears[0]) : null),
       typeLabel,
       searchQuery.trim() ? `সার্চ: ${searchQuery.trim()}` : null,
     ].filter(Boolean);
-  }, [activeSubjectConfig, chapters, selectedChapters, selectedTopics, selectedType, searchQuery]);
+  }, [isAdmission, activeSubjects, chapters, selectedChapters, selectedTopics, selectedBoards, selectedYears, selectedType, selectedSubjectTab, searchQuery]);
 
   // ── callbacks ─────────────────────────────────────────────────────
   const handleHeaderChange = useCallback((e) => {
@@ -503,22 +702,36 @@ export default function QuestionBuilder() {
 
   const [logoUploading, setLogoUploading] = useState(false);
   const handleLogoUpload = async (file) => {
-    if (!currentUser?.uid) { toast.error('লোগো আপলোড করতে লগইন করুন।'); return; }
     setLogoUploading(true);
     try {
-      const { url, path } = await uploadPaperLogo(currentUser.uid, file);
-      if (headerInfo.logoPath) deletePaperLogo(headerInfo.logoPath);
-      setHeaderInfo((prev) => ({ ...prev, logoUrl: url, logoPath: path }));
+      // ক্লায়েন্ট-সাইডে তাৎক্ষণিকভাবে প্রিভিউ এবং ব্যবহারের জন্য DataURL তৈরি
+      const dataUrl = await readImageAsDataUrl(file);
+      setHeaderInfo((prev) => ({ ...prev, logoUrl: dataUrl, logoPath: '' }));
+      toast.success('প্রতিষ্ঠানের লোগো যুক্ত হয়েছে!');
+
+      // ব্যবহারকারী লগইন করা থাকলে ক্লাউডেও ব্যাকআপ রাখা
+      if (currentUser?.uid) {
+        try {
+          const { url, path } = await uploadPaperLogo(currentUser.uid, file);
+          setHeaderInfo((prev) => ({ ...prev, logoUrl: url, logoPath: path }));
+        } catch (cloudErr) {
+          console.warn('Cloud logo backup skipped:', cloudErr);
+        }
+      }
     } catch (err) {
       console.error(err);
-      toast.error(err.message || 'লোগো আপলোড করা যায়নি।');
+      toast.error(err.message || 'লোগো লোড করা যায়নি।');
     } finally {
       setLogoUploading(false);
     }
   };
+
   const handleLogoRemove = () => {
-    if (headerInfo.logoPath) deletePaperLogo(headerInfo.logoPath);
+    if (headerInfo.logoPath) {
+      deletePaperLogo(headerInfo.logoPath, currentUser?.uid);
+    }
     setHeaderInfo((prev) => ({ ...prev, logoUrl: '', logoPath: '' }));
+    toast.success('লোগো মুছে ফেলা হয়েছে');
   };
 
   const handleMarksChange = useCallback((type, value) => {
@@ -576,7 +789,10 @@ export default function QuestionBuilder() {
       ...DEFAULT_HEADER_INFO,
       // বিষয় বাছাই করা থাকলে নামটা রেখে দিই — না হলে ফাঁকা থেকে যেত, কারণ
       // অটো-ফিল ইফেক্টটা কেবল বিষয় বদলালেই চলে
-      subject: activeSubjectConfig?.label || activeSubjectConfig?.name || '',
+      subject:
+        activeSubjects.length > 1
+          ? `${activeSubjects.map((s) => s.name || s.label).join(' + ')}`
+          : activeSubjects[0]?.label || activeSubjects[0]?.name || '',
     });
     setMarksConfig({ ...DEFAULT_MARKS });
     setEdits({});
@@ -584,7 +800,7 @@ export default function QuestionBuilder() {
     setRestoredDraft(null);
     setPaperInfoOpen(false);
     setMobileCartOpen(false);
-  }, [confirm, activeSubjectConfig]);
+  }, [confirm, activeSubjects]);
 
   /** একবারে অনেকগুলো — স্বয়ংক্রিয় বাছাই ও "সব যোগ করুন" দুটোই এটাই ব্যবহার করে */
   const addManyToCart = useCallback((items) => {
@@ -608,6 +824,14 @@ export default function QuestionBuilder() {
   const moveCartItemDown = useCallback((index) => moveCartItem(index, 1), [moveCartItem]);
   const toggleChapter = useCallback((id) => setSelectedChapters((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]), []);
   const toggleTopic = useCallback((id) => setSelectedTopics((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]), []);
+  const toggleBoard = useCallback((id) => setSelectedBoards((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]), []);
+  const toggleYear = useCallback((id) => setSelectedYears((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]), []);
+  // "রিসেট" — চ্যাপ্টার/বিষয় অক্ষত রেখে শুধু সংকীর্ণ ফিল্টারগুলো (টপিক/বোর্ড/সাল) সাফ করে
+  const resetNarrowFilters = useCallback(() => {
+    setSelectedTopics([]);
+    setSelectedBoards([]);
+    setSelectedYears([]);
+  }, []);
 
   const knowledgePool = useMemo(
     () => subjectQuestions.filter((q) => q.type === 'k' || q.type === 'kh'),
@@ -685,6 +909,22 @@ export default function QuestionBuilder() {
     });
   }, [headerInfo.subject, isDownloadingPdf, view, setCount, activeSetIndex]);
 
+
+  // ── Authentication Check ──────────────────────────────────────────
+  if (authLoading) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center bg-[#0b0f19]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-9 w-9 animate-spin text-violet-400" />
+          <p className="text-xs font-bold text-slate-400">লোড হচ্ছে...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <Navigate to="/login" state={{ from: '/academic/question-builder' }} replace />;
+  }
 
   // ── Output views: print preview / answer key / OMR sheet ──────────
   if (view === 'preview' || view === 'answers' || view === 'omr') {
@@ -925,10 +1165,16 @@ export default function QuestionBuilder() {
             levels={levels}
             selectedLevel={effectiveLevel}
             setSelectedLevel={setSelectedLevel}
+            selectedProgram={selectedProgram}
+            setSelectedProgram={setSelectedProgram}
+            selectedSubjectIds={selectedSubjectIds}
+            toggleSubjectId={toggleSubjectId}
+            selectAllSubjects={selectAllSubjects}
+            unselectAllSubjects={unselectAllSubjects}
             selectedSubjectId={selectedSubjectId}
             setSelectedSubjectId={setSelectedSubjectId}
             availableSubjects={availableSubjects}
-            activeSubjectConfig={activeSubjectConfig}
+            activeSubjects={activeSubjects}
             chapters={chapters}
             chapterCounts={chapterCounts}
             selectedChapters={selectedChapters}
@@ -936,6 +1182,13 @@ export default function QuestionBuilder() {
             availableTopics={availableTopics}
             selectedTopics={selectedTopics}
             toggleTopic={toggleTopic}
+            availableBoards={availableBoards}
+            selectedBoards={selectedBoards}
+            toggleBoard={toggleBoard}
+            availableYears={availableYears}
+            selectedYears={selectedYears}
+            toggleYear={toggleYear}
+            onResetFilters={resetNarrowFilters}
           />
 
           <section ref={listPaneRef} className="qb-list-pane custom-scrollbar pr-0.5">
@@ -950,15 +1203,44 @@ export default function QuestionBuilder() {
               />
 
               {selectedChapters.length > 0 && (
-                /* ট্যাব আর বাল্ক-অ্যাকশন আগে দুই সারিতে ছিল; এক সারিতে এনে
-                   তালিকার জন্য জায়গা বাড়ানো হলো */
+                /* এডমিশনে বিষয়ের নাম অনুসারে ট্যাব, অন্যথায় CQ/MCQ */
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex min-w-0 flex-1 gap-1 rounded-xl border border-white/[0.06] bg-white/[0.02] p-1 shadow-inner shadow-black/20">
-                    <CategoryTab active={selectedType === 'all'} onClick={() => setSelectedType('all')} label="সব" mobileLabel="সব" count={enToBn(questionCounts.all)} />
-                    <CategoryTab active={selectedType === 'cq'} onClick={() => setSelectedType('cq')} label="সৃজনশীল" mobileLabel="CQ" count={enToBn(questionCounts.cq)} />
-                    <CategoryTab active={selectedType === 'mcq'} onClick={() => setSelectedType('mcq')} label="MCQ" mobileLabel="MCQ" count={enToBn(questionCounts.mcq)} />
-                    <CategoryTab active={selectedType === 'k_kh'} onClick={() => setSelectedType('k_kh')} label="জ্ঞান/অনু." mobileLabel="ক/খ" count={enToBn(questionCounts.kKh)} />
-                  </div>
+                  {isAdmission ? (
+                    <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto custom-scrollbar rounded-xl border border-white/[0.06] bg-white/[0.02] p-1 shadow-inner shadow-black/20">
+                      <CategoryTab
+                        active={selectedSubjectTab === 'all'}
+                        onClick={() => setSelectedSubjectTab('all')}
+                        label="সব বিষয়"
+                        mobileLabel="সব"
+                        count={enToBn(scopedQuestions.length)}
+                      />
+                      {activeSubjects.map((sub) => {
+                        const count = scopedQuestions.filter(
+                          (q) =>
+                            q.subject === sub.id ||
+                            q.subjectId === sub.id ||
+                            sub.chapters?.some((c) => c.id === q.chapterId)
+                        ).length;
+                        return (
+                          <CategoryTab
+                            key={sub.id}
+                            active={selectedSubjectTab === sub.id}
+                            onClick={() => setSelectedSubjectTab(sub.id)}
+                            label={`${sub.emoji ? `${sub.emoji} ` : ''}${sub.name || sub.label}`}
+                            mobileLabel={sub.name || sub.label}
+                            count={enToBn(count)}
+                          />
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex min-w-0 flex-1 gap-1 rounded-xl border border-white/[0.06] bg-white/[0.02] p-1 shadow-inner shadow-black/20">
+                      <CategoryTab active={selectedType === 'all'} onClick={() => setSelectedType('all')} label="সব" mobileLabel="সব" count={enToBn(questionCounts.all)} />
+                      <CategoryTab active={selectedType === 'cq'} onClick={() => setSelectedType('cq')} label="সৃজনশীল" mobileLabel="CQ" count={enToBn(questionCounts.cq)} />
+                      <CategoryTab active={selectedType === 'mcq'} onClick={() => setSelectedType('mcq')} label="MCQ" mobileLabel="MCQ" count={enToBn(questionCounts.mcq)} />
+                      <CategoryTab active={selectedType === 'k_kh'} onClick={() => setSelectedType('k_kh')} label="জ্ঞান/অনু." mobileLabel="ক/খ" count={enToBn(questionCounts.kKh)} />
+                    </div>
+                  )}
 
                   <div className="flex shrink-0 items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-1 shadow-inner shadow-black/20">
                     <button
@@ -1013,11 +1295,11 @@ export default function QuestionBuilder() {
               {!loading && filteredQuestions.length > visibleCount && (
                 <button
                   type="button"
-                  onClick={() => setVisibleCount((v) => v + 10)}
+                  onClick={() => setVisibleCount((v) => v + 20)}
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-800 bg-slate-900/40 py-3 text-xs font-extrabold text-slate-400 transition hover:border-indigo-400/50 hover:bg-indigo-500/10 hover:text-indigo-200"
                 >
                   <ChevronDown className="h-4 w-4" />
-                  আরো {enToBn(Math.min(10, filteredQuestions.length - visibleCount))} টি দেখান
+                  আরো {enToBn(Math.min(20, filteredQuestions.length - visibleCount))} টি দেখান
                   <span className="text-slate-600">({enToBn(filteredQuestions.length - visibleCount)} টি বাকি)</span>
                 </button>
               )}

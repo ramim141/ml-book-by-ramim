@@ -101,7 +101,7 @@ const ShortcutCard = memo(({ item }) => {
               </div>
               {item.image && (
                 <div className="p-2 mb-4 overflow-hidden border shadow-xl rounded-2xl border-slate-700/50 sm:mb-6 bg-slate-950">
-                  <img src={item.image} alt={item.title} className="w-full rounded-xl object-contain max-h-[200px] sm:max-h-[300px] mx-auto" />
+                  <img src={item.image} alt={item.title} loading="lazy" className="w-full rounded-xl object-contain max-h-[200px] sm:max-h-[300px] mx-auto" />
                 </div>
               )}
               {item.description && (
@@ -141,7 +141,7 @@ const ShortcutCard = memo(({ item }) => {
           </div>
         ) : item.type === 'mindmap' ? (
            <div className="p-2 mb-4 overflow-hidden border shadow-xl rounded-2xl border-slate-700/50 sm:mb-6 bg-slate-950 sm:p-3">
-             <img src={item.content} alt={item.title} className="object-contain w-full rounded-xl" />
+             <img src={item.content} alt={item.title} loading="lazy" className="object-contain w-full rounded-xl" />
            </div>
         ) : item.content ? (
           <div className={`relative p-4 sm:p-5 md:p-6 mb-4 sm:mb-6 rounded-2xl bg-white/5 border border-white/5 shadow-inner backdrop-blur-sm`}>
@@ -154,7 +154,7 @@ const ShortcutCard = memo(({ item }) => {
 
         {item.image && item.type !== 'mindmap' && (
            <div className="p-2 mb-6 overflow-hidden border shadow-xl rounded-2xl border-slate-700/50 bg-slate-950">
-             <img src={item.image} alt={item.title} className="w-full rounded-xl object-contain max-h-[300px] mx-auto" />
+             <img src={item.image} alt={item.title} loading="lazy" className="w-full rounded-xl object-contain max-h-[300px] mx-auto" />
            </div>
         )}
       </div>
@@ -241,8 +241,6 @@ export default function ChapterShortcutViewer({ educationLevel: propEdu, subject
     return () => { isMounted = false; };
   }, [configKey, educationLevel, subject, chapterId, isGlobalAll, isAllChapters, dynamicConfig]);
 
-  if (notFound) return <Navigate to="/academic/shortcut" replace />;
-
   const tabs = [
     { id: 'all', label: 'সব শর্টকাট', icon: <Sparkles className="w-4 h-4" /> },
     { id: 'mnemonic', label: 'ছন্দ ও টেকনিক', icon: <Brain className="w-4 h-4" /> },
@@ -259,6 +257,10 @@ export default function ChapterShortcutViewer({ educationLevel: propEdu, subject
       return matchTab && matchSearch;
     });
   }, [shortcuts, activeTab, searchQuery]);
+
+  // সব hook কল হওয়ার পরেই early return — notFound ফেচের পরে true হয়,
+  // তাই আগে রিটার্ন করলে রেন্ডারে hook সংখ্যা কমে গিয়ে React ক্র্যাশ করত
+  if (notFound) return <Navigate to="/academic/shortcut" replace />;
 
   return (
     <div className="min-h-screen bg-[#050914] font-bangla pb-24 relative overflow-hidden">

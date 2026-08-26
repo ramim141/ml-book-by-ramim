@@ -1,16 +1,18 @@
 import { useState, useEffect, useMemo, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, Navigate } from 'react-router-dom';
-import { HelpCircle, ChevronDown, ChevronUp, CheckCircle2, Circle, ArrowLeft, Loader2, Search, SlidersHorizontal, LayoutGrid, Filter, Flag } from 'lucide-react';
+import { HelpCircle, ChevronDown, ChevronUp, CheckCircle2, Circle, ArrowLeft, Loader2, Search, SlidersHorizontal, LayoutGrid, Filter, Flag, FileText } from 'lucide-react';
 import FilterSelect from '../../../components/UI/FilterSelect';
 import SharedMCQItem from '../../../components/Academic/SharedMCQItem';
+import ExamPdfExportModal from '../../../components/Academic/ExamPdfExportModal';
 import { SkeletonList } from '../../../components/UI/Skeleton';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { resolveSubjectFromRoute } from '../../../utils/academicRoutes';
+import { optionsOf } from '../../../lib/questionUtils';
 
 const enToBnNumber = (numStr) => {
-  if (!numStr) return numStr;
+  if (numStr === null || numStr === undefined || numStr === '') return numStr;
   const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
   return String(numStr).replace(/[0-9]/g, w => bn[w]);
 };
@@ -37,6 +39,7 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
   const [selectedInstitution, setSelectedInstitution] = useState('all');
   const [showAdvanceFilters, setShowAdvanceFilters] = useState(false);
   const [visibleCount, setVisibleCount] = useState(15);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
 
   // Reset visible count when filters change
   useEffect(() => {
@@ -130,7 +133,7 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
       const matchesSearch = searchQuery === '' ||
         mcq.question?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         mcq.topic?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        mcq.options?.some(o => o.toLowerCase().includes(searchQuery.toLowerCase()));
+        optionsOf(mcq).some(o => String(o ?? '').toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchesChapter = selectedChapter === 'all' || mcq.chapterId === selectedChapter;
       const matchesBoard = selectedBoard === 'all' || mcq.boards?.some(b => b.name === selectedBoard);
@@ -219,11 +222,34 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
               সকল অধ্যায়ের বিগত সালের গুরুত্বপূর্ণ বোর্ড ও কলেজ প্রশ্ন সমাধান একসাথে।
             </p>
           </div>
-          <div className="text-xs sm:text-sm bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-1.5 rounded-full text-indigo-300 font-bold shrink-0 self-start md:self-center">
-            মোট প্রশ্ন: {enToBnNumber(filteredQuestions.length)} টি
+          <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
+            <button
+              type="button"
+              onClick={() => setIsPdfModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-600/20 transition-all"
+            >
+              <FileText className="w-4 h-4" />
+              <span>প্রশ্নপত্র ও উত্তরমালা PDF</span>
+            </button>
+            <div className="text-xs sm:text-sm bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-1.5 rounded-full text-indigo-300 font-bold">
+              মোট প্রশ্ন: {enToBnNumber(filteredQuestions.length)} টি
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Printable PDF Export Modal */}
+      <ExamPdfExportModal
+        isOpen={isPdfModalOpen}
+        onClose={() => setIsPdfModalOpen(false)}
+        examTitle={`${subjectConfig?.label || ''} MCQ প্রশ্নব্যাংক`}
+        questions={filteredQuestions}
+        examInfo={{
+          totalMarks: filteredQuestions.length,
+          timeLimitMinutes: Math.max(15, Math.round(filteredQuestions.length * 0.8)),
+          subject: subjectConfig?.label || subject || 'সকল বিষয়',
+        }}
+      />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">

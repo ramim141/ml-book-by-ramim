@@ -125,7 +125,7 @@ export default function LinearRegressionMarkdownView() {
                 <td className="px-4 py-3 align-top border-b border-slate-800 text-slate-300">{children}</td>
               ),
               img: ({ src, alt }) => (
-                <img src={src} alt={alt} className="my-6 border rounded-2xl border-white/5" />
+                <img src={src} alt={alt} loading="lazy" className="my-6 border rounded-2xl border-white/5" />
               ),
               hr: () => <hr className="my-12 border-slate-800" />,
               ul: ({ children }) => <ul className="pl-6 my-4 space-y-2 list-disc text-justify">{children}</ul>,
@@ -155,7 +155,7 @@ export default function LinearRegressionMarkdownView() {
                 .map((post) => (
                   <Link to={`/ml/blog/${post.slug}`} key={post.id} className="cursor-pointer group block">
                     <div className="w-full h-48 mb-4 overflow-hidden border rounded-2xl border-slate-800">
-                      <img src={post.image} alt={post.title} className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105" />
+                      <img src={post.image} alt={post.title} loading="lazy" className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105" />
                     </div>
                     <p className="text-xs text-[#00daf3] font-bold uppercase tracking-widest mb-2">{post.category}</p>
                     <h4 className="text-lg font-bold text-white group-hover:text-[#5b5dfa] transition-colors line-clamp-2 leading-snug mb-2">

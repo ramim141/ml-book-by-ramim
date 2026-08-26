@@ -13,89 +13,193 @@ import { db } from '../config/firebase';
  */
 export const REVIEW_INTERVAL_DAYS = [1, 3, 7];
 
+function getSafeQuestionId(q) {
+  if (q.firebaseId) return String(q.firebaseId);
+  if (q.id !== undefined && q.id !== null) return String(q.id);
+  const text = q.question || q.title || '';
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    hash = ((hash << 5) - hash) + text.charCodeAt(i);
+    hash |= 0;
+  }
+  return `q_${Math.abs(hash)}`;
+}
+
 const mistakeRef = (uid, questionId) => doc(db, 'users', uid, 'mistakes', questionId);
+
+// Helper to save mistake locally
+function saveMistakeLocally(uid, mistakeObj) {
+  try {
+    const key = uid && uid !== 'guest' ? `academic_mistakes_${uid}` : 'academic_guest_mistakes';
+    const existingRaw = localStorage.getItem(key);
+    let list = existingRaw ? JSON.parse(existingRaw) : [];
+    const idx = list.findIndex(m => m.questionId === mistakeObj.questionId);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...mistakeObj, timesWrong: (list[idx].timesWrong || 1) + 1 };
+    } else {
+      list.unshift({ ...mistakeObj, timesWrong: 1, createdAt: Date.now() });
+    }
+    localStorage.setItem(key, JSON.stringify(list.slice(0, 500)));
+  } catch (e) {
+    console.warn('Failed to save mistake locally:', e);
+  }
+}
 
 /**
  * একটা ভুল উত্তর রেকর্ড করে। q তে থাকা `firebaseId`/`id`, `question`,
  * `options`, `answer`, `chapterId`, `chapterName` ব্যবহার করে।
  */
-export async function recordMistake(uid, q, { subjectId, subjectTitle, userAnswer } = {}) {
-  const questionId = q.firebaseId || q.id;
-  if (!uid || !questionId) return;
+export async function recordMistake(uid, q, { subjectId, subjectTitle, userAnswer, program } = {}) {
+  const questionId = getSafeQuestionId(q);
+  if (!questionId) return;
+
+  const targetUid = uid || 'guest';
+
+  const base = {
+    questionId,
+    question: q.question || q.title || '',
+    options: q.options || null,
+    answer: q.answer ?? null,
+    userAnswer: userAnswer ?? null,
+    subjectId: subjectId || q.subject || '',
+    subjectTitle: subjectTitle || q.subjectTitle || q.subject || '',
+    program: program || q.program || '',
+    chapterId: q.chapterId || null,
+    chapterName: q.chapterName || 'অন্যান্য',
+    explanation: q.explanation || null,
+    imageUrl: q.imageUrl || q.image || q.image_url || null,
+    intervalIndex: 0,
+    mastered: false,
+    masteredAt: null,
+    // localStorage এ JSON.stringify হয় বলে এখানে সাধারণ সংখ্যাই রাখতে হবে —
+    // আগে `{ toMillis: () => ... }` রাখা হতো, যেটা সেভ হয়ে `{}` হয়ে যেত।
+    // ফলে পুনরালোচনার সময়সূচি কখনো কাজ করত না আর তালিকায় "Invalid Date" দেখাত।
+    nextReviewAtMs: Date.now(),
+    lastWrongAt: Date.now(),
+  };
+
+  // Always save to localStorage immediately for instant offline/online availability
+  saveMistakeLocally(targetUid, base);
+
+  if (targetUid === 'guest') return;
 
   try {
-    const ref = mistakeRef(uid, questionId);
+    const ref = mistakeRef(targetUid, questionId);
     const snap = await getDoc(ref);
 
-    const base = {
-      questionId,
-      question: q.question || q.title || '',
-      options: q.options || null,
-      answer: q.answer ?? null,
-      userAnswer: userAnswer ?? null,
-      subjectId: subjectId || q.subject || '',
-      subjectTitle: subjectTitle || '',
-      chapterId: q.chapterId || null,
-      chapterName: q.chapterName || 'অন্যান্য',
-      explanation: q.explanation || null,
-      imageUrl: q.imageUrl || q.image || q.image_url || null,
-      // আবার ভুল হলে অগ্রগতি রিসেট, এখনই আবার দেখানো হবে
-      intervalIndex: 0,
-      mastered: false,
-      masteredAt: null,
+    const { nextReviewAtMs, ...firestoreFields } = base;
+    const firestoreBase = {
+      ...firestoreFields,
       nextReviewAt: Timestamp.now(),
       lastWrongAt: serverTimestamp(),
     };
 
     if (snap.exists()) {
-      await setDoc(ref, { ...base, timesWrong: increment(1) }, { merge: true });
+      await setDoc(ref, { ...firestoreBase, timesWrong: increment(1) }, { merge: true });
     } else {
-      await setDoc(ref, { ...base, timesWrong: 1, createdAt: serverTimestamp() });
+      await setDoc(ref, { ...firestoreBase, timesWrong: 1, createdAt: serverTimestamp() });
     }
   } catch (err) {
-    // ভুলের খাতা একটা বাড়তি ফিচার — এটা ব্যর্থ হলেও মূল পরীক্ষা জমা
-    // দেওয়া আটকে যাওয়া উচিত নয়, তাই এখানেই ধরে নেওয়া হলো।
     if (err?.code === 'permission-denied') {
-      console.error(
-        'ভুলের খাতায় সেভ ব্যর্থ: permission-denied। firestore.rules এ mistakes ' +
-        'সাবকালেকশনের নিয়ম আছে কিন্তু ডিপ্লয় করা হয়নি হয়তো — ' +
-        '`firebase deploy --only firestore:rules` চালান।',
-        err,
-      );
+      console.warn('ভুলের খাতায় সেভ permission-denied, লোকাল স্টোরেজে সংরক্ষিত হয়েছে।', err);
     } else {
-      console.error('Failed to record mistake:', err);
+      console.error('Failed to record mistake in firestore:', err);
     }
   }
 }
 
 /** পুনরালোচনার সময় একটা প্রশ্নে ঠিক/ভুল উত্তর দেওয়ার পর কল হয়। */
 export async function recordReviewResult(uid, mistakeDoc, wasCorrect) {
-  const ref = mistakeRef(uid, mistakeDoc.questionId);
+  const targetUid = uid || 'guest';
+  const qId = mistakeDoc.questionId || mistakeDoc.id;
 
-  if (!wasCorrect) {
-    await updateDoc(ref, {
-      intervalIndex: 0,
-      mastered: false,
-      timesWrong: increment(1),
-      nextReviewAt: Timestamp.now(),
-      lastWrongAt: serverTimestamp(),
-    });
-    return;
+  // Local update
+  try {
+    const key = targetUid && targetUid !== 'guest' ? `academic_mistakes_${targetUid}` : 'academic_guest_mistakes';
+    const existingRaw = localStorage.getItem(key);
+    if (existingRaw) {
+      let list = JSON.parse(existingRaw);
+      list = list.map(m => {
+        if (m.questionId === qId || m.id === qId) {
+          if (!wasCorrect) {
+            return {
+              ...m,
+              intervalIndex: 0,
+              mastered: false,
+              nextReviewAtMs: Date.now(),
+              timesWrong: (m.timesWrong || 1) + 1,
+            };
+          }
+          const nextIdx = (m.intervalIndex || 0) + 1;
+          const mastered = nextIdx >= REVIEW_INTERVAL_DAYS.length;
+          const days = REVIEW_INTERVAL_DAYS[Math.min(nextIdx, REVIEW_INTERVAL_DAYS.length - 1)];
+          return {
+            ...m,
+            intervalIndex: nextIdx,
+            mastered,
+            masteredAt: mastered ? Date.now() : null,
+            nextReviewAtMs: Date.now() + days * 86400000,
+          };
+        }
+        return m;
+      });
+      localStorage.setItem(key, JSON.stringify(list));
+    }
+  } catch (e) {
+    console.warn('Local update mistake review failed:', e);
   }
 
-  const nextIndex = (mistakeDoc.intervalIndex || 0) + 1;
-  const mastered = nextIndex >= REVIEW_INTERVAL_DAYS.length;
-  const days = REVIEW_INTERVAL_DAYS[Math.min(nextIndex, REVIEW_INTERVAL_DAYS.length - 1)];
+  if (targetUid === 'guest') return;
 
-  await updateDoc(ref, {
-    intervalIndex: nextIndex,
-    mastered,
-    masteredAt: mastered ? serverTimestamp() : null,
-    nextReviewAt: Timestamp.fromMillis(Date.now() + days * 86400000),
-  });
+  try {
+    const ref = mistakeRef(targetUid, qId);
+
+    if (!wasCorrect) {
+      await updateDoc(ref, {
+        intervalIndex: 0,
+        mastered: false,
+        timesWrong: increment(1),
+        nextReviewAt: Timestamp.now(),
+        lastWrongAt: serverTimestamp(),
+      });
+      return;
+    }
+
+    const nextIndex = (mistakeDoc.intervalIndex || 0) + 1;
+    const mastered = nextIndex >= REVIEW_INTERVAL_DAYS.length;
+    const days = REVIEW_INTERVAL_DAYS[Math.min(nextIndex, REVIEW_INTERVAL_DAYS.length - 1)];
+
+    await updateDoc(ref, {
+      intervalIndex: nextIndex,
+      mastered,
+      masteredAt: mastered ? serverTimestamp() : null,
+      nextReviewAt: Timestamp.fromMillis(Date.now() + days * 86400000),
+    });
+  } catch (e) {
+    console.error('Firestore recordReviewResult error:', e);
+  }
 }
 
 /** কোনো প্রশ্ন খাতা থেকে পুরোপুরি সরিয়ে ফেলে (ভুলবশত যোগ হলে বা আর দরকার না হলে)। */
 export async function dismissMistake(uid, questionId) {
-  await deleteDoc(mistakeRef(uid, questionId));
+  const targetUid = uid || 'guest';
+  try {
+    const key = targetUid && targetUid !== 'guest' ? `academic_mistakes_${targetUid}` : 'academic_guest_mistakes';
+    const existingRaw = localStorage.getItem(key);
+    if (existingRaw) {
+      let list = JSON.parse(existingRaw);
+      list = list.filter(m => m.questionId !== questionId && m.id !== questionId);
+      localStorage.setItem(key, JSON.stringify(list));
+    }
+  } catch (e) {
+    console.warn('Local dismiss mistake error:', e);
+  }
+
+  if (targetUid === 'guest') return;
+
+  try {
+    await deleteDoc(mistakeRef(targetUid, questionId));
+  } catch (e) {
+    console.error('Firestore dismissMistake error:', e);
+  }
 }

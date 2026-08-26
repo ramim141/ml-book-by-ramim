@@ -6,9 +6,10 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import 'katex/dist/katex.min.css';
+import { optionsOf } from '../../../../lib/questionUtils';
 
 const enToBnNumber = (numStr) => {
-  if (!numStr) return numStr;
+  if (numStr === null || numStr === undefined || numStr === '') return numStr;
   const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
   return String(numStr).replace(/[0-9]/g, w => bn[w]);
 };
@@ -101,7 +102,7 @@ const MCQItem = memo(({ mcq, index, isQuizMode, quizSelectedOption, onQuizSelect
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5 sm:ml-14">
-        {mcq.options.map((option, optIdx) => {
+        {optionsOf(mcq).map((option, optIdx) => {
           let optionClass = "border-slate-700/50 bg-slate-900/50 hover:bg-slate-800 hover:border-slate-600 text-slate-300 cursor-pointer";
           let Icon = Circle;
           

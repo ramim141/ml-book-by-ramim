@@ -20,7 +20,6 @@ const navLinks = [
   { to: '/academic/question-builder', label: 'প্রশ্ন তৈরি', icon: FileText },
   { to: '/academic/live-exams', label: 'লাইভ এক্সাম', icon: CalendarClock },
   { to: '/academic/leaderboard', label: 'লিডারবোর্ড', icon: Trophy },
-  { to: '/academic/shortcut/all/all/all', label: 'শর্টকাট' },
 ];
 
 const isProgramPath = (pathname) => programLinks.some((l) => pathname.startsWith(l.to));
@@ -114,7 +113,7 @@ const AcademicNavbar = () => {
                     {isProgramOpen && (
                       <div
                         role="menu"
-                        className="absolute left-0 top-full z-50 mt-3 w-60 rounded-2xl border border-slate-700/70 bg-[#0f172a] p-1.5 shadow-2xl shadow-black/40"
+                        className="absolute left-0 top-full z-[100] mt-3 w-60 rounded-2xl border border-slate-700/70 bg-[#0f172a] p-1.5 shadow-2xl shadow-black/80"
                       >
                         {link.children.map((child) => {
                           const childActive = isLinkActive(child.to);

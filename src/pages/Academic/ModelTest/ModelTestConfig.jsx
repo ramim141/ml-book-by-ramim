@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, Loader2, Settings, Target, Layers, Tag, Check, Sparkles, BookOpen } from 'lucide-react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
+import { shuffle } from '../../../lib/questionUtils';
 import { useAcademicSubjects } from '../../../hooks/useAcademicSubjects';
 import { toBn } from '../../../lib/format';
 
@@ -178,7 +179,7 @@ export default function ModelTestConfig() {
     setError(null);
     setIsStartingExam(true);
 
-    const shuffled = [...eligibleQuestions].sort(() => 0.5 - Math.random());
+    const shuffled = shuffle(eligibleQuestions);
     const finalQuestions = shuffled.slice(0, Math.min(questionCount, shuffled.length));
 
     navigate('/academic/model-test/exam', {

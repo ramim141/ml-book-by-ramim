@@ -490,7 +490,7 @@ export default function Books() {
                   <div className="relative flex-shrink-0">
                     <div className="w-32 h-32 md:w-40 md:h-40 rounded-3xl bg-gradient-to-br from-teal-300 to-cyan-500 p-[2px] shadow-2xl shadow-teal-500/20">
                       <div className="w-full h-full bg-[#071521] rounded-[calc(1.5rem-2px)] overflow-hidden">
-                        <img src={pageData.author.avatarUrl} alt={pageData.author.name} className="object-cover w-full h-full" />
+                        <img src={pageData.author.avatarUrl} alt={pageData.author.name} loading="lazy" className="object-cover w-full h-full" />
                       </div>
                     </div>
                     <div className="absolute -bottom-2 -right-2 bg-teal-400 text-[#06111d] p-2.5 rounded-2xl shadow-xl border-2 border-[#071521]">

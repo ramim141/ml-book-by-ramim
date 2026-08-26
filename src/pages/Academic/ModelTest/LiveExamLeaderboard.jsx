@@ -7,7 +7,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { Skeleton, SkeletonList } from '../../../components/UI/Skeleton';
 
 const enToBnNumber = (numStr) => {
-  if (!numStr) return numStr;
+  if (numStr === null || numStr === undefined || numStr === '') return numStr;
   const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
   return String(numStr).replace(/[0-9]/g, w => bn[w]);
 };

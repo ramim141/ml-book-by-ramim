@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
@@ -6,7 +6,7 @@ import { db } from '../../../config/firebase';
 import { Search, Database, BookOpen, GraduationCap, FileText, CheckSquare, BrainCircuit, LayoutGrid, SlidersHorizontal, FlaskConical, Calculator, Dna, FileDigit, Globe, Coins, PenTool } from 'lucide-react';
 import { getSubjectPath } from '../../../utils/academicRoutes';
 import { SkeletonGrid } from '../../../components/UI/Skeleton';
-
+import { ADMISSION_CARD_BANKS } from '../Admission/AdmissionQuestionBank';
 
 const categories = ['All', 'HSC', 'SSC', 'Admission'];
 
@@ -27,6 +27,7 @@ const QuestionBankDashboard = () => {
   const { data: questionBanks = [], isLoading: loading } = useQuery({
     queryKey: ['questionBanks', 'subjects'],
     queryFn: async () => {
+      let subjectsList = [];
       const snap = await getDoc(doc(db, 'admin_settings', 'subjects'));
       if (snap.exists() && snap.data().list) {
         const presets = [
@@ -37,7 +38,7 @@ const QuestionBankDashboard = () => {
           { gradient: 'from-amber-500/10 to-orange-500/10', iconBg: 'bg-amber-500/20', iconColor: 'text-amber-400', borderColor: 'border-amber-500/20', hoverBorder: 'hover:border-amber-500/50' },
         ];
 
-        return snap.data().list.map((s, idx) => {
+        subjectsList = snap.data().list.map((s, idx) => {
           const path = getSubjectPath(s);
           const preset = presets[idx % presets.length];
           
@@ -53,20 +54,32 @@ const QuestionBankDashboard = () => {
           };
         });
       }
-      return [];
+
+      // Merge rich Admission banks
+      const formattedAdmissionBanks = ADMISSION_CARD_BANKS.map((b, bIdx) => ({
+        ...b,
+        id: `adm-${bIdx}`,
+        iconId: b.id,
+        isCustomAdmission: true
+      }));
+
+      return [...subjectsList, ...formattedAdmissionBanks];
     }
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [showFilters, setShowFilters] = useState(false);
 
-  const filteredBanks = questionBanks.filter((bank) => {
-    const matchesSearch = bank.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          bank.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = activeCategory === 'All' || bank.category === activeCategory;
-    
-    return matchesSearch && matchesCategory;
-  });
+  const filteredBanks = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    return questionBanks.filter((bank) => {
+      const matchesSearch = bank.title.toLowerCase().includes(query) ||
+                            bank.description.toLowerCase().includes(query);
+      const matchesCategory = activeCategory === 'All' || bank.category === activeCategory;
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [questionBanks, searchQuery, activeCategory]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8 sm:pt-10 sm:pb-12 lg:pt-12 lg:pb-16">
@@ -174,7 +187,9 @@ const QuestionBankDashboard = () => {
       ) : filteredBanks.length > 0 ? (
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
           {filteredBanks.map((bank) => {
-            const Icon = getIcon(bank.iconId);
+            const Icon = (typeof bank.icon === 'function' || (typeof bank.icon === 'object' && bank.icon !== null && bank.icon.$$typeof)) 
+              ? bank.icon 
+              : getIcon(bank.iconId);
             return (
               <div
                 key={bank.id}
@@ -201,64 +216,87 @@ const QuestionBankDashboard = () => {
                 </div>
                 
                 {/* Action Buttons Grid */}
-                <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2 sm:mt-4 border-t border-slate-700/30 pt-5 sm:pt-6">
-                  
-                  {/* CQ Link */}
-                  <Link 
-                    to={`${bank.baseRoute}/cq`}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/40 hover:bg-slate-700/60 border border-slate-700/50 hover:border-slate-500/50 transition-all text-slate-200 hover:text-white"
-                  >
-                    <div className="bg-emerald-500/20 p-2 rounded-lg text-emerald-400 shrink-0">
-                      <FileText className="w-5 h-5" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold">সৃজনশীল (CQ)</span>
-                      <span className="text-[10px] text-slate-400">অধ্যায়ভিত্তিক</span>
-                    </div>
-                  </Link>
+                <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 gap-3 mt-auto border-t border-slate-700/30 pt-5 sm:pt-6">
+                  {bank.features ? (
+                    bank.features.map((feat, fIdx) => {
+                      const FeatIcon = (typeof feat.icon === 'function' || (typeof feat.icon === 'object' && feat.icon !== null && feat.icon.$$typeof))
+                        ? feat.icon
+                        : BookOpen;
+                      return (
+                        <Link 
+                          key={fIdx}
+                          to={feat.path}
+                          className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/40 hover:bg-slate-700/60 border border-slate-700/50 hover:border-slate-500/50 transition-all text-slate-200 hover:text-white group/btn"
+                        >
+                          <div className={`${feat.iconBg} ${feat.iconColor} p-2 rounded-lg shrink-0 group-hover/btn:scale-110 transition-transform`}>
+                            <FeatIcon className="w-5 h-5" />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-bold truncate group-hover/btn:text-white">{feat.title}</span>
+                            <span className="text-[10px] text-slate-400 truncate">{feat.subtitle}</span>
+                          </div>
+                        </Link>
+                      );
+                    })
+                  ) : (
+                    <>
+                      {/* CQ Link */}
+                      <Link 
+                        to={`${bank.baseRoute}/cq`}
+                        className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/40 hover:bg-slate-700/60 border border-slate-700/50 hover:border-slate-500/50 transition-all text-slate-200 hover:text-white"
+                      >
+                        <div className="bg-emerald-500/20 p-2 rounded-lg text-emerald-400 shrink-0">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold">সৃজনশীল (CQ)</span>
+                          <span className="text-[10px] text-slate-400">অধ্যায়ভিত্তিক</span>
+                        </div>
+                      </Link>
 
-                  {/* MCQ Link */}
-                  <Link 
-                    to={`${bank.baseRoute}/mcq`}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/40 hover:bg-slate-700/60 border border-slate-700/50 hover:border-slate-500/50 transition-all text-slate-200 hover:text-white"
-                  >
-                    <div className="bg-amber-500/20 p-2 rounded-lg text-amber-400 shrink-0">
-                      <CheckSquare className="w-5 h-5" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold">বহুনির্বাচনী (MCQ)</span>
-                      <span className="text-[10px] text-slate-400">অধ্যায়ভিত্তিক</span>
-                    </div>
-                  </Link>
+                      {/* MCQ Link */}
+                      <Link 
+                        to={`${bank.baseRoute}/mcq`}
+                        className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/40 hover:bg-slate-700/60 border border-slate-700/50 hover:border-slate-500/50 transition-all text-slate-200 hover:text-white"
+                      >
+                        <div className="bg-amber-500/20 p-2 rounded-lg text-amber-400 shrink-0">
+                          <CheckSquare className="w-5 h-5" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold">বহুনির্বাচনী (MCQ)</span>
+                          <span className="text-[10px] text-slate-400">অধ্যায়ভিত্তিক</span>
+                        </div>
+                      </Link>
 
-                  {/* Knowledge/Comprehension Link */}
-                  <Link 
-                    to={`${bank.baseRoute}/knowledge`}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/40 hover:bg-slate-700/60 border border-slate-700/50 hover:border-slate-500/50 transition-all text-slate-200 hover:text-white"
-                  >
-                    <div className="bg-purple-500/20 p-2 rounded-lg text-purple-400 shrink-0">
-                      <BrainCircuit className="w-5 h-5" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold">জ্ঞান ও অনুধাবন</span>
-                      <span className="text-[10px] text-slate-400">ক ও খ নং প্রশ্ন</span>
-                    </div>
-                  </Link>
+                      {/* Knowledge/Comprehension Link */}
+                      <Link 
+                        to={`${bank.baseRoute}/knowledge`}
+                        className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/40 hover:bg-slate-700/60 border border-slate-700/50 hover:border-slate-500/50 transition-all text-slate-200 hover:text-white"
+                      >
+                        <div className="bg-purple-500/20 p-2 rounded-lg text-purple-400 shrink-0">
+                          <BrainCircuit className="w-5 h-5" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold">জ্ঞান ও অনুধাবন</span>
+                          <span className="text-[10px] text-slate-400">ক ও খ নং প্রশ্ন</span>
+                        </div>
+                      </Link>
 
-                  {/* Board Questions Link */}
-                  <Link 
-                    to={`${bank.baseRoute}/board-questions`}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 hover:border-indigo-500/60 transition-all text-indigo-100 hover:text-white"
-                  >
-                    <div className="bg-indigo-500/30 p-2 rounded-lg text-indigo-300 shrink-0">
-                      <LayoutGrid className="w-5 h-5" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold">বোর্ড প্রশ্ন</span>
-                      <span className="text-[10px] text-indigo-300/70">ঢাকা, রাজশাহী, ...</span>
-                    </div>
-                  </Link>
-
+                      {/* Board Questions Link */}
+                      <Link 
+                        to={`${bank.baseRoute}/board-questions`}
+                        className="flex items-center gap-3 p-3 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 hover:border-indigo-500/60 transition-all text-indigo-100 hover:text-white"
+                      >
+                        <div className="bg-indigo-500/30 p-2 rounded-lg text-indigo-300 shrink-0">
+                          <LayoutGrid className="w-5 h-5" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold">বোর্ড প্রশ্ন</span>
+                          <span className="text-[10px] text-indigo-300/70">ঢাকা, রাজশাহী, ...</span>
+                        </div>
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
             );

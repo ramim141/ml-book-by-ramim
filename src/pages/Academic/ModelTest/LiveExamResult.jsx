@@ -12,7 +12,7 @@ import 'katex/dist/katex.min.css';
 import { Skeleton, SkeletonList } from '../../../components/UI/Skeleton';
 
 const enToBnNumber = (numStr) => {
-  if (!numStr) return numStr;
+  if (numStr === null || numStr === undefined || numStr === '') return numStr;
   const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
   return String(numStr).replace(/[0-9]/g, w => bn[w]);
 };
@@ -261,7 +261,7 @@ export default function LiveExamResult() {
                     <MarkdownRenderer content={q.question} />
                     {q.imageUrl && (
                       <div className="mt-4 mb-2 rounded-xl overflow-hidden border border-slate-700 bg-slate-800/50 flex justify-center max-h-[300px]">
-                        <img src={q.imageUrl} alt="Question figure" className="max-w-full h-auto object-contain" />
+                        <img src={q.imageUrl} alt="Question figure" loading="lazy" className="max-w-full h-auto object-contain" />
                       </div>
                     )}
                   </div>
