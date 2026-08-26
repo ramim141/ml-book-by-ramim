@@ -132,9 +132,6 @@ export default function NursingDashboard() {
                 <h2 className="text-lg font-bold text-white">
                   {currentTrack.name}
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                  {currentTrack.badge}
-                </span>
               </div>
               <p className="text-slate-400 text-xs mt-1">
                 যোগ্যতা: {currentTrack.eligibility}

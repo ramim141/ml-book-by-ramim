@@ -8,6 +8,7 @@ import {
   Flame, Dna, FlaskConical, Stethoscope, Compass, LayoutGrid, Highlighter
 } from 'lucide-react';
 import { MEDICAL_SUBJECTS_DETAILED, MEDICAL_MNEMONICS } from '../../../../data/academic/medicalConfig';
+import { NURSING_SUBJECTS_CONFIG } from '../../../../data/academic/nursingConfig';
 import MarkdownRenderer from '../../../../components/UI/MarkdownRenderer';
 import { useMedicalConfig, useAdmissionShortcuts } from '../../../../hooks/useAdmissionData';
 import { useAuth } from '../../../../contexts/AuthContext';
@@ -22,7 +23,7 @@ import { getMainBookWriterName } from '../../../../utils/academicWriterResolver'
 import toast from 'react-hot-toast';
 
 export default function MedicalChapterDetails() {
-  const { subjectSlug, chapterId } = useParams();
+  const { subjectSlug, chapterId, trackId } = useParams();
   const { currentUser } = useAuth();
 
   const { data: dynamicMedicalSubjects = MEDICAL_SUBJECTS_DETAILED } = useMedicalConfig();
@@ -44,11 +45,21 @@ export default function MedicalChapterDetails() {
     window.scrollTo(0, 0);
   }, [subjectSlug, chapterId]);
 
+  // This page also serves nursing chapters (/admission/nursing/:trackId/:subjectSlug/:chapterId),
+  // so fall back to the nursing subject config when the slug is not a medical one.
   const subject = useMemo(() => {
-    return dynamicMedicalSubjects.find(
-      s => s.id.toLowerCase() === (subjectSlug || '').toLowerCase()
-    );
+    const slug = (subjectSlug || '').toLowerCase();
+    return dynamicMedicalSubjects.find(s => s.id.toLowerCase() === slug)
+      || NURSING_SUBJECTS_CONFIG.find(s => s.id.toLowerCase() === slug);
   }, [dynamicMedicalSubjects, subjectSlug]);
+
+  const isNursing = !!trackId;
+  const subjectHomePath = isNursing
+    ? `/academic/admission/nursing/${trackId}/${subjectSlug}`
+    : `/academic/admission/medical/${subjectSlug}`;
+  const trackHomePath = isNursing
+    ? `/academic/admission/nursing/${trackId}`
+    : '/academic/admission/medical';
 
   const chapter = useMemo(() => {
     if (!subject?.chapters) return null;
@@ -168,8 +179,9 @@ export default function MedicalChapterDetails() {
 
   // Mnemonics related to this subject / chapter
   const chapterMnemonics = useMemo(() => {
-    const medShortcuts = (Array.isArray(allShortcuts) ? allShortcuts : []).filter(s => s.track === 'medical');
-    const sourceList = medShortcuts.length ? medShortcuts : MEDICAL_MNEMONICS;
+    const wantedTracks = isNursing ? ['nursing', 'medical'] : ['medical'];
+    const medShortcuts = (Array.isArray(allShortcuts) ? allShortcuts : []).filter(s => wantedTracks.includes(s.track));
+    const sourceList = medShortcuts.length ? medShortcuts : (isNursing ? [] : MEDICAL_MNEMONICS);
     return (Array.isArray(sourceList) ? sourceList : []).filter(m => {
       const matchSub = (m.subject || '').toLowerCase().includes(subject?.name?.toLowerCase().split(' ')[0] || '') ||
         (m.subject || '').toLowerCase().includes(subject?.id?.toLowerCase() || '');
@@ -179,7 +191,7 @@ export default function MedicalChapterDetails() {
         (m.chapterId && (m.chapterId === chapter.id || normalizeChapterKey(m.chapterId) === normalizeChapterKey(chapter.id)));
       return matchSub && matchChap;
     });
-  }, [allShortcuts, subject, chapter]);
+  }, [allShortcuts, subject, chapter, isNursing]);
 
   // সময় শেষে জমা দেওয়ার জন্য সর্বশেষ handleTestSubmit — টাইমারের ইফেক্ট যে
   // রেন্ডারে তৈরি হয়েছিল সেই রেন্ডারের ফাংশন ধরে রাখলে অটো-জমার সময়
@@ -283,7 +295,7 @@ export default function MedicalChapterDetails() {
   }, [activeQuestionsList, userAnswers]);
 
   if (!subject || !chapter) {
-    return <Navigate to="/academic/admission/medical" replace />;
+    return <Navigate to={trackHomePath} replace />;
   }
 
   const formatTime = (seconds) => {
@@ -311,7 +323,7 @@ export default function MedicalChapterDetails() {
         {/* ── 1. Top Navigation Bar ───────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-4">
           <Link 
-            to={`/academic/admission/medical/${subject.id}`} 
+            to={subjectHomePath} 
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-rose-400 hover:text-white hover:border-rose-500/40 hover:bg-rose-500/10 text-xs sm:text-sm font-bold transition shadow-sm group backdrop-blur-md"
           >
             <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> 

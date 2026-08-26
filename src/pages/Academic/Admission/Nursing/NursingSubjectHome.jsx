@@ -3,11 +3,12 @@ import { useParams, Link, Navigate } from 'react-router-dom';
 import {
   Dna, FlaskConical, Zap, BookOpen, Globe,
   Sparkles, CheckCircle2, Play, Layers,
-  Bookmark, XCircle, Highlighter, ChevronDown, ArrowUpRight,
-  RotateCcw, Library, Flag, Target, Check, X, ListChecks
+  Bookmark, XCircle, Highlighter, Flame,
+  ChevronDown, ArrowUpRight, RotateCcw,
+  Library, Flag, HeartPulse, Target, Check, X, ListChecks
 } from 'lucide-react';
-import { MEDICAL_SUBJECTS_DETAILED, MEDICAL_MNEMONICS } from '../../../../data/academic/medicalConfig';
-import { useMedicalConfig, useAdmissionShortcuts } from '../../../../hooks/useAdmissionData';
+import { NURSING_TRACKS, NURSING_SUBJECTS_CONFIG } from '../../../../data/academic/nursingConfig';
+import { useAdmissionShortcuts } from '../../../../hooks/useAdmissionData';
 import { useQuery } from '@tanstack/react-query';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../../../config/firebase';
@@ -18,19 +19,23 @@ import SubjectWorkspace from '../../../../components/Academic/SubjectWorkspace';
 import { getMainBookWriterName } from '../../../../utils/academicWriterResolver';
 import toast from 'react-hot-toast';
 
-const SUBJECT_ICONS = { Dna, FlaskConical, Zap, BookOpen, Globe };
+const SUBJECT_ICONS = { Dna, FlaskConical, Zap, BookOpen, Globe, HeartPulse };
 
-export default function MedicalSubjectHome() {
-  const { subjectSlug } = useParams();
-  const { data: dynamicMedicalSubjects = MEDICAL_SUBJECTS_DETAILED } = useMedicalConfig();
+export default function NursingSubjectHome() {
+  const { trackId, subjectSlug } = useParams();
   const { data: allShortcuts = [] } = useAdmissionShortcuts();
 
+  const currentTrack = useMemo(() => {
+    return NURSING_TRACKS.find(t => t.id === trackId) || NURSING_TRACKS[0];
+  }, [trackId]);
+
   const subject = useMemo(() => {
-    return dynamicMedicalSubjects.find(
+    return NURSING_SUBJECTS_CONFIG.find(
       s => s.id.toLowerCase() === (subjectSlug || '').toLowerCase()
     );
-  }, [dynamicMedicalSubjects, subjectSlug]);
+  }, [subjectSlug]);
 
+  // Distinct papers in this subject
   const availablePapers = useMemo(() => {
     if (!subject?.chapters) return [];
     const list = [];
@@ -49,6 +54,7 @@ export default function MedicalSubjectHome() {
   const [selectedChapterId, setSelectedChapterId] = useState('');
   const [activeContentTab, setActiveContentTab] = useState('mcq');
 
+  // Smart filter values
   const [questionFilter, setQuestionFilter] = useState('all');
   const [unansweredSnapshot, setUnansweredSnapshot] = useState(null);
 
@@ -58,6 +64,7 @@ export default function MedicalSubjectHome() {
     }
   }, [availablePapers, selectedPaper]);
 
+  // MCQ practice state
   const [userAnswers, setUserAnswers] = useState({});
   const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
   const [searchTopicQuery, setSearchTopicQuery] = useState('');
@@ -71,10 +78,11 @@ export default function MedicalSubjectHome() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [subjectSlug]);
+  }, [subjectSlug, trackId]);
 
+  // Fetch questions from question_bank
   const { data: allSubjectQuestions = [], isLoading: isQuestionsLoading } = useQuery({
-    queryKey: ['medical_subject_questions', subject?.id],
+    queryKey: ['nursing_subject_questions', subject?.id, trackId],
     queryFn: async () => {
       try {
         const snap = await getDocs(collection(db, 'question_bank'));
@@ -82,13 +90,13 @@ export default function MedicalSubjectHome() {
           const allDocs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           return allDocs.filter(q => {
             const subStr = (q.subject || '').toLowerCase();
-            const targetSub = (subject?.id || '').toLowerCase();
+            const targetSub = (subject?.id || '').replace('nur-', '').toLowerCase();
             const targetName = (subject?.name || '').toLowerCase();
 
-            return subStr === targetSub ||
-              subStr.includes(targetSub) ||
+            return subStr.includes(targetSub) ||
               targetName.includes(subStr) ||
-              (targetSub === 'biology' && (subStr.includes('bio') || subStr.includes('bot') || subStr.includes('zoo')));
+              (targetSub.includes('science') && (subStr.includes('sci') || subStr.includes('বিজ্ঞান'))) ||
+              (targetSub.includes('biology') && (subStr.includes('bio') || subStr.includes('জীব')));
           });
         }
       } catch (err) {
@@ -102,9 +110,9 @@ export default function MedicalSubjectHome() {
 
   const currentPaperChapters = useMemo(() => {
     if (!subject?.chapters) return [];
-    if (!selectedPaper) return subject.chapters;
+    if (!selectedPaper || availablePapers.length <= 1) return subject.chapters;
     return subject.chapters.filter(c => c.paper === selectedPaper);
-  }, [subject, selectedPaper]);
+  }, [subject, selectedPaper, availablePapers]);
 
   useEffect(() => {
     if (currentPaperChapters.length > 0) {
@@ -119,6 +127,7 @@ export default function MedicalSubjectHome() {
     return currentPaperChapters.find(c => c.id === selectedChapterId) || currentPaperChapters[0] || null;
   }, [currentPaperChapters, selectedChapterId]);
 
+  // Live Firestore question matcher for a chapter
   const getLiveChapterQuestions = (chapterObj) => {
     if (!chapterObj) return [];
     const cId = (chapterObj.id || '').toLowerCase();
@@ -142,13 +151,7 @@ export default function MedicalSubjectHome() {
   const isQuestionMainBook = (q) => {
     if (q.isMainBook || q.category === 'main_book' || q.source === 'main_book') return true;
     const typeStr = (q.examType || '').toLowerCase();
-    if (typeStr.includes('main book') || typeStr.includes('বই') || typeStr.includes('অনুশীলনী')) return true;
-
-    return q.examTags?.some(t => {
-      const tagType = (t.type || t.name || '').toLowerCase();
-      return tagType.includes('book') || tagType.includes('বই') || tagType.includes('অনুশীলনী') ||
-        tagType.includes('হাসান') || tagType.includes('আজমল') || tagType.includes('হাজারী') || tagType.includes('ইসহাক');
-    });
+    return typeStr.includes('main book') || typeStr.includes('বই') || typeStr.includes('অনুশীলনী');
   };
 
   const baseChapterQuestions = useMemo(() => {
@@ -203,6 +206,8 @@ export default function MedicalSubjectHome() {
       });
     }
     if (questionFilter === 'unanswered') {
+      // Snapshot taken when the filter was switched on, so answering a question
+      // does not make it vanish from under the user's finger.
       if (!unansweredSnapshot) return tabQuestions.filter(q => userAnswers[q.id] === undefined);
       return tabQuestions.filter(q => unansweredSnapshot.has(q.id));
     }
@@ -210,9 +215,8 @@ export default function MedicalSubjectHome() {
   }, [questionFilter, tabQuestions, bookmarkedIds, userAnswers, unansweredSnapshot]);
 
   const chapterMnemonics = useMemo(() => {
-    const medShortcuts = allShortcuts.filter(s => s.track === 'medical');
-    const sourceList = medShortcuts.length ? medShortcuts : MEDICAL_MNEMONICS;
-    return sourceList.filter(m => {
+    const medShortcuts = allShortcuts.filter(s => s.track === 'nursing' || s.track === 'medical');
+    return medShortcuts.filter(m => {
       const matchSub = (m.subject || '').toLowerCase().includes(subject?.name?.toLowerCase().split(' ')[0] || '') ||
         (m.subject || '').toLowerCase().includes(subject?.id?.toLowerCase() || '');
       const matchChap = !currentChapter ||
@@ -244,11 +248,8 @@ export default function MedicalSubjectHome() {
     return { attempted, correct, wrong: attempted - correct };
   }, [displayedQuestions, userAnswers]);
 
-  // সব hook কল হওয়ার পরেই early return — নইলে subject async ভাবে বদলালে
-  // (অ্যাডমিন প্যানেল থেকে medical config এডিট করলে) রেন্ডারে hook সংখ্যা
-  // বদলে যেত এবং React "Rendered more hooks than during the previous render" এ ক্র্যাশ করত
   if (!subject) {
-    return <Navigate to="/academic/admission/medical" replace />;
+    return <Navigate to={`/academic/admission/nursing/${trackId || 'bsc'}`} replace />;
   }
 
   const handleSelectOption = (qId, optionIdx) => {
@@ -295,7 +296,7 @@ export default function MedicalSubjectHome() {
     setUnansweredSnapshot(null);
   };
 
-  const Icon = SUBJECT_ICONS[subject.icon] || BookOpen;
+  const Icon = SUBJECT_ICONS[subject.icon] || HeartPulse;
   const shortSubjectName = (subject.name || '').split('(')[0].trim();
   const isMcqTab = activeContentTab === 'mcq' || activeContentTab === 'main_book_mcq';
 
@@ -307,7 +308,7 @@ export default function MedicalSubjectHome() {
     },
     {
       key: 'lines', label: 'দাগানো লাইন', icon: Highlighter, count: currentChapter?.keyFacts?.length || 0,
-      activeClass: 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md shadow-teal-500/25'
+      activeClass: 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-md shadow-teal-500/25'
     },
     {
       key: 'mnemonics', label: 'ছন্দ ও ট্রিকস', icon: Sparkles, count: chapterMnemonics.length,
@@ -325,28 +326,26 @@ export default function MedicalSubjectHome() {
   return (
     <>
       <SubjectWorkspace
-        accent="rose"
-        storageKey="medical_subject"
+        accent="emerald"
+        storageKey="nursing_subject"
         breadcrumbs={[
           { label: 'একাডেমিক', to: '/academic' },
           { label: 'ভর্তি প্রস্তুতি', to: '/academic/admission' },
-          { label: 'মেডিকেল', to: '/academic/admission/medical' },
+          { label: 'নার্সিং', to: '/academic/admission/nursing' },
+          { label: currentTrack.shortName, to: `/academic/admission/nursing/${currentTrack.id}` },
           { label: shortSubjectName }
         ]}
-        backLink={{ to: '/academic/admission/medical', label: 'মেডিকেল ড্যাশবোর্ডে ফিরে যান' }}
-        primaryAction={{
-          to: `/academic/admission/medical/exam/MBBS/2023-2024?mode=practice&count=20&subjects=${subject.id}`,
-          label: 'স্পেশাল টেস্ট',
-          icon: Play
-        }}
+        backLink={{ to: `/academic/admission/nursing/${currentTrack.id}`, label: `${currentTrack.shortName}-এ ফিরে যান` }}
+        primaryAction={{ to: `/academic/admission/nursing/${currentTrack.id}/model-test`, label: 'মডেল টেস্ট', icon: Play }}
         hero={{
           icon: Icon,
           iconGradient: subject.color,
           title: subject.name,
           subtitle: subject.subTitle,
           chips: [
-            { label: `${subject.marks} নম্বর`, tone: 'accent' },
-            ...(availablePapers.length > 1 && selectedPaper ? [{ label: selectedPaper }] : [])
+            { label: subject.marks, tone: 'accent' },
+            { label: currentTrack.shortName },
+            ...(availablePapers.length > 1 && selectedPaper ? [{ label: selectedPaper, tone: 'accent' }] : [])
           ],
           footnote: subject.recommendedBooks ? (
             <p className="text-[11px] sm:text-xs text-slate-400 font-medium flex items-start gap-1.5">
@@ -358,9 +357,9 @@ export default function MedicalSubjectHome() {
           ) : null
         }}
         stats={[
-          { label: 'মোট অধ্যায়', value: `${subject.chapters?.length || 0}টি`, icon: Layers, tone: 'text-rose-300' },
-          { label: 'মোট প্রশ্ন', value: `${totalSubjectQuestions}টি`, icon: Target, tone: 'text-pink-300' },
-          { label: 'দাগানো লাইন', value: `${totalKeyFacts}টি`, icon: Highlighter, tone: 'text-teal-300' },
+          { label: 'মোট অধ্যায়', value: `${subject.chapters?.length || 0}টি`, icon: Layers, tone: 'text-emerald-300' },
+          { label: 'মোট প্রশ্ন', value: `${totalSubjectQuestions}টি`, icon: Target, tone: 'text-teal-300' },
+          { label: 'দাগানো লাইন', value: `${totalKeyFacts}টি`, icon: Highlighter, tone: 'text-cyan-300' },
           { label: 'শর্টকাট ট্রিকস', value: `${chapterMnemonics.length}টি`, icon: Sparkles, tone: 'text-purple-300' }
         ]}
         papers={availablePapers}
@@ -378,15 +377,24 @@ export default function MedicalSubjectHome() {
         }))}
         selectedChapterId={currentChapter?.id || ''}
         onSelectChapter={handleSelectChapter}
-        chapterBadge={currentChapter?.paper}
+        chapterBadge={currentChapter?.paper || currentTrack.shortName}
         chapterAction={currentChapter && (
-          <Link
-            to={`/academic/admission/medical/${subject.id}/${currentChapter.id}`}
-            className="text-rose-400 hover:text-rose-300 text-xs font-bold transition flex items-center gap-1"
-          >
-            <span>ফুল স্ক্রিন</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
+          <>
+            <Link
+              to={`/academic/admission/nursing/${currentTrack.id}/highlighted-lines?subject=${subject.id}&chapter=${currentChapter.id}`}
+              className="flex text-slate-400 hover:text-emerald-300 text-xs font-bold transition items-center gap-1"
+            >
+              <span>দাগানো লাইন</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+            <Link
+              to={`/academic/admission/nursing/${currentTrack.id}/${subject.id}/${currentChapter.id}`}
+              className="text-emerald-400 hover:text-emerald-300 text-xs font-bold transition flex items-center gap-1"
+            >
+              <span>ফুল স্ক্রিন</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </>
         )}
         tabs={CONTENT_TABS}
         activeTab={activeContentTab}
@@ -397,7 +405,7 @@ export default function MedicalSubjectHome() {
         search={isMcqTab ? {
           value: searchTopicQuery,
           onChange: setSearchTopicQuery,
-          placeholder: 'অধ্যায়ের যেকোনো প্রশ্ন বা টপিক দিয়ে সার্চ করুন...'
+          placeholder: 'প্রশ্ন বা টপিক দিয়ে সার্চ করুন...'
         } : null}
         onResetFilters={handleResetFilters}
         hasActiveFilter={questionFilter !== 'all' || !!searchTopicQuery.trim()}
@@ -411,13 +419,14 @@ export default function MedicalSubjectHome() {
           </div>
         )}
       >
+        {/* Active smart-filter chip */}
         {isMcqTab && questionFilter !== 'all' && (
           <div className="flex items-center gap-2 flex-wrap text-[11.5px]">
             <span className="text-slate-500 font-bold">সক্রিয় ফিল্টার:</span>
             <button
               type="button"
               onClick={() => handleApplyQuestionFilter('all')}
-              className="px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30 font-bold flex items-center gap-1.5 hover:bg-rose-500/25 transition"
+              className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1.5 hover:bg-emerald-500/25 transition"
             >
               {QUICK_FILTERS.find(f => f.key === questionFilter)?.label}
               <X className="w-3 h-3" />
@@ -435,7 +444,7 @@ export default function MedicalSubjectHome() {
                 <div className="px-1 space-y-1.5">
                   <div className="flex items-center justify-between gap-2 flex-wrap text-[11px] sm:text-xs text-slate-400">
                     <span className="flex items-center gap-1.5">
-                      <Target className="w-3.5 h-3.5 text-rose-400" />
+                      <Target className="w-3.5 h-3.5 text-emerald-400" />
                       মোট প্রশ্ন <strong className="text-white font-mono">{displayedQuestions.length}</strong>টি
                     </span>
                     <span className="flex items-center gap-2.5">
@@ -464,7 +473,7 @@ export default function MedicalSubjectHome() {
                   </div>
                   <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-rose-500 to-pink-400 transition-all duration-300"
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
                       style={{ width: `${displayedQuestions.length ? (answerStats.attempted / displayedQuestions.length) * 100 : 0}%` }}
                     />
                   </div>
@@ -485,12 +494,12 @@ export default function MedicalSubjectHome() {
                           ? isCorrect
                             ? 'border-emerald-500/40 bg-emerald-950/10'
                             : 'border-red-500/40 bg-red-950/10'
-                          : 'border-white/[0.08] hover:border-rose-500/30'
+                          : 'border-white/[0.08] hover:border-emerald-500/30'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2 sm:gap-2.5">
                         <div className="flex items-start gap-2 sm:gap-2.5 min-w-0">
-                          <span className="px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-rose-500/15 text-rose-300 border border-rose-500/25 shrink-0 mt-0.5">
+                          <span className="px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 shrink-0 mt-0.5">
                             Q{idx + 1}
                           </span>
                           <div className="min-w-0">
@@ -505,15 +514,15 @@ export default function MedicalSubjectHome() {
                                 </span>
                               ) : q.examTags?.length > 0 ? (
                                 q.examTags.map((tag, tIdx) => (
-                                  <span key={tIdx} className="px-1.5 sm:px-2 py-0.5 rounded text-[9.5px] sm:text-[10px] font-bold bg-rose-500/10 text-rose-300 border border-rose-500/20">
+                                  <span key={tIdx} className="px-1.5 sm:px-2 py-0.5 rounded text-[9.5px] sm:text-[10px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
                                     {tag.type || tag.name} {tag.session || tag.year}
                                   </span>
                                 ))
-                              ) : (
-                                <span className="text-[10.5px] sm:text-[11px] font-bold text-rose-400">
-                                  {q.examType || 'MAT'} {q.year || '2023-24'}
+                              ) : (q.examType || q.year) ? (
+                                <span className="text-[10.5px] sm:text-[11px] font-bold text-emerald-400">
+                                  {q.examType || 'Nursing'} {q.year || ''}
                                 </span>
-                              )}
+                              ) : null}
                               {q.topic && (
                                 <span className="text-[10.5px] sm:text-[11px] text-slate-400 font-medium">• {q.topic}</span>
                               )}
@@ -527,7 +536,7 @@ export default function MedicalSubjectHome() {
                               setReportingQuestion(q);
                               setFeedbackModalOpen(true);
                             }}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition"
                             title="প্রশ্নে ভুল থাকলে রিপোর্ট করুন"
                           >
                             <Flag className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -586,7 +595,7 @@ export default function MedicalSubjectHome() {
 
                       {isAnswered && q.explanation && (
                         <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-2.5 sm:p-3 text-xs text-slate-300 space-y-1">
-                          <div className="flex items-center gap-1.5 font-bold text-rose-400 text-[11px] sm:text-xs">
+                          <div className="flex items-center gap-1.5 font-bold text-emerald-400 text-[11px] sm:text-xs">
                             <Sparkles className="h-3.5 w-3.5 shrink-0" />
                             <span>ব্যাখ্যা ও মূল বইয়ের রেফারেন্স:</span>
                           </div>
@@ -603,10 +612,10 @@ export default function MedicalSubjectHome() {
                   <button
                     type="button"
                     onClick={() => setVisibleCount((v) => v + 20)}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-800 bg-slate-900/60 hover:bg-slate-800/70 hover:border-rose-500/40 py-3.5 text-xs sm:text-sm font-bold text-slate-300 transition hover:text-rose-200 shadow-sm"
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-800 bg-slate-900/60 hover:bg-slate-800/70 hover:border-emerald-500/40 py-3.5 text-xs sm:text-sm font-bold text-slate-300 transition hover:text-emerald-200 shadow-sm"
                   >
-                    <ChevronDown className="h-4 w-4 text-rose-400" />
-                    আরো ২০ টি প্রশ্ন দেখুন
+                    <ChevronDown className="h-4 w-4 text-emerald-400" />
+                    আরো ২০টি প্রশ্ন দেখুন
                     <span className="text-slate-500 font-normal">({displayedQuestions.length - visibleCount} টি বাকি)</span>
                   </button>
                 )}
@@ -620,19 +629,19 @@ export default function MedicalSubjectHome() {
                     : searchTopicQuery.trim()
                       ? 'এই সার্চে কোনো প্রশ্ন মেলেনি'
                       : activeContentTab === 'main_book_mcq'
-                        ? 'এই অধ্যায়ের কোনো মূল বইয়ের অনুশীলনী প্রশ্ন পাওয়া যায়নি'
+                        ? 'মূল বইয়ের অনুশীলনী প্রশ্ন যুক্ত হচ্ছে'
                         : 'এই অধ্যায়ের কোনো ভর্তি পরীক্ষার প্রশ্ন পাওয়া যায়নি'}
                 </h4>
                 <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
                   {questionFilter !== 'all' || searchTopicQuery.trim()
                     ? 'ফিল্টার বা সার্চ পরিবর্তন করে আবার চেষ্টা করুন।'
-                    : 'অ্যাডমিন প্যানেল থেকে JSON ফাইলের মাধ্যমে এই অধ্যায়ের প্রশ্ন আপলোড করুন।'}
+                    : 'নার্সিং ভর্তি পরীক্ষার বিগত সালের প্রশ্নব্যাংক ও অন্যান্য অধ্যায়ের প্রশ্ন প্র্যাকটিস করতে পারেন।'}
                 </p>
                 {(questionFilter !== 'all' || searchTopicQuery.trim()) && (
                   <button
                     type="button"
                     onClick={handleResetFilters}
-                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-400 text-xs font-bold transition inline-flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-bold transition inline-flex items-center gap-1.5"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     ফিল্টার ক্লিয়ার করুন
@@ -645,27 +654,44 @@ export default function MedicalSubjectHome() {
 
         {/* ── HIGHLIGHTED LINES ────────────────────────────────────────── */}
         {activeContentTab === 'lines' && (
-          <div className="space-y-3">
-            {currentChapter?.keyFacts?.length > 0 ? (
-              currentChapter.keyFacts.map((fact, fIdx) => (
-                <div
-                  key={fIdx}
-                  className="p-3.5 sm:p-4 rounded-2xl bg-slate-900/80 border border-white/[0.08] shadow-md flex items-start gap-2.5 sm:gap-3 hover:border-rose-500/30 transition"
-                >
-                  <span className="w-6 h-6 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] font-bold font-mono flex items-center justify-center shrink-0 mt-0.5">
-                    {fIdx + 1}
-                  </span>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold text-rose-400 block mb-0.5">মূল বইয়ের দাগানো তথ্য</span>
-                    <p className="text-[12.5px] sm:text-sm text-slate-200 leading-relaxed break-words">{fact}</p>
-                  </div>
+          <div className="space-y-3.5 sm:space-y-4">
+            {currentChapter?.highYieldTopics?.length > 0 && (
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-2">
+                <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                  <Flame className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>হাই-ইয়েল্ড টপিকস:</span>
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {currentChapter.highYieldTopics.map((top, idx) => (
+                    <span key={idx} className="px-2.5 py-1 rounded-lg bg-emerald-950/60 text-emerald-200 border border-emerald-500/30 text-[11px] sm:text-xs font-medium">
+                      • {top}
+                    </span>
+                  ))}
                 </div>
-              ))
+              </div>
+            )}
+
+            {currentChapter?.keyFacts?.length > 0 ? (
+              <div className="space-y-2.5">
+                {currentChapter.keyFacts.map((line, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 sm:p-4 rounded-2xl bg-slate-900/80 border border-white/[0.08] shadow-md flex items-start gap-2.5 sm:gap-3 hover:border-emerald-500/30 transition"
+                  >
+                    <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold font-mono flex items-center justify-center shrink-0 mt-0.5">
+                      {idx + 1}
+                    </span>
+                    <div className="text-[12.5px] sm:text-sm text-slate-200 leading-relaxed flex-grow min-w-0 break-words">
+                      <MarkdownRenderer content={line} />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-8 sm:p-12 text-center space-y-3">
                 <Highlighter className="w-8 h-8 text-slate-600 mx-auto" />
-                <h4 className="text-sm font-bold text-slate-300">দাগানো লাইন লোড হচ্ছে</h4>
-                <p className="text-xs text-slate-500">শীঘ্রই এই অধ্যায়ের দাগানো লাইন যুক্ত করা হবে।</p>
+                <h4 className="text-sm font-bold text-slate-300">দাগানো লাইন যুক্ত হচ্ছে</h4>
+                <p className="text-xs text-slate-500">মূল বই থেকে গুরুত্বপূর্ণ দাগানো তথ্য দ্রুতই আপডেট করা হবে।</p>
               </div>
             )}
           </div>
@@ -681,18 +707,20 @@ export default function MedicalSubjectHome() {
                   className="p-3.5 sm:p-5 rounded-2xl bg-slate-900/80 border border-white/[0.08] shadow-md space-y-3 hover:border-purple-500/40 transition"
                 >
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span className="px-2.5 py-0.5 rounded-lg text-[11px] sm:text-xs font-bold bg-rose-500/10 text-rose-300 border border-rose-500/20">
-                      {mnem.topic || currentChapter?.name}
+                    <span className="px-2.5 py-0.5 rounded-lg text-[11px] sm:text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      {mnem.topic || mnem.subject || 'শর্টকাট ট্রিক'}
                     </span>
-                    <span className="text-[10.5px] text-slate-400">{mnem.chapter || ''}</span>
+                    {mnem.applicableTracks && (
+                      <span className="text-[10.5px] text-slate-400 font-mono">{mnem.applicableTracks.join(', ')}</span>
+                    )}
                   </div>
 
                   <h4 className="font-bold text-white text-[14px] sm:text-base leading-snug break-words">{mnem.title}</h4>
 
                   {mnem.mnemonic && (
-                    <div className="p-3 rounded-xl bg-gradient-to-r from-rose-950/40 to-slate-900 border border-rose-500/30">
-                      <span className="text-[10px] font-black text-rose-400 block mb-0.5">মনে রাখার ছন্দ:</span>
-                      <p className="text-[12.5px] sm:text-sm font-bold text-rose-200 tracking-wide break-words">{mnem.mnemonic}</p>
+                    <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-950/40 to-slate-900 border border-emerald-500/30">
+                      <span className="text-[10px] font-black text-emerald-400 block mb-0.5">মনে রাখার ছন্দ:</span>
+                      <p className="text-[12.5px] sm:text-sm font-bold text-emerald-200 tracking-wide break-words">{mnem.mnemonic}</p>
                     </div>
                   )}
 
@@ -706,7 +734,14 @@ export default function MedicalSubjectHome() {
               <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-8 sm:p-12 text-center space-y-3">
                 <Sparkles className="w-8 h-8 text-slate-600 mx-auto" />
                 <h4 className="text-sm font-bold text-slate-300">এই অধ্যায়ের শর্টকাট পাওয়া যায়নি</h4>
-                <p className="text-xs text-slate-500">সকল বিষয়ের শর্টকাট দেখতে শর্টকাট হাব ভিজিট করুন।</p>
+                <p className="text-xs text-slate-500 mb-1">সকল বিষয়ের শর্টকাট দেখতে শর্টকাট হাব ভিজিট করুন।</p>
+                <Link
+                  to={`/academic/admission/nursing/${currentTrack.id}/mnemonics`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-purple-300 text-xs font-bold transition"
+                >
+                  শর্টকাট হাব
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
             )}
           </div>

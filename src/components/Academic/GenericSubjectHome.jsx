@@ -1,190 +1,219 @@
-import { useEffect } from 'react';
-import { Link, Navigate } from 'react-router-dom';
-import { BookOpen, ChevronRight, FileText, ArrowRight, PlayCircle, CheckCircle, HelpCircle, Loader2 } from 'lucide-react';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import {
+  PlayCircle, FileText, HelpCircle, CheckCircle, BookOpen,
+  ArrowUpRight, Layers, Video, ListChecks
+} from 'lucide-react';
 import { Skeleton, SkeletonGrid } from '../UI/Skeleton';
+import SubjectWorkspace from './SubjectWorkspace';
+import {
+  VideoTabContent, NotesTabContent, MCQTabContent, CQTabContent, KnowledgeTabContent
+} from './GenericChapterDetails';
 
-const ChapterCard = ({ chapter, counts, subjectPath }) => {
-  const vCount = counts?.videos || 0;
-  const nCount = counts?.notes || 0;
-  const mcqCount = counts?.mcqs || 0;
-  const cqCount = counts?.cqs || 0;
-  const kCount = counts?.kQs || 0;
+const EMPTY_CONTENT = { videos: [], notes: [], cqs: [], mcqs: [], kQs: [] };
 
-  return (
-    <Link
-      to={`${subjectPath}/${chapter.id}`}
-      className="flex flex-col h-full bg-slate-800/40 border border-slate-700/50 rounded-xl sm:rounded-2xl p-4 sm:p-5 lg:p-6 transition-all duration-300 hover:bg-slate-800 hover:border-indigo-500/30 sm:hover:-translate-y-1 active:scale-[0.98] group"
-    >
-      <div className="flex justify-between items-start gap-3 mb-3 sm:mb-4">
-        <span className="text-xs sm:text-sm font-bold text-indigo-400 bg-indigo-500/10 px-2.5 sm:px-3 py-1 rounded-full border border-indigo-500/20 shrink-0">
-          {chapter.name.split(':')[0]}
-        </span>
-      </div>
-      
-      <h3 className="text-base sm:text-lg lg:text-xl font-bold text-white mb-4 group-hover:text-indigo-300 transition-colors leading-snug">
-        {chapter.name.includes(':') ? chapter.name.split(':').slice(1).join(':').trim() : chapter.name}
-      </h3>
-      
-      <div className="flex flex-wrap items-center gap-2 mb-4 mt-auto">
-        {vCount > 0 && (
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 bg-slate-800/80 px-2 py-1 rounded border border-slate-700/50">
-            <PlayCircle className="w-3.5 h-3.5 text-blue-400" /> {vCount} ভিডিও
-          </div>
-        )}
-        {cqCount > 0 && (
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 bg-slate-800/80 px-2 py-1 rounded border border-slate-700/50">
-            <FileText className="w-3.5 h-3.5 text-emerald-400" /> {cqCount} CQ
-          </div>
-        )}
-        {mcqCount > 0 && (
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 bg-slate-800/80 px-2 py-1 rounded border border-slate-700/50">
-            <CheckCircle className="w-3.5 h-3.5 text-amber-400" /> {mcqCount} MCQ
-          </div>
-        )}
-        {kCount > 0 && (
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 bg-slate-800/80 px-2 py-1 rounded border border-slate-700/50">
-            <HelpCircle className="w-3.5 h-3.5 text-purple-400" /> {kCount} ক/খ
-          </div>
-        )}
-        {nCount > 0 && (
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 bg-slate-800/80 px-2 py-1 rounded border border-slate-700/50">
-            <FileText className="w-3.5 h-3.5 text-rose-400" /> {nCount} নোট
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center text-indigo-400 text-xs sm:text-sm font-medium gap-1 opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0">
-        অধ্যায় শুরু করুন <ChevronRight className="w-4 h-4" />
-      </div>
-    </Link>
-  );
+// The admin subject editor only offers these three levels, and each has a
+// dashboard route at /academic/<level>. Used for the breadcrumb + back button.
+const LEVEL_LABELS = {
+  ssc: 'এসএসসি',
+  hsc: 'এইচএসসি',
+  admission: 'ভর্তি প্রস্তুতি'
 };
 
+/**
+ * Subject dashboard for every SSC / HSC / admin-added subject.
+ * Uses the shared SubjectWorkspace shell: chapters live in the smart filter
+ * panel on the left, and each chapter's content opens inline in tabs rather
+ * than navigating away to the chapter-detail route.
+ */
 export default function GenericSubjectHome({ subjectId, subjectPath }) {
+  const [selectedChapterId, setSelectedChapterId] = useState('');
+  const [activeTab, setActiveTab] = useState('videos');
+  const [activeVideo, setActiveVideo] = useState(null);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [subjectId]);
 
+  // Subject meta + every content doc for the subject, grouped by chapter.
+  // One read serves both the chapter badges and the inline tab content.
   const { data, isLoading, isError } = useQuery({
     queryKey: ['subject_home', subjectId],
     queryFn: async () => {
-      // 1. Fetch Subject Info from admin_settings
       const subSnap = await getDoc(doc(db, 'admin_settings', 'subjects'));
       let subData = null;
       if (subSnap.exists() && subSnap.data().list) {
         subData = subSnap.data().list.find(s => s.id === subjectId);
       }
-      if (!subData) {
-        throw new Error('Subject not found');
-      }
+      if (!subData) throw new Error('Subject not found');
 
-      // 2. Fetch all academic_content for this subject to compute counts
-      const q = query(collection(db, 'academic_content'), where('subject', '==', subjectId));
-      const contentSnap = await getDocs(q);
-      const counts = {};
-      
-      contentSnap.forEach(docSnap => {
-        const docData = docSnap.data();
-        const chId = docData.chapterId;
-        if (!chId) return;
-        
-        if (!counts[chId]) counts[chId] = { videos: 0, notes: 0, cqs: 0, mcqs: 0, kQs: 0 };
-        if (docData.type === 'video') counts[chId].videos++;
-        if (docData.type === 'note') counts[chId].notes++;
-        if (docData.type === 'cq') counts[chId].cqs++;
-        if (docData.type === 'mcq') counts[chId].mcqs++;
-        if (docData.type === 'knowledge') counts[chId].kQs++;
+      const contentSnap = await getDocs(
+        query(collection(db, 'academic_content'), where('subject', '==', subjectId))
+      );
+      const docs = contentSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      // Group by the chapter's numeric part so that "chapter-1", "ch1" and "1"
+      // all land on the same chapter — the same normalisation the chapter
+      // detail page falls back to.
+      const byChapter = {};
+      docs.forEach(d => {
+        const key = String(d.chapterId || '').replace(/\D/g, '') || d.chapterId;
+        if (!key) return;
+        if (!byChapter[key]) byChapter[key] = { videos: [], notes: [], cqs: [], mcqs: [], kQs: [] };
+        if (d.type === 'video') byChapter[key].videos.push(d);
+        else if (d.type === 'note') byChapter[key].notes.push(d);
+        else if (d.type === 'cq') byChapter[key].cqs.push(d);
+        else if (d.type === 'mcq') byChapter[key].mcqs.push(d);
+        else if (d.type === 'knowledge') byChapter[key].kQs.push(d);
       });
 
-      const normalizedCounts = {};
-      Object.keys(counts).forEach(key => {
-        const numMatch = key.match(/\d+/);
-        if (numMatch) {
-          normalizedCounts[numMatch[0]] = counts[key];
-        }
-      });
-      
-      return { subject: subData, contentCounts: normalizedCounts };
+      return { subject: subData, byChapter };
     }
   });
 
-  if (isLoading) return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12 lg:py-16">
-      <Skeleton className="h-4 w-48 mb-8" />
-      <Skeleton className="h-48 w-full rounded-3xl mb-12" />
-      <Skeleton className="h-24 w-full rounded-2xl mb-12" />
-      <Skeleton className="h-8 w-40 mb-6" />
-      <SkeletonGrid count={6} columns="sm:grid-cols-2 lg:grid-cols-3" />
-    </div>
-  );
-  if (isError || !data || !data.subject) return <div className="min-h-screen flex items-center justify-center text-slate-400">বিষয় খুঁজে পাওয়া যায়নি।</div>;
+  const subject = data?.subject;
+  const chapters = useMemo(() => subject?.chapters || [], [subject]);
 
-  const { subject, contentCounts } = data;
-  const chapters = subject.chapters || [];
+  const chapterKey = (id) => String(id || '').replace(/\D/g, '') || id;
+
+  useEffect(() => {
+    if (chapters.length > 0) {
+      const exists = chapters.some(c => c.id === selectedChapterId);
+      if (!exists) setSelectedChapterId(chapters[0].id);
+    }
+  }, [chapters, selectedChapterId]);
+
+  const currentChapter = useMemo(
+    () => chapters.find(c => c.id === selectedChapterId) || chapters[0] || null,
+    [chapters, selectedChapterId]
+  );
+
+  const chapterContent = useMemo(() => {
+    if (!currentChapter || !data?.byChapter) return EMPTY_CONTENT;
+    return data.byChapter[chapterKey(currentChapter.id)] || EMPTY_CONTENT;
+  }, [currentChapter, data]);
+
+  // The tab components expect one merged chapter object
+  const mergedChapter = useMemo(
+    () => ({ ...(currentChapter || {}), ...chapterContent }),
+    [currentChapter, chapterContent]
+  );
+
+  // Reset the video player whenever the chapter changes
+  useEffect(() => {
+    setActiveVideo(chapterContent.videos[0] || null);
+  }, [chapterContent]);
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12 lg:py-16">
+        <Skeleton className="h-4 w-48 mb-8" />
+        <Skeleton className="h-48 w-full rounded-3xl mb-12" />
+        <Skeleton className="h-24 w-full rounded-2xl mb-12" />
+        <Skeleton className="h-8 w-40 mb-6" />
+        <SkeletonGrid count={6} columns="sm:grid-cols-2 lg:grid-cols-3" />
+      </div>
+    );
+  }
+
+  if (isError || !subject) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-slate-400">
+        বিষয় খুঁজে পাওয়া যায়নি।
+      </div>
+    );
+  }
+
+  const level = String(subject.level || '').toLowerCase();
+  const levelLabel = LEVEL_LABELS[level] || subject.level;
+
+  const totals = Object.values(data.byChapter || {}).reduce((acc, c) => ({
+    videos: acc.videos + c.videos.length,
+    notes: acc.notes + c.notes.length,
+    cqs: acc.cqs + c.cqs.length,
+    mcqs: acc.mcqs + c.mcqs.length
+  }), { videos: 0, notes: 0, cqs: 0, mcqs: 0 });
+
+  const CONTENT_TABS = [
+    { key: 'videos', label: 'ভিডিও ক্লাস', icon: PlayCircle, count: mergedChapter.videos?.length || 0 },
+    { key: 'notes', label: 'ক্লাস নোটস', icon: FileText, count: mergedChapter.notes?.length || 0 },
+    { key: 'knowledge', label: 'জ্ঞান ও অনুধাবন', icon: BookOpen, count: mergedChapter.kQs?.length || 0 },
+    { key: 'cqs', label: 'সৃজনশীল প্রশ্ন', icon: HelpCircle, count: mergedChapter.cqs?.length || 0 },
+    { key: 'mcqs', label: 'বহুনির্বাচনী', icon: CheckCircle, count: mergedChapter.mcqs?.length || 0 }
+  ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12 lg:py-16 font-bangla">
-      <nav className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-500 mb-5 sm:mb-8 font-medium flex-wrap">
-        <Link to="/academic" className="hover:text-white transition-colors whitespace-nowrap">একাডেমিক</Link>
-        <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
-        <Link to={`/academic/${String(subject.level || '').toLowerCase()}`} className="hover:text-white transition-colors whitespace-nowrap">{subject.level}</Link>
-        <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
-        <span className="text-indigo-400 whitespace-nowrap">{subject.label}</span>
-      </nav>
-
-      <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl sm:rounded-3xl p-5 sm:p-8 lg:p-10 mb-7 sm:mb-10 lg:mb-12 relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-10 pointer-events-none">
-          <BookOpen className="w-28 h-28 sm:w-40 sm:h-40 lg:w-48 lg:h-48 text-indigo-400" />
-        </div>
-        <div className="relative z-10 max-w-3xl">
-          <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-            <span className="bg-indigo-500/20 text-indigo-300 font-bold px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-sm border border-indigo-500/30">
-              {subject.emoji} {subject.label}
-            </span>
-          </div>
-          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-3 sm:mb-5 lg:mb-6 leading-tight">
-            {subject.label}
-          </h1>
-          <p className="text-sm sm:text-base lg:text-lg text-slate-300 leading-relaxed">
-            বিগত সালের সকল বোর্ড প্রশ্ন ও অধ্যায়ভিত্তিক সম্পূর্ণ প্রস্তুতি।
+    <SubjectWorkspace
+      accent="indigo"
+      storageKey={`subject_${subjectId}`}
+      breadcrumbs={[
+        { label: 'একাডেমিক', to: '/academic' },
+        { label: levelLabel, to: `/academic/${level}` },
+        { label: subject.label }
+      ]}
+      backLink={{ to: `/academic/${level}`, label: `${levelLabel}-এ ফিরে যান` }}
+      primaryAction={{ to: `${subjectPath}/board-questions`, label: 'বোর্ড প্রশ্নাবলি', icon: FileText }}
+      hero={{
+        icon: BookOpen,
+        title: subject.label,
+        subtitle: 'বিগত সালের সকল বোর্ড প্রশ্ন ও অধ্যায়ভিত্তিক সম্পূর্ণ প্রস্তুতি।',
+        chips: [
+          ...(subject.emoji ? [{ label: `${subject.emoji} ${subject.label}`, tone: 'accent' }] : []),
+          ...(levelLabel ? [{ label: levelLabel }] : [])
+        ]
+      }}
+      stats={[
+        { label: 'মোট অধ্যায়', value: `${chapters.length}টি`, icon: Layers, tone: 'text-indigo-300' },
+        { label: 'ভিডিও', value: `${totals.videos}টি`, icon: Video, tone: 'text-sky-300' },
+        { label: 'সৃজনশীল', value: `${totals.cqs}টি`, icon: HelpCircle, tone: 'text-emerald-300' },
+        { label: 'MCQ', value: `${totals.mcqs}টি`, icon: ListChecks, tone: 'text-amber-300' }
+      ]}
+      chapters={chapters.map(ch => {
+        const c = data.byChapter?.[chapterKey(ch.id)];
+        const total = c ? c.videos.length + c.notes.length + c.cqs.length + c.mcqs.length + c.kQs.length : 0;
+        return { id: ch.id, name: ch.title || ch.name, badge: total > 0 ? String(total) : null };
+      })}
+      selectedChapterId={currentChapter?.id || ''}
+      onSelectChapter={(id) => {
+        setSelectedChapterId(id);
+        setActiveTab('videos');
+      }}
+      chapterHeading={currentChapter?.title || currentChapter?.name}
+      chapterBadge={currentChapter ? `অধ্যায় ${chapters.findIndex(c => c.id === currentChapter.id) + 1}` : null}
+      chapterAction={currentChapter && (
+        <Link
+          to={`${subjectPath}/${currentChapter.id}`}
+          className="text-indigo-400 hover:text-indigo-300 text-xs font-bold transition flex items-center gap-1"
+        >
+          <span>মডেল টেস্ট ও আলোচনা</span>
+          <ArrowUpRight className="w-3.5 h-3.5" />
+        </Link>
+      )}
+      tabs={CONTENT_TABS}
+      activeTab={activeTab}
+      onSelectTab={setActiveTab}
+      emptyState={(
+        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl sm:rounded-3xl p-8 sm:p-12 text-center space-y-3">
+          <Layers className="w-9 h-9 text-slate-600 mx-auto" />
+          <h4 className="text-sm sm:text-base font-bold text-slate-200">এই বিষয়ের অধ্যায় যুক্ত হচ্ছে</h4>
+          <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+            শীঘ্রই {subject.label} বিষয়ের অধ্যায়ভিত্তিক ভিডিও, নোটস ও প্রশ্ন যোগ করা হবে।
           </p>
         </div>
+      )}
+    >
+      <div className="rounded-2xl bg-slate-900/60 border border-white/[0.08] p-3.5 sm:p-5">
+        {activeTab === 'videos' && (
+          <VideoTabContent chapter={mergedChapter} activeVideo={activeVideo} setActiveVideo={setActiveVideo} />
+        )}
+        {activeTab === 'notes' && <NotesTabContent chapter={mergedChapter} />}
+        {activeTab === 'knowledge' && <KnowledgeTabContent chapter={mergedChapter} />}
+        {activeTab === 'cqs' && <CQTabContent chapter={mergedChapter} />}
+        {activeTab === 'mcqs' && <MCQTabContent chapter={mergedChapter} />}
       </div>
-
-      <Link to={`${subjectPath}/board-questions`} className="block mb-8 sm:mb-10 lg:mb-12">
-        <div className="bg-gradient-to-r from-emerald-900/30 to-slate-800/50 border border-emerald-500/20 hover:border-emerald-500/50 rounded-2xl p-4 sm:p-6 lg:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 group transition-all active:scale-[0.99]">
-          <div className="flex items-start sm:items-center gap-3 sm:gap-5 min-w-0">
-            <div className="bg-emerald-500/10 p-3 sm:p-4 rounded-2xl text-emerald-400 group-hover:scale-110 transition-transform shrink-0">
-              <FileText className="w-6 h-6 sm:w-8 sm:h-8" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-base sm:text-xl lg:text-2xl font-bold text-white mb-1">সম্পূর্ণ বোর্ড প্রশ্নাবলি</h3>
-              <p className="text-slate-400 text-xs sm:text-sm lg:text-base">বিগত বছরের সকল বোর্ডের প্রশ্নপত্র ও সমাধান একত্রে দেখুন</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-emerald-400 font-semibold group-hover:translate-x-1 transition-transform self-end sm:self-auto">
-            <span className="text-sm sm:text-base">আর্কাইভ দেখুন</span>
-            <ArrowRight className="w-5 h-5" />
-          </div>
-        </div>
-      </Link>
-
-      <div className="mb-8">
-        <h2 className="text-lg sm:text-2xl font-bold text-white mb-4 sm:mb-6 flex items-center gap-2">
-          সকল অধ্যায় <span className="text-slate-500 text-sm sm:text-lg font-medium">({chapters.length})</span>
-        </h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
-          {chapters.map((chapter) => {
-            const numMatch = chapter.id.match(/\d+/);
-            const numKey = numMatch ? numMatch[0] : chapter.id;
-            const counts = contentCounts[numKey] || {};
-            return <ChapterCard key={chapter.id} chapter={chapter} counts={counts} subjectPath={subjectPath} />;
-          })}
-        </div>
-      </div>
-    </div>
+    </SubjectWorkspace>
   );
 }

@@ -8,7 +8,7 @@ import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import 'katex/dist/katex.min.css';
 import {
-  CheckCircle2, Circle, Trash2, RotateCcw, Sparkles,
+  CheckCircle2, Trash2, RotateCcw, Sparkles,
   ArrowRight, Flame, Trophy, Clock, ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -260,7 +260,20 @@ const PROGRAM_SUBJECTS = {
   ssc: ['পদার্থবিজ্ঞান', 'রসায়ন', 'উচ্চতর গণিত', 'জীববিজ্ঞান', 'সাধারণ গণিত', 'সাধারণ বিজ্ঞান', 'বাংলা', 'ইংরেজি']
 };
 
-export default function MistakeNotebook({ program = null }) {
+const PILL_BASE = 'px-3 py-1.5 rounded-lg text-[11.5px] sm:text-xs font-bold transition whitespace-nowrap border';
+const PILL_OFF = 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700';
+
+const TAB_ACTIVE = {
+  rose: 'bg-rose-500 text-white border-rose-500',
+  emerald: 'bg-emerald-500 text-white border-emerald-500',
+  blue: 'bg-blue-500 text-white border-blue-500',
+  indigo: 'bg-indigo-500 text-white border-indigo-500',
+  teal: 'bg-teal-500 text-white border-teal-500',
+  violet: 'bg-violet-500 text-white border-violet-500'
+};
+
+export default function MistakeNotebook({ program = null, accent = 'rose' }) {
+  const tabActive = TAB_ACTIVE[accent] || TAB_ACTIVE.rose;
   const { currentUser } = useAuth();
   const queryClient = useQueryClient();
   const [confirm, confirmDialog] = useConfirm();
@@ -463,73 +476,66 @@ export default function MistakeNotebook({ program = null }) {
         <>
           {/* Subject Filter & Stats */}
           {rawMistakes.length > 0 && (
-            <div className="space-y-4 mb-5">
-              {/* Program Scope Selector if program specified */}
+            <div className="space-y-2.5 mb-5">
+              {/* Both filter rows share one pill style so they read as one control */}
               {program && (
-                <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-900/80 border border-slate-800 w-max text-xs font-bold">
-                  <button
-                    type="button"
-                    onClick={() => { setProgramScope(true); setSelectedSubject('all'); }}
-                    className={`px-3 py-1.5 rounded-xl transition ${
-                      programScope ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    এই প্রোগ্রামের ভুল ({toBn(mistakes.length)})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setProgramScope(false); setSelectedSubject('all'); }}
-                    className={`px-3 py-1.5 rounded-xl transition ${
-                      !programScope ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    সকল ভুল ({toBn(rawMistakes.length)})
-                  </button>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="text-[10.5px] font-bold text-slate-500 tracking-wide shrink-0">স্কোপ</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => { setProgramScope(true); setSelectedSubject('all'); }}
+                      className={`${PILL_BASE} ${programScope ? tabActive : PILL_OFF}`}
+                    >
+                      এই প্রোগ্রাম ({toBn(mistakes.length)})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setProgramScope(false); setSelectedSubject('all'); }}
+                      className={`${PILL_BASE} ${!programScope ? tabActive : PILL_OFF}`}
+                    >
+                      সকল ভুল ({toBn(rawMistakes.length)})
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* Subject Filter Pills */}
-              <div className="overflow-x-auto pb-1 custom-scrollbar">
-                <div className="flex items-center gap-2 w-max">
-                  <button
-                    onClick={() => setSelectedSubject('all')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                      selectedSubject === 'all'
-                        ? 'bg-rose-500 text-white shadow-sm'
-                        : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800'
-                    }`}
-                  >
-                    সব বিষয় ({toBn(mistakes.length)})
-                  </button>
-                  {subjectsList.map(subj => (
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="text-[10.5px] font-bold text-slate-500 tracking-wide shrink-0">বিষয়</span>
+                <div className="overflow-x-auto no-scrollbar min-w-0 -mr-3 sm:mr-0">
+                  <div className="flex items-center gap-1.5 w-max pr-3 sm:pr-0">
                     <button
-                      key={subj.title}
-                      onClick={() => setSelectedSubject(subj.title)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                        selectedSubject === subj.title
-                          ? 'bg-rose-500 text-white shadow-sm'
-                          : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800'
-                      }`}
+                      onClick={() => setSelectedSubject('all')}
+                      className={`${PILL_BASE} ${selectedSubject === 'all' ? tabActive : PILL_OFF}`}
                     >
-                      {subj.title} ({toBn(subj.count)})
+                      সব বিষয় ({toBn(mistakes.length)})
                     </button>
-                  ))}
+                    {subjectsList.map(subj => (
+                      <button
+                        key={subj.title}
+                        onClick={() => setSelectedSubject(subj.title)}
+                        className={`${PILL_BASE} ${selectedSubject === subj.title ? tabActive : PILL_OFF}`}
+                      >
+                        {subj.title} ({toBn(subj.count)})
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               {/* Summary Stats */}
-              <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
-                <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-3 sm:p-4 text-center">
-                  <p className="text-xl sm:text-2xl font-black text-rose-400">{toBn(dueNow.length)}</p>
-                  <p className="mt-0.5 text-[10px] sm:text-xs font-bold text-slate-400">আজ রিভিউ বাকি</p>
+              <div className="mt-1.5 grid grid-cols-3 rounded-2xl border border-white/[0.07] divide-x divide-white/[0.07] overflow-hidden">
+                <div className="px-2 py-3 sm:py-3.5 text-center">
+                  <p className="text-xl sm:text-2xl font-black text-rose-400 leading-none">{toBn(dueNow.length)}</p>
+                  <p className="mt-1.5 text-[10.5px] sm:text-xs font-bold text-slate-500 truncate">আজ বাকি</p>
                 </div>
-                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3 sm:p-4 text-center">
-                  <p className="text-xl sm:text-2xl font-black text-amber-400">{toBn(upcoming.length)}</p>
-                  <p className="mt-0.5 text-[10px] sm:text-xs font-bold text-slate-400">আসছে</p>
+                <div className="px-2 py-3 sm:py-3.5 text-center">
+                  <p className="text-xl sm:text-2xl font-black text-amber-400 leading-none">{toBn(upcoming.length)}</p>
+                  <p className="mt-1.5 text-[10.5px] sm:text-xs font-bold text-slate-500 truncate">আসছে</p>
                 </div>
-                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3 sm:p-4 text-center">
-                  <p className="text-xl sm:text-2xl font-black text-emerald-400">{toBn(masteredCount)}</p>
-                  <p className="mt-0.5 text-[10px] sm:text-xs font-bold text-slate-400">আয়ত্ত করেছ</p>
+                <div className="px-2 py-3 sm:py-3.5 text-center">
+                  <p className="text-xl sm:text-2xl font-black text-emerald-400 leading-none">{toBn(masteredCount)}</p>
+                  <p className="mt-1.5 text-[10.5px] sm:text-xs font-bold text-slate-500 truncate">আয়ত্ত</p>
                 </div>
               </div>
             </div>

@@ -20,7 +20,7 @@ function getYouTubeEmbedUrl(url) {
   return url;
 }
 
-function VideoTabContent({ chapter, activeVideo, setActiveVideo }) {
+export function VideoTabContent({ chapter, activeVideo, setActiveVideo }) {
   if (!chapter.videos?.length) {
     return (<div className='flex flex-col items-center justify-center py-24 text-slate-500'>
       <PlayCircle className='w-14 h-14 mb-4 opacity-20' />
@@ -49,7 +49,7 @@ function VideoTabContent({ chapter, activeVideo, setActiveVideo }) {
   </div>);
 }
 
-function NotesTabContent({ chapter }) {
+export function NotesTabContent({ chapter }) {
   const [selectedNote, setSelectedNote] = useState(chapter.notes?.[0] || null);
   useEffect(() => { if (chapter.notes?.length > 0) setSelectedNote(chapter.notes[0]); }, [chapter.notes]);
   if (!chapter.notes?.length) return (<div className='flex flex-col items-center justify-center py-24 text-slate-500'><FileText className='w-14 h-14 mb-4 opacity-20' /><h3 className='text-lg font-bold text-slate-300 mb-1'>ক্লাস নোটস তৈরি হচ্ছে</h3><p className='text-sm'>শীঘ্রই নোটস যুক্ত করা হবে।</p></div>);
@@ -66,7 +66,7 @@ function NotesTabContent({ chapter }) {
   </div>);
 }
 
-function MCQTabContent({ chapter }) {
+export function MCQTabContent({ chapter }) {
   const mcqs = chapter.mcqs || [];
   const [visibleCount, setVisibleCount] = useState(10);
   
@@ -94,7 +94,7 @@ function MCQTabContent({ chapter }) {
   );
 }
 
-function CQTabContent({ chapter }) {
+export function CQTabContent({ chapter }) {
   const cqs = chapter.cqs || [];
   const [visibleCount, setVisibleCount] = useState(10);
   
@@ -122,7 +122,7 @@ function CQTabContent({ chapter }) {
   );
 }
 
-function KnowledgeTabContent({ chapter }) {
+export function KnowledgeTabContent({ chapter }) {
   const kQs = chapter.kQs || [];
   const [visibleCount, setVisibleCount] = useState(10);
   

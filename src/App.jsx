@@ -49,6 +49,7 @@ const MedicalChapterDetails = lazy(() => import('./pages/Academic/Admission/Medi
 const MedicalExamViewer = lazy(() => import('./pages/Academic/Admission/Medical/MedicalExamViewer'));
 const NursingHub = lazy(() => import('./pages/Academic/Admission/Nursing/NursingHub'));
 const NursingTrackDashboard = lazy(() => import('./pages/Academic/Admission/Nursing/NursingTrackDashboard'));
+const NursingSubjectHome = lazy(() => import('./pages/Academic/Admission/Nursing/NursingSubjectHome'));
 const EngineeringDashboard = lazy(() => import('./pages/Academic/Admission/Engineering/EngineeringDashboard'));
 const VarsityADashboard = lazy(() => import('./pages/Academic/Admission/VarsityA/VarsityADashboard'));
 const GSTDashboard = lazy(() => import('./pages/Academic/Admission/GST/GSTDashboard'));
@@ -194,6 +195,8 @@ function App() {
                 <Route path="admission/nursing" element={<NursingHub />} />
                 <Route path="admission/nursing/:trackId" element={<NursingTrackDashboard />} />
                 <Route path="admission/nursing/:trackId/past-questions" element={<PastQuestionsPage />} />
+                <Route path="admission/nursing/:trackId/:subjectSlug" element={<NursingSubjectHome />} />
+                <Route path="admission/nursing/:trackId/:subjectSlug/:chapterId" element={<MedicalChapterDetails />} />
                 <Route path="admission/engineering" element={<EngineeringDashboard />} />
                 <Route path="admission/varsity-a" element={<VarsityADashboard />} />
                 <Route path="admission/varsity-b" element={<ComingSoon title="ভার্সিটি খ-ইউনিট (মানবিক)" description="ঢাকা বিশ্ববিদ্যালয় 'খ' ইউনিটসহ সকল বিশ্ববিদ্যালয়ের কলা ও মানবিক অনুষদের প্রশ্নব্যাংক ও প্রস্তুতি তৈরি হচ্ছে।" />} />
