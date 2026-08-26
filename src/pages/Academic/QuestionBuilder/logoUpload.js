@@ -1,10 +1,13 @@
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from '../../../config/firebase';
-
 const MAX_LOGO_BYTES = 5 * 1024 * 1024; // ৫MB
 
 /**
  * ক্লায়েন্ট-সাইডে ছবিকে অপ্টিমাইজড Base64 Data URL-এ রূপান্তর করে।
+ *
+ * এটাই লোগোর একমাত্র পথ। আগে এর পাশাপাশি Firebase Storage-এ একটা "ক্লাউড
+ * ব্যাকআপ"ও রাখা হতো, কিন্তু এই প্রজেক্টে Storage কখনো প্রভিশনই করা হয়নি —
+ * অর্থাৎ ওই কলটা সবসময় ব্যর্থ হয়ে console warning ছাড়া কিছুই করত না।
+ * লোগো ImgBB-তে পাঠানো হয়নি ইচ্ছে করেই: প্রশ্নপত্র ব্যক্তিগত, আর ImgBB-র
+ * লিংক পাবলিক হয়। DataURL-এ প্রিন্ট ও সেভ — দুটোই নির্ভরযোগ্যভাবে চলে।
  * এতে কোনো নেটওয়ার্ক সমস্যা বা লগইন বাধ্যবাধকতা ছাড়াই যেকোনো ব্রাউজারে
  * লোগো তাৎক্ষণিকভাবে রেন্ডার ও প্রিন্ট হয়।
  */
@@ -59,37 +62,4 @@ export function readImageAsDataUrl(file, maxWidth = 300, maxHeight = 300) {
     reader.onerror = () => reject(new Error('ফাইল পড়তে সমস্যা হয়েছে।'));
     reader.readAsDataURL(file);
   });
-}
-
-/**
- * প্রশ্নপত্রের হেডারে বসানোর জন্য প্রতিষ্ঠানের লোগো ক্লাউডে আপলোড (ঐচ্ছিক ব্যাকআপ)।
- */
-export async function uploadPaperLogo(uid, file) {
-  if (!uid) throw new Error('লগইন প্রয়োজন');
-  if (!file.type?.startsWith('image/')) throw new Error('শুধু ছবি ফাইল আপলোড করা যাবে।');
-  if (file.size > MAX_LOGO_BYTES) throw new Error('ছবিটি ৫MB এর বেশি — ছোট ছবি ব্যবহার করুন।');
-
-  const path = `question_paper_logos/${uid}/${Date.now()}-${file.name}`;
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(storageRef);
-  return { url, path };
-}
-
-/**
- * লোগো বদলানো/মুছে ফেলার সময় পুরনোটা স্টোরেজ থেকে সরিয়ে ফেলা।
- * আসল নিরাপত্তা storage.rules-এ, কিন্তু ভুল করে অন্য ব্যবহারকারীর পাথ চলে
- * এলে (কোনো ভবিষ্যৎ বাগে) যাতে ডিলিট কল-ই না হয়, তাই uid প্রিফিক্স যাচাই।
- */
-export async function deletePaperLogo(path, uid) {
-  if (!path) return;
-  if (uid && !path.startsWith(`question_paper_logos/${uid}/`)) {
-    console.error('Logo delete blocked: path does not belong to this user', path);
-    return;
-  }
-  try {
-    await deleteObject(ref(storage, path));
-  } catch (err) {
-    console.error('Logo delete ignored:', err);
-  }
 }

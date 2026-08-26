@@ -1,7 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
-import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -18,6 +17,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
-const storage = getStorage(app);
 
-export { app, db, auth, storage };
+// Firebase Storage এই প্রজেক্টে প্রভিশন করা নেই — ছবি আপলোড ImgBB দিয়ে হয়
+// (src/lib/imageUpload.js), তাই getStorage আর এক্সপোর্ট করা হয় না।
+export { app, db, auth };

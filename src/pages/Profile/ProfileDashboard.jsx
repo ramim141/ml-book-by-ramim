@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { db, storage } from '../../config/firebase';
+import { db } from '../../config/firebase';
+import { uploadImage, validateImageFile } from '../../lib/imageUpload';
 import { 
   doc, getDoc, setDoc, updateDoc, getDocs, collection, query, 
   orderBy, arrayUnion, arrayRemove 
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { updateProfile } from 'firebase/auth';
 import {
   User, LayoutDashboard, History, Settings, GraduationCap, Target,
@@ -353,34 +353,52 @@ export default function ProfileDashboard() {
     }
   };
 
-  // Image upload
+  /**
+   * শ্রেণি/পর্যায় বদলানো — ড্যাশবোর্ডের কুইক সুইচার ও সেটিংসের সিলেক্ট, দুই
+   * জায়গা থেকেই ডাকা হয়। ফাংশনটা কখনো লেখাই হয়নি, ফলে ক্লিক করলেই
+   * `ReferenceError: handleLevelChange is not defined` হতো এবং শিক্ষার্থী
+   * শ্রেণি বদলাতেই পারত না। সেভ ব্যর্থ হলে আগের মানে ফিরিয়ে দেওয়া হয়।
+   */
+  const handleLevelChange = async (level) => {
+    if (!level || level === profileData.educationLevel) return;
+    const previous = profileData.educationLevel;
+    setProfileData((prev) => ({ ...prev, educationLevel: level }));
+    try {
+      await setDoc(
+        doc(db, 'users', currentUser.uid),
+        { educationLevel: level },
+        { merge: true }
+      );
+    } catch (err) {
+      console.error(err);
+      setProfileData((prev) => ({ ...prev, educationLevel: previous }));
+      toast.error('শ্রেণি পরিবর্তন সেভ করা যায়নি।');
+    }
+  };
+
+  // Image upload — ImgBB (এই প্রজেক্টে Firebase Storage প্রভিশন করা নেই)
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (!file.type?.startsWith('image/')) {
-      toast.error('শুধু ছবি ফাইল আপলোড করা যাবে।');
-      e.target.value = '';
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('ছবিটি ৫MB এর বেশি — ছোট ছবি ব্যবহার করুন।');
+    const invalid = validateImageFile(file);
+    if (invalid) {
+      toast.error(invalid);
       e.target.value = '';
       return;
     }
     setImageUploading(true);
     try {
-      const storageRef = ref(storage, `profile_pictures/${currentUser.uid}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const url = await uploadImage(file);
       await updateProfile(currentUser, { photoURL: url });
       await setDoc(doc(db, 'users', currentUser.uid), { photoURL: url }, { merge: true });
       setProfileData(prev => ({ ...prev, photoURL: url }));
       toast.success('প্রোফাইল ছবি সফলভাবে আপলোড হয়েছে! 🎉');
     } catch (err) {
       console.error(err);
-      toast.error('ছবি আপলোড করতে সমস্যা হয়েছে।');
-    } finally { 
-      setImageUploading(false); 
+      toast.error(err.message || 'ছবি আপলোড করতে সমস্যা হয়েছে।');
+    } finally {
+      e.target.value = '';
+      setImageUploading(false);
     }
   };
 

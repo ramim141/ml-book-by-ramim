@@ -25,7 +25,7 @@ import { useBuilderQuestions, normalizeChapterKey } from './useBuilderQuestions.
 import { DEFAULT_MARKS, summarizeCart, markOf } from './marks.js';
 import { listPapers } from '../../../lib/savedPapers';
 import { buildUsageIndex } from './duplicateCheck.js';
-import { uploadPaperLogo, deletePaperLogo, readImageAsDataUrl } from './logoUpload.js';
+import { readImageAsDataUrl } from './logoUpload.js';
 import { estimatePageCount } from './pageEstimate.js';
 import { materializeEdits, shuffleSetVariant } from './setUtils.js';
 import { Download, ChevronDown, ChevronLeft, FileText, Wand2, CheckCheck, History, X, Settings2, Pencil, Printer, Layers, Loader2 } from 'lucide-react';
@@ -704,20 +704,12 @@ export default function QuestionBuilder() {
   const handleLogoUpload = async (file) => {
     setLogoUploading(true);
     try {
-      // ক্লায়েন্ট-সাইডে তাৎক্ষণিকভাবে প্রিভিউ এবং ব্যবহারের জন্য DataURL তৈরি
+      // ক্লায়েন্ট-সাইডে DataURL — প্রিভিউ, প্রিন্ট ও সেভ সবই এটা দিয়েই চলে।
+      // আগের Firebase Storage ব্যাকআপটা সরানো হয়েছে: এই প্রজেক্টে Storage
+      // প্রভিশনই করা নেই, তাই কলটা সবসময় ব্যর্থ হতো।
       const dataUrl = await readImageAsDataUrl(file);
       setHeaderInfo((prev) => ({ ...prev, logoUrl: dataUrl, logoPath: '' }));
       toast.success('প্রতিষ্ঠানের লোগো যুক্ত হয়েছে!');
-
-      // ব্যবহারকারী লগইন করা থাকলে ক্লাউডেও ব্যাকআপ রাখা
-      if (currentUser?.uid) {
-        try {
-          const { url, path } = await uploadPaperLogo(currentUser.uid, file);
-          setHeaderInfo((prev) => ({ ...prev, logoUrl: url, logoPath: path }));
-        } catch (cloudErr) {
-          console.warn('Cloud logo backup skipped:', cloudErr);
-        }
-      }
     } catch (err) {
       console.error(err);
       toast.error(err.message || 'লোগো লোড করা যায়নি।');
@@ -727,9 +719,7 @@ export default function QuestionBuilder() {
   };
 
   const handleLogoRemove = () => {
-    if (headerInfo.logoPath) {
-      deletePaperLogo(headerInfo.logoPath, currentUser?.uid);
-    }
+    // logoPath আগের সেভ করা প্রশ্নপত্রে থাকতে পারে, তাই ফিল্ডটা খালি করে রাখি
     setHeaderInfo((prev) => ({ ...prev, logoUrl: '', logoPath: '' }));
     toast.success('লোগো মুছে ফেলা হয়েছে');
   };
