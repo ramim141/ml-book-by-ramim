@@ -1,68 +1,82 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   LogOut, Database, Quote, BookOpen, Swords, LayoutDashboard, 
   Users, Star, MessageSquareWarning, Megaphone, Bell, CalendarClock, 
   ChevronRight, Activity, Lightbulb, Search, Menu, Wallet, Tag, 
-  GraduationCap, PanelLeftClose, PanelLeftOpen, Settings, FileSpreadsheet 
+  GraduationCap, PanelLeftClose, PanelLeftOpen, Settings,
+  ExternalLink, Sparkles, ShieldCheck, Check
 } from 'lucide-react';
 
-// Import all modularized components
 import AdminCommandPalette from '../../components/Admin/AdminCommandPalette';
-import OverviewManager from '../../components/Admin/OverviewManager';
-import UserManagement from '../../components/Admin/UserManagement';
-import QuestionBankManager from '../../components/Admin/QuestionBankManager';
-import BulkQuestionUploader from '../../components/Admin/BulkQuestionUploader';
-import QuotesManager from '../../components/Admin/QuotesManager';
-import SubjectsManager from '../../components/Admin/SubjectsManager';
-import DailyChallengeManager from '../../components/Admin/DailyChallengeManager';
-import GamificationManager from '../../components/Admin/GamificationManager';
-import FeedbackManager from '../../components/Admin/FeedbackManager';
-import AnnouncementManager from '../../components/Admin/AnnouncementManager';
-import DatabaseMigrationHelper from './DatabaseMigrationHelper';
-import NotificationManager from '../../components/Admin/NotificationManager';
-import LiveExamManager from '../../components/Admin/LiveExamManager';
-import FormulaManager from '../../components/Admin/FormulaManager';
-import SuggestionManager from '../../components/Admin/SuggestionManager';
-import AdminActivityFeed from '../../components/Admin/AdminActivityFeed';
-import PaymentManager from '../../components/Admin/PaymentManager';
-import PlanManager from '../../components/Admin/PlanManager';
-import AdmissionManager from '../../components/Admin/AdmissionManager';
-import SiteSettingsManager from '../../components/Admin/SiteSettingsManager';
 
-/**
- * প্রতিটি ট্যাবের নিজস্ব এক লাইন — আগে সব ট্যাবেই একই ইংরেজি বাক্য
- * ("Manage and configure platform settings.") বসত, যা কিছুই জানাত না।
- */
+// Lazy load modularized manager components for extreme performance & instant chunk loading
+const OverviewManager = lazy(() => import('../../components/Admin/OverviewManager'));
+const UserManagement = lazy(() => import('../../components/Admin/UserManagement'));
+const QuestionBankManager = lazy(() => import('../../components/Admin/QuestionBankManager'));
+const QuotesManager = lazy(() => import('../../components/Admin/QuotesManager'));
+const SubjectsManager = lazy(() => import('../../components/Admin/SubjectsManager'));
+const DailyChallengeManager = lazy(() => import('../../components/Admin/DailyChallengeManager'));
+const GamificationManager = lazy(() => import('../../components/Admin/GamificationManager'));
+const FeedbackManager = lazy(() => import('../../components/Admin/FeedbackManager'));
+const AnnouncementManager = lazy(() => import('../../components/Admin/AnnouncementManager'));
+const DatabaseMigrationHelper = lazy(() => import('./DatabaseMigrationHelper'));
+const NotificationManager = lazy(() => import('../../components/Admin/NotificationManager'));
+const LiveExamManager = lazy(() => import('../../components/Admin/LiveExamManager'));
+const FormulaManager = lazy(() => import('../../components/Admin/FormulaManager'));
+const SuggestionManager = lazy(() => import('../../components/Admin/SuggestionManager'));
+const AdminActivityFeed = lazy(() => import('../../components/Admin/AdminActivityFeed'));
+const PaymentManager = lazy(() => import('../../components/Admin/PaymentManager'));
+const PlanManager = lazy(() => import('../../components/Admin/PlanManager'));
+const AdmissionManager = lazy(() => import('../../components/Admin/AdmissionManager'));
+const SiteSettingsManager = lazy(() => import('../../components/Admin/SiteSettingsManager'));
+
+// Sleek Shadcn-style Manager Skeleton Loader
+function ManagerSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse font-bangla">
+      <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
+        <div className="space-y-2">
+          <div className="h-6 w-48 bg-zinc-800 rounded-lg" />
+          <div className="h-3.5 w-72 bg-zinc-800/60 rounded-md" />
+        </div>
+        <div className="h-9 w-28 bg-zinc-800 rounded-xl" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-28 bg-zinc-900/60 rounded-2xl border border-zinc-800/80" />
+        ))}
+      </div>
+      <div className="h-64 bg-zinc-900/40 rounded-2xl border border-zinc-800/80" />
+    </div>
+  );
+}
+
 const TAB_DESCRIPTIONS = {
-  overview: 'প্ল্যাটফর্মের সারসংক্ষেপ ও সাম্প্রতিক অবস্থা',
-  question_bank: 'প্রশ্ন, নোট ও ভিডিও যোগ করুন, খুঁজুন ও সম্পাদনা করুন',
-  bulk_upload: 'এক্সেল বা CSV ফাইল থেকে একসাথে একাধিক প্রশ্ন আপলোড ও ভ্যালিডেশন করুন',
-  live_exams: 'নির্দিষ্ট সময়ের পরীক্ষা তৈরি ও অংশগ্রহণকারী দেখুন',
-  subjects: 'বিষয় ও অধ্যায়ের তালিকা — পুরো হাবের ভিত্তি',
-  admission: 'ভর্তি প্রোগ্রামসমূহ, শর্টকাট ও ট্রিকস এবং অ্যাডমিশন কনফিগ',
-  settings: 'সাইট ও ডেভেলপার সেটিংস, সোশ্যাল লিংক, যোগাযোগ তথ্য ও জরুরি নোটিশ',
-  users: 'শিক্ষার্থীদের তালিকা, অগ্রগতি ও অ্যাকাউন্ট ব্যবস্থাপনা',
-  payments: 'বিকাশ পেমেন্ট যাচাই করে প্রিমিয়াম চালু করুন',
-  plans: 'প্ল্যানের দাম, মেয়াদ ও কুপন/ছাড় নিয়ন্ত্রণ',
-  gamification: 'XP, লেভেল ও ব্যাজের নিয়ম নির্ধারণ',
-  challenges: 'প্রতিদিনের চ্যালেঞ্জ প্রশ্ন নির্ধারণ',
-  announcements: 'শিক্ষার্থীদের ড্যাশবোর্ডে দেখানো নোটিশ',
-  notifications: 'নির্দিষ্ট বা সব ব্যবহারকারীকে বার্তা পাঠান',
-  quotes: 'প্রোফাইলে প্রতিদিন দেখানো অনুপ্রেরণামূলক উক্তি',
-  formulas: 'বিষয়ভিত্তিক সূত্রের সংকলন',
-  suggestions: 'পরীক্ষার সাজেশন তৈরি ও প্রকাশ',
-  activity_feed: 'অ্যাডমিনের কাজের হিসাব ও সিস্টেম লগ',
-  reports: 'শিক্ষার্থীদের পাঠানো ভুলের রিপোর্ট',
-  migration: 'পুরনো ডেটা নতুন কাঠামোয় নেওয়ার সরঞ্জাম',
+  overview: 'প্ল্যাটফর্মের সামগ্রিক পরিসংখ্যান, ব্যবহারকারী ও সাম্প্রতিক অবস্থা',
+  admission: 'ভর্তি প্রোগ্রামসমূহ, অধ্যায়ভিত্তিক সিলেবাস ও অ্যাডমিশন কনফিগ',
+  question_bank: 'কোশ্চেন ব্যাংক, এক্সেল/CSV বাল্ক আপলোড ও রিসোর্স হাব',
+  live_exams: 'নির্দিষ্ট সময়সীমার লাইভ এক্সাম তৈরি ও লিডারবোর্ড',
+  subjects: 'একাডেমিক বিষয় ও অধ্যায়ের কেন্দ্রীয় আর্কিটেকচার',
+  users: 'নিবন্ধিত শিক্ষার্থীদের তালিকা, অগ্রগতি ও রোল ব্যবস্থাপনা',
+  payments: 'ম্যানুয়াল বিকাশ ও নগদ পেমেন্ট যাচাই ও সাবস্ক্রিপশন চালু',
+  plans: 'প্যাকেজের মূল্য, মেয়াদ ও প্রোমো কোড/ছাড় নিয়ন্ত্রণ',
+  gamification: 'XP, স্ট্রিক, ডেইলি রেয়ার্ডস ও লেভেল রুলস',
+  challenges: 'প্রতিদিনের স্পেশাল চ্যালেঞ্জ কুইজ নির্ধারণ',
+  announcements: 'শিক্ষার্থীদের নোটিশ বোর্ড ও জরুরি বার্তা',
+  notifications: 'নির্দিষ্ট বা সকল ব্যবহারকারীকে পুশ নোটিফিকেশন',
+  quotes: 'দৈনিক মোটিভেশনাল উক্তি ও কোটস',
+  formulas: 'বিষয়ভিত্তিক স্মার্ট সূত্র ও ফর্মুলা শিট',
+  suggestions: 'পরীক্ষার স্পেশাল সাজেশন ও গাইডলাইন',
+  settings: 'সাইট মেটাডেটা, সোশ্যাল লিংক ও জরুরি নোটিশ',
+  activity_feed: 'অ্যাডমিনদের অ্যাক্টিভিটি লগ ও অডিট ট্রেইল',
+  reports: 'শিক্ষার্থীদের পাঠানো প্রশ্ন ভুলের রিপোর্ট ও ফিডব্যাক',
+  migration: 'ডাটাবেজ মাইগ্রেশন ও সিস্টেম ব্যাকআপ টুলস',
 };
 
 export default function AdminDashboard() {
-  const { logout } = useAuth();
-  // ট্যাবটা URL এ রাখি (?tab=users)। আগে শুধু state এ থাকায় রিফ্রেশ করলেই
-  // ওভারভিউতে ফিরে যেত, নির্দিষ্ট ট্যাব বুকমার্ক করা যেত না, আর ব্রাউজারের
-  // back বাটনও কাজ করত না।
+  const { currentUser, logout } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -92,67 +106,66 @@ export default function AdminDashboard() {
     {
       title: 'ড্যাশবোর্ড',
       tabs: [
-        { id: 'overview', label: 'ওভারভিউ', icon: LayoutDashboard, keywords: 'dashboard home হোম' },
+        { id: 'overview', label: 'ওভারভিউ', icon: LayoutDashboard, keywords: 'dashboard home ওভারভিউ হোম' },
       ]
     },
     {
-      title: 'একাডেমিক',
+      title: 'একাডেমিক ও কন্টেন্ট',
       tabs: [
-        { id: 'admission', label: 'অ্যাডমিশন', icon: GraduationCap, keywords: 'admission medical engineering varsity admission অ্যাডমিশন ভর্তি শর্টকাট' },
-        { id: 'question_bank', label: 'কোশ্চেন ব্যাংক', icon: Database, keywords: 'question bank mcq cq প্রশ্ন ব্যাংক' },
-        { id: 'bulk_upload', label: 'বাল্ক আপলোড (Excel/CSV)', icon: FileSpreadsheet, keywords: 'bulk upload excel csv প্রশ্ন বাল্ক আপলোড' },
-        { id: 'live_exams', label: 'লাইভ এক্সাম', icon: CalendarClock, keywords: 'live exam পরীক্ষা এক্সাম' },
-        { id: 'subjects', label: 'সাবজেক্ট ম্যানেজমেন্ট', icon: BookOpen, keywords: 'subject chapter বিষয় অধ্যায়' },
+        { id: 'admission', label: 'অ্যাডমিশন হাব', icon: GraduationCap, keywords: 'admission medical engineering varsity admission অ্যাডমিশন ভর্তি' },
+        { id: 'question_bank', label: 'কোশ্চেন ব্যাংক ও আপলোড', icon: Database, keywords: 'question bank mcq cq bulk upload excel csv প্রশ্ন বাল্ক আপলোড' },
+        { id: 'live_exams', label: 'লাইভ এক্সাম', icon: CalendarClock, keywords: 'live exam পরীক্ষা এক্সাম লাইভ' },
+        { id: 'subjects', label: 'সাবজেক্ট আর্কিটেকচার', icon: BookOpen, keywords: 'subject chapter বিষয় অধ্যায়' },
+        { id: 'formulas', label: 'স্মার্ট ফর্মুলা', icon: Sparkles, keywords: 'formula সূত্র ফর্মুলা' },
+        { id: 'suggestions', label: 'সাজেশন হাব', icon: Lightbulb, keywords: 'suggestion সাজেশন' },
       ]
     },
     {
-      title: 'ইউজার ও এনগেজমেন্ট',
+      title: 'ইউজার ও সাবস্ক্রিপশন',
       tabs: [
         { id: 'users', label: 'ইউজার ম্যানেজমেন্ট', icon: Users, keywords: 'user student ছাত্র ব্যবহারকারী' },
-        { id: 'payments', label: 'পেমেন্ট', icon: Wallet, keywords: 'payment bkash subscription পেমেন্ট বিকাশ সাবস্ক্রিপশন টাকা' },
-        { id: 'plans', label: 'প্ল্যান ও কুপন', icon: Tag, keywords: 'plan price coupon discount প্ল্যান দাম কুপন ছাড়' },
-        { id: 'gamification', label: 'গেমিফিকেশন (Levels)', icon: Star, keywords: 'xp level badge লেভেল ব্যাজ' },
+        { id: 'payments', label: 'পেমেন্ট ভেরিফিকেশন', icon: Wallet, keywords: 'payment bkash subscription পেমেন্ট বিকাশ সাবস্ক্রিপশন টাকা' },
+        { id: 'plans', label: 'প্ল্যান ও প্রোমো কোড', icon: Tag, keywords: 'plan price coupon discount প্ল্যান দাম কুপন ছাড়' },
+        { id: 'gamification', label: 'গেমিফিকেশন (XP & Badges)', icon: Star, keywords: 'xp level badge লেভেল ব্যাজ গেমিফিকেশন' },
         { id: 'challenges', label: 'ডেইলি চ্যালেঞ্জ', icon: Swords, keywords: 'daily challenge চ্যালেঞ্জ' },
       ]
     },
     {
-      title: 'কন্টেন্ট ও নোটিফিকেশন',
+      title: 'যোগাযোগ ও নোটিশ',
       tabs: [
         { id: 'announcements', label: 'নোটিশ বোর্ড', icon: Megaphone, keywords: 'announcement notice নোটিশ ঘোষণা' },
-        { id: 'notifications', label: 'নোটিফিকেশন', icon: Bell, keywords: 'notification push নোটিফিকেশন' },
-        { id: 'quotes', label: 'ডেইলি কোট', icon: Quote, keywords: 'quote উক্তি কোট' },
-        { id: 'formulas', label: 'স্মার্ট ফর্মুলা', icon: BookOpen, keywords: 'formula সূত্র ফর্মুলা' },
-        { id: 'suggestions', label: 'সাজেশন', icon: Lightbulb, keywords: 'suggestion সাজেশন' },
+        { id: 'notifications', label: 'পুশ নোটিফিকেশন', icon: Bell, keywords: 'notification push নোটিফিকেশন' },
+        { id: 'quotes', label: 'অনুপ্রেরণামূলক উক্তি', icon: Quote, keywords: 'quote উক্তি কোট' },
       ]
     },
     {
       title: 'সিস্টেম ও কনফিগারেশন',
       tabs: [
         { id: 'settings', label: 'সাইট ও ডেভেলপার সেটিংস', icon: Settings, keywords: 'settings developer site social footer contact সেটিংস ডেভেলপার' },
-        { id: 'activity_feed', label: 'অ্যাক্টিভিটি ফিড', icon: Activity, keywords: 'activity log অ্যাক্টিভিটি লগ' },
-        { id: 'reports', label: 'রিপোর্টস', icon: MessageSquareWarning, keywords: 'report feedback রিপোর্ট ফিডব্যাক' },
-        { id: 'migration', label: 'ডাটা মাইগ্রেশন', icon: Database, keywords: 'migration data ডাটা মাইগ্রেশন' },
+        { id: 'reports', label: 'রিপোর্ট ও ফিডব্যাক', icon: MessageSquareWarning, keywords: 'report feedback রিপোর্ট ফিডব্যাক' },
+        { id: 'activity_feed', label: 'অ্যাক্টিভিটি লগ', icon: Activity, keywords: 'activity log অ্যাক্টিভিটি লগ' },
+        { id: 'migration', label: 'ডাটাবেজ মাইগ্রেশন', icon: Database, keywords: 'migration data ডাটা মাইগ্রেশন' },
       ]
     }
   ];
 
-  // সব ট্যাব একটা সমতল তালিকায় — খোঁজা ও দেখানো দুটোতেই লাগে
   const allTabs = useMemo(
     () => tabCategories.flatMap((c) => c.tabs.map((t) => ({ ...t, category: c.title }))),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
-  // URL এ অচেনা কিছু থাকলে ওভারভিউতেই ফিরি
   const requestedTab = searchParams.get('tab');
-  const activeTab = allTabs.some((t) => t.id === requestedTab) ? requestedTab : 'overview';
+  const activeTab = useMemo(() => {
+    if (requestedTab === 'bulk_upload') return 'question_bank';
+    return allTabs.some((t) => t.id === requestedTab) ? requestedTab : 'overview';
+  }, [requestedTab, allTabs]);
 
   const setActiveTab = useCallback((id) => {
     setSearchParams(id === 'overview' ? {} : { tab: id });
     setMobileNavOpen(false);
   }, [setSearchParams]);
 
-  // Ctrl/⌘ + K — ১৫টা ট্যাবের মধ্যে দ্রুত যাওয়ার সবচেয়ে সহজ পথ
+  // Global Shortcut Ctrl/⌘ + K
   useEffect(() => {
     const onKey = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -168,81 +181,180 @@ export default function AdminDashboard() {
   const getActiveTabTitle = () => activeTabInfo?.label || '';
 
   return (
-    <div className="min-h-screen bg-[#0a0e17] pb-16 font-bangla text-slate-200">
-      {/* গ্রেডিয়েন্ট লেখা ও ভারী ছায়া সরানো হলো — অ্যাডমিন টুল রোজ ঘণ্টার পর
-          ঘণ্টা দেখতে হয়, তাই চোখে আরাম আর তথ্যের স্পষ্টতাই মুখ্য */}
-      <nav className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#0a0e17]/95 backdrop-blur-xl">
-        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
-          <div className="flex h-14 items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-2.5">
+    <div className="min-h-screen bg-[#09090b] text-zinc-100 font-bangla pb-16 selection:bg-zinc-800">
+      
+      {/* ── Modern Monochromatic Topbar ───────────────────────────────────── */}
+      <header className="sticky top-0 z-50 border-b border-zinc-800/90 bg-[#09090b]/95 backdrop-blur-xl">
+        <div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
+          <div className="flex h-14 items-center justify-between gap-3 sm:gap-4">
+            
+            {/* Left: Brand, Sidebar Toggle & System Pulse */}
+            <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={toggleSidebar}
-                className="hidden lg:flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-white transition-colors"
+                className="hidden lg:flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-100 transition-colors"
                 title={sidebarCollapsed ? 'সাইডবার প্রসারিত করুন' : 'সাইডবার মিনিমাইজ করুন'}
                 aria-label="Toggle Sidebar"
               >
                 {sidebarCollapsed ? (
-                  <PanelLeftOpen className="h-4 w-4 text-indigo-400" />
+                  <PanelLeftOpen className="h-4 w-4 text-zinc-300" />
                 ) : (
-                  <PanelLeftClose className="h-4 w-4 text-slate-400" />
+                  <PanelLeftClose className="h-4 w-4 text-zinc-400" />
                 )}
               </button>
 
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-indigo-500/15 ring-1 ring-indigo-400/25">
-                <Database className="h-3.5 w-3.5 text-indigo-300" />
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200">
+                  <ShieldCheck className="h-4 w-4" />
+                </div>
+                <div className="truncate">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-zinc-100 tracking-tight">
+                      অ্যাডমিন কনসোল
+                    </span>
+                    <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10.5px] font-medium">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      লাইভ
+                    </span>
+                  </div>
+                </div>
               </div>
-              <span className="truncate text-[15px] font-semibold tracking-tight text-white">
-                অ্যাডমিন প্যানেল
-              </span>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
-              {/* ১৫টা ট্যাবের মধ্যে দ্রুত যাওয়ার পথ — কীবোর্ডেও Ctrl+K */}
+            {/* Middle: Command Palette Search Trigger */}
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setPaletteOpen(true)}
-                title="ট্যাব খুঁজুন (Ctrl+K)"
-                className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1.5 text-[13px] font-medium text-slate-400 transition-colors hover:border-white/15 hover:text-white"
+                title="ট্যাব বা কমান্ড খুঁজুন (Ctrl+K)"
+                className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/70 px-2.5 py-1.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
               >
-                <Search className="h-3.5 w-3.5" />
-                <span className="hidden md:inline">খুঁজুন</span>
-                <kbd className="hidden rounded border border-white/10 bg-white/5 px-1.5 py-px font-sans text-[10px] text-slate-500 md:inline">⌘K</kbd>
+                <Search className="h-3.5 w-3.5 text-zinc-500" />
+                <span className="hidden md:inline">কমান্ড বা ট্যাব খুঁজুন...</span>
+                <kbd className="hidden rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 font-sans text-[10px] text-zinc-400 md:inline font-mono">
+                  ⌘K
+                </kbd>
               </button>
 
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1.5 text-[13px] font-medium text-slate-400 transition-colors hover:border-rose-400/30 hover:text-rose-300"
+              {/* View Main Site */}
+              <Link
+                to="/"
+                target="_blank"
+                rel="noreferrer"
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 text-xs font-medium text-zinc-300 hover:text-white hover:border-zinc-700 transition-colors"
+                title="মূল ওয়েবসাইট দেখুন"
               >
-                <LogOut className="h-3.5 w-3.5" /> <span className="hidden sm:inline">লগআউট</span>
-              </button>
+                <span>ওয়েবসাইট</span>
+                <ExternalLink className="h-3 w-3 text-zinc-500" />
+              </Link>
+
+              {/* User Avatar & Logout */}
+              <div className="flex items-center gap-2 pl-2 border-l border-zinc-800">
+                {currentUser?.photoURL ? (
+                  <img
+                    src={currentUser.photoURL}
+                    alt="Admin"
+                    className="w-7 h-7 rounded-lg object-cover border border-zinc-700"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 font-bold text-xs">
+                    {currentUser?.displayName?.charAt(0) || 'A'}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs font-semibold text-zinc-400 transition-colors hover:border-rose-500/30 hover:text-rose-300 hover:bg-rose-500/10 active:scale-95"
+                  title="লগআউট"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span className="hidden md:inline">লগআউট</span>
+                </button>
+              </div>
             </div>
+
           </div>
         </div>
-      </nav>
+      </header>
 
-      <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+      {/* ── Main Workspace Layout ─────────────────────────────────────────── */}
+      <div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
         
-        {/* Mobile Breadcrumb */}
-        <div className="mb-3 flex items-center gap-1.5 text-[12px] font-medium text-slate-500 lg:hidden">
-          <span>অ্যাডমিন</span>
-          <ChevronRight className="h-3.5 w-3.5 text-slate-700" />
-          <span className="text-slate-300">{getActiveTabTitle()}</span>
-        </div>
+        {/* Mobile Navigation Dropdown Toggle */}
+        <button
+          type="button"
+          onClick={() => setMobileNavOpen((v) => !v)}
+          aria-expanded={mobileNavOpen}
+          className="mb-4 flex w-full items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900/90 p-3 text-left lg:hidden"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            {activeTabInfo?.icon && (
+              <div className="p-1.5 rounded-lg bg-zinc-800 text-zinc-300 border border-zinc-700 shrink-0">
+                <activeTabInfo.icon className="h-4 w-4" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <span className="text-[11px] text-zinc-500 font-medium block leading-tight">বর্তমান ট্যাব:</span>
+              <span className="text-xs font-semibold text-zinc-200 truncate block">
+                {getActiveTabTitle()}
+              </span>
+            </div>
+          </div>
+          <div className="px-2 py-1 rounded-md bg-zinc-800 text-[11px] font-semibold text-zinc-300 border border-zinc-700">
+            {mobileNavOpen ? 'বন্ধ করুন' : 'মেন্যু তালিকা'}
+          </div>
+        </button>
 
-        <div className="flex flex-col gap-5 lg:flex-row lg:gap-7">
+        {/* Mobile Menu Grid (Collapsible) */}
+        {mobileNavOpen && (
+          <div className="mb-6 space-y-3 lg:hidden p-3 rounded-xl bg-zinc-900/95 border border-zinc-800 shadow-xl">
+            {tabCategories.map((category, idx) => (
+              <div key={idx} className="space-y-1 pb-2 border-b border-zinc-800/80 last:border-0 last:pb-0">
+                <h3 className="px-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                  {category.title}
+                </h3>
+                <div className="grid grid-cols-2 gap-1">
+                  {category.tabs.map(tab => {
+                    const on = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`flex items-center gap-2 p-2 rounded-lg text-left text-xs font-medium transition-colors ${
+                          on
+                            ? 'bg-zinc-800 text-white font-semibold border border-zinc-700'
+                            : 'bg-zinc-950/60 text-zinc-400 border border-zinc-900 hover:bg-zinc-900 hover:text-zinc-200'
+                        }`}
+                      >
+                        <tab.icon className={`h-3.5 w-3.5 shrink-0 ${on ? 'text-zinc-200' : 'text-zinc-500'}`} />
+                        <span className="truncate">{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Desktop 2-Column Sidebar + Content Layout */}
+        <div className="flex flex-col lg:flex-row items-start gap-5 lg:gap-6">
           
-          {/* Sidebar */}
-          <div className={`w-full shrink-0 transition-all duration-300 ${sidebarCollapsed ? 'lg:w-[64px]' : 'lg:w-60'}`}>
-            {/* Desktop Sidebar */}
-            <nav className="sticky top-[72px] hidden lg:block">
+          {/* ── Sleek Minimalist Sidebar ────────────────────────────────────── */}
+          <aside className={`shrink-0 hidden lg:block transition-all duration-200 sticky top-20 ${
+            sidebarCollapsed ? 'w-[58px]' : 'w-60'
+          }`}>
+            <div className="p-2 rounded-xl bg-zinc-900/50 border border-zinc-800/80 space-y-3 max-h-[calc(100vh-100px)] overflow-y-auto no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {tabCategories.map((category, idx) => (
-                <div key={idx} className={`${sidebarCollapsed ? 'mb-2' : 'mb-5'} last:mb-0`}>
-                  {sidebarCollapsed ? (
-                    idx > 0 && <div className="my-2 border-t border-white/[0.06]" />
-                  ) : (
-                    <h3 className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-600">
-                      {category.title}
+                <div key={idx} className="space-y-0.5">
+                  {!sidebarCollapsed ? (
+                    <h3 className="px-2.5 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center justify-between">
+                      <span>{category.title}</span>
+                      <span className="text-[9px] font-mono text-zinc-600">{category.tabs.length}</span>
                     </h3>
+                  ) : (
+                    idx > 0 && <div className="my-1.5 border-t border-zinc-800/60" />
                   )}
+
                   <div className="space-y-0.5">
                     {category.tabs.map(tab => {
                       const on = activeTab === tab.id;
@@ -250,67 +362,23 @@ export default function AdminDashboard() {
                         <button
                           key={tab.id}
                           onClick={() => setActiveTab(tab.id)}
-                          aria-current={on ? 'page' : undefined}
                           title={tab.label}
-                          className={`group relative flex w-full items-center rounded-md text-[13.5px] transition-all ${
+                          className={`group relative flex w-full items-center rounded-lg text-xs font-medium transition-colors ${
                             sidebarCollapsed 
-                              ? 'justify-center px-0 py-2' 
-                              : 'gap-2.5 px-2 py-1.5'
+                              ? 'justify-center p-2' 
+                              : 'gap-2.5 px-2.5 py-1.5'
                           } ${
                             on
-                              ? 'bg-white/[0.06] font-semibold text-white shadow-inner'
-                              : 'font-medium text-slate-400 hover:bg-white/[0.03] hover:text-slate-200'
+                              ? 'bg-zinc-800 text-white font-semibold border border-zinc-700/80 shadow-sm'
+                              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
                           }`}
                         >
-                          <span className={`absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-indigo-400 transition-opacity ${on ? 'opacity-100' : 'opacity-0'}`} />
-                          <tab.icon className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-110 ${on ? 'text-indigo-300' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                          {!sidebarCollapsed && <span className="truncate">{tab.label}</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </nav>
-
-            {/* মোবাইল: ১৫টা ট্যাব সবসময় খোলা থাকলে আসল কাজের জায়গায় পৌঁছাতেই
-                অনেকটা স্ক্রল করতে হতো। এখন শুধু বর্তমান ট্যাবের নাম দেখায়,
-                দরকার হলে খুলে নেওয়া যায়। */}
-            <button
-              type="button"
-              onClick={() => setMobileNavOpen((v) => !v)}
-              aria-expanded={mobileNavOpen}
-              className="mb-3 flex w-full items-center gap-2.5 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2.5 text-left lg:hidden"
-            >
-              {activeTabInfo?.icon && <activeTabInfo.icon className="h-4 w-4 shrink-0 text-indigo-300" />}
-              <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-slate-100">
-                {getActiveTabTitle()}
-              </span>
-              <Menu className="h-4 w-4 shrink-0 text-slate-500" />
-            </button>
-
-            <div className={`space-y-2.5 lg:hidden ${mobileNavOpen ? '' : 'hidden'}`}>
-              {tabCategories.map((category, idx) => (
-                <div key={idx} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5">
-                  <h3 className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-600">
-                    {category.title}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                    {category.tabs.map(tab => {
-                      const on = activeTab === tab.id;
-                      return (
-                        <button
-                          key={tab.id}
-                          onClick={() => setActiveTab(tab.id)}
-                          aria-current={on ? 'page' : undefined}
-                          className={`flex min-h-10 items-center gap-2 rounded-md px-2.5 py-2 text-left text-[12.5px] transition-colors ${
-                            on
-                              ? 'bg-white/[0.07] font-semibold text-white'
-                              : 'font-medium text-slate-400 hover:bg-white/[0.03] hover:text-slate-200'
-                          }`}
-                        >
-                          <tab.icon className={`h-3.5 w-3.5 shrink-0 ${on ? 'text-indigo-300' : 'text-slate-600'}`} />
-                          <span className="truncate leading-tight">{tab.label}</span>
+                          <tab.icon className={`h-3.5 w-3.5 shrink-0 transition-colors ${
+                            on ? 'text-zinc-100' : 'text-zinc-500 group-hover:text-zinc-300'
+                          }`} />
+                          {!sidebarCollapsed && (
+                            <span className="truncate">{tab.label}</span>
+                          )}
                         </button>
                       );
                     })}
@@ -318,97 +386,101 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
-          </div>
+          </aside>
 
-          {/* Content Area */}
-          <div className="flex-1 min-w-0">
-            {/* ১৫টা ম্যানেজারে একই ইনপুট ছয় রকম দেখাত (bg-slate-900/50,
-                bg-slate-950, bg-slate-900 … rounded-lg vs xl, px-3 vs px-4)।
-                প্রতিটা ফাইলে হাত না দিয়ে এখানেই এক নিয়মে বাঁধি — এই সিলেক্টর
-                গুলোর specificity (0,2,x) একক Tailwind ক্লাসের (0,1,0) চেয়ে
-                বেশি, তাই পুরনো ক্লাস থাকলেও এগুলোই কার্যকর হয়।
-                চেকবক্স/রেডিও/রেঞ্জ ছোঁয়া হয়নি — ওদের নিজস্ব চেহারা দরকার। */}
+          {/* ── Main Content Work Surface ──────────────────────────────────── */}
+          <main className="flex-1 min-w-0 w-full">
+            {/* Global Input & Surface Styles */}
             <style>{`
               .admin-surface input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
               .admin-surface select,
               .admin-surface textarea {
-                background-color: rgba(255,255,255,0.03) !important;
-                border: 1px solid rgba(255,255,255,0.09) !important;
-                border-radius: 8px !important;
-                color: #e2e8f0 !important;
-                padding: 8px 12px !important;
+                width: 100% !important;
+                display: block !important;
+                box-sizing: border-box !important;
+                background-color: rgba(18, 18, 20, 0.95) !important;
+                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                border-radius: 10px !important;
+                color: #f4f4f5 !important;
+                padding: 10px 14px !important;
                 font-size: 13.5px !important;
                 line-height: 1.5 !important;
                 outline: none !important;
                 transition: border-color .15s, box-shadow .15s;
               }
-              .admin-surface textarea { padding: 10px 12px !important; }
+              .admin-surface textarea { padding: 10px 14px !important; }
               .admin-surface input:focus,
               .admin-surface select:focus,
               .admin-surface textarea:focus {
-                border-color: rgba(129,140,248,0.55) !important;
-                box-shadow: 0 0 0 3px rgba(99,102,241,0.12) !important;
+                border-color: rgba(255, 255, 255, 0.35) !important;
+                box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08) !important;
               }
               .admin-surface input::placeholder,
-              .admin-surface textarea::placeholder { color: #475569 !important; }
-              .admin-surface input:disabled,
-              .admin-surface select:disabled,
-              .admin-surface textarea:disabled { opacity: .5; cursor: not-allowed; }
-              /* মোবাইলে ১৬px এর কম হলে iOS নিজে থেকে জুম করে ফেলে */
-              @media (max-width: 640px) {
-                .admin-surface input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-                .admin-surface select,
-                .admin-surface textarea { font-size: 16px !important; }
-              }
+              .admin-surface textarea::placeholder { color: #71717a !important; }
               .admin-surface table { width: 100%; border-collapse: collapse; }
               .admin-surface th {
                 font-size: 11px; font-weight: 600; text-transform: uppercase;
-                letter-spacing: .06em; color: #64748b; text-align: left;
+                letter-spacing: .05em; color: #a1a1aa; text-align: left;
               }
             `}</style>
 
-            <div className="admin-surface min-h-[600px] rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 sm:p-7">
-              {/* Header for content area (Desktop only) */}
-              <div className="mb-7 hidden items-start gap-3 border-b border-white/[0.06] pb-5 lg:flex">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 ring-1 ring-indigo-400/20">
-                  {(() => {
-                    const Icon = activeTabInfo?.icon || LayoutDashboard;
-                    return <Icon className="h-[18px] w-[18px] text-indigo-300" />;
-                  })()}
+            <div className="admin-surface min-h-[650px] rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 sm:p-6 shadow-xl space-y-6">
+              
+              {/* Dynamic Header for Content Area (Desktop) */}
+              <div className="hidden lg:flex items-center justify-between pb-4 border-b border-zinc-800">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300">
+                    {(() => {
+                      const Icon = activeTabInfo?.icon || LayoutDashboard;
+                      return <Icon className="h-4 w-4" />;
+                    })()}
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-zinc-100 leading-tight">
+                      {getActiveTabTitle()}
+                    </h2>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      {TAB_DESCRIPTIONS[activeTab] || 'প্ল্যাটফর্ম ব্যবস্থাপনা কনসোল'}
+                    </p>
+                  </div>
                 </div>
-                <div className="min-w-0 pt-0.5">
-                  <h2 className="text-[17px] font-semibold tracking-tight text-white">{getActiveTabTitle()}</h2>
-                  <p className="mt-0.5 text-[13px] text-slate-500">
-                    {TAB_DESCRIPTIONS[activeTab] || 'প্ল্যাটফর্ম ব্যবস্থাপনা'}
-                  </p>
+
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-zinc-900 border border-zinc-800 text-zinc-400 font-mono">
+                    TAB: {activeTab.toUpperCase()}
+                  </span>
                 </div>
               </div>
 
-              {activeTab === 'overview' && <OverviewManager />}
-              {activeTab === 'admission' && <AdmissionManager />}
-              {activeTab === 'live_exams' && <LiveExamManager />}
-              {activeTab === 'users' && <UserManagement />}
-              {activeTab === 'payments' && <PaymentManager />}
-              {activeTab === 'plans' && <PlanManager />}
-              {activeTab === 'question_bank' && <QuestionBankManager />}
-              {activeTab === 'bulk_upload' && <BulkQuestionUploader />}
-              {activeTab === 'quotes' && <QuotesManager />}
-              {activeTab === 'subjects' && <SubjectsManager />}
-              {activeTab === 'challenges' && <DailyChallengeManager />}
-              {activeTab === 'gamification' && <GamificationManager />}
-              {activeTab === 'announcements' && <AnnouncementManager />}
-              {activeTab === 'notifications' && <NotificationManager />}
-              {activeTab === 'formulas' && <FormulaManager />}
-              {activeTab === 'suggestions' && <SuggestionManager />}
-              {activeTab === 'settings' && <SiteSettingsManager />}
-              {activeTab === 'activity_feed' && <AdminActivityFeed />}
-              {activeTab === 'reports' && <FeedbackManager />}
-              {activeTab === 'migration' && <DatabaseMigrationHelper />}
+              {/* ── Lazy Module Rendering with Suspense ───────────────────── */}
+              <Suspense fallback={<ManagerSkeleton />}>
+                {activeTab === 'overview' && <OverviewManager />}
+                {activeTab === 'admission' && <AdmissionManager />}
+                {activeTab === 'live_exams' && <LiveExamManager />}
+                {activeTab === 'users' && <UserManagement />}
+                {activeTab === 'payments' && <PaymentManager />}
+                {activeTab === 'plans' && <PlanManager />}
+                {activeTab === 'question_bank' && <QuestionBankManager />}
+                {activeTab === 'quotes' && <QuotesManager />}
+                {activeTab === 'subjects' && <SubjectsManager />}
+                {activeTab === 'challenges' && <DailyChallengeManager />}
+                {activeTab === 'gamification' && <GamificationManager />}
+                {activeTab === 'announcements' && <AnnouncementManager />}
+                {activeTab === 'notifications' && <NotificationManager />}
+                {activeTab === 'formulas' && <FormulaManager />}
+                {activeTab === 'suggestions' && <SuggestionManager />}
+                {activeTab === 'settings' && <SiteSettingsManager />}
+                {activeTab === 'activity_feed' && <AdminActivityFeed />}
+                {activeTab === 'reports' && <FeedbackManager />}
+                {activeTab === 'migration' && <DatabaseMigrationHelper />}
+              </Suspense>
+
             </div>
-          </div>
+          </main>
         </div>
       </div>
 
+      {/* ── Global Command Palette (Ctrl+K) ───────────────────────────────── */}
       <AdminCommandPalette
         isOpen={paletteOpen}
         onClose={() => setPaletteOpen(false)}

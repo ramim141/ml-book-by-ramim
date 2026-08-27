@@ -150,7 +150,7 @@ export function KnowledgeTabContent({ chapter }) {
   );
 }
 
-function ModelTestTabContent({ chapter, subjectId, subjectTitle }) {
+function ModelTestTabContent({ chapter, subjectId, subjectTitle, subjectLevel }) {
   const allMcqs = chapter.mcqs || [];
   const { currentUser } = useAuth();
   
@@ -205,7 +205,8 @@ function ModelTestTabContent({ chapter, subjectId, subjectTitle }) {
               chapterId: q.chapterId || chapter.id || chapter.chapterNo,
               chapterName: q.chapterName || chapter.title || chapter.name
             }, 
-            { subjectId, subjectTitle, userAnswer }
+            // ভুলের খাতায় স্কোপ ফিল্টার কাজ করার জন্য প্রোগ্রামটাও জমা থাকা দরকার
+            { subjectId, subjectTitle, userAnswer, program: String(subjectLevel || '').toLowerCase() }
           );
         }
         return null;
@@ -509,7 +510,7 @@ export default function GenericChapterDetails({ subjectId, chaptersData, backLin
           {activeTab==='cqs' && <CQTabContent chapter={chapter} />}
           {activeTab==='mcqs' && <MCQTabContent chapter={chapter} />}
           {activeTab==='knowledge' && <KnowledgeTabContent chapter={chapter} />}
-          {activeTab==='modeltest' && <ModelTestTabContent chapter={chapter} subjectId={subjectId} subjectTitle={subjectLabel} />}
+          {activeTab==='modeltest' && <ModelTestTabContent chapter={chapter} subjectId={subjectId} subjectTitle={subjectLabel} subjectLevel={subjectLevel} />}
           {activeTab==='discussion' && <DiscussionTabContent chapter={chapter} subjectId={subjectId} chapterId={chapter.chapterNo || chapterId} />}
         </Suspense>
       </div>

@@ -35,7 +35,7 @@ export default function ModelTestResult() {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { questions, answers, totalTime, timeTaken, subjectTitle, subjectId } = location.state || {};
+  const { questions, answers, totalTime, timeTaken, subjectTitle, subjectId, program } = location.state || {};
   const [reportingQ, setReportingQ] = useState(null);
   const [reportType, setReportType] = useState('wrong_answer');
   const [reportMsg, setReportMsg] = useState('');
@@ -83,7 +83,7 @@ export default function ModelTestResult() {
             subjectId: subjectId || q.subject || '',
             subjectTitle: subjectTitle || q.subject || 'মডেল টেস্ট',
             userAnswer: userAns,
-            program: q.program || ''
+            program: q.program || program || ''
           }).catch(console.error);
         }
       });

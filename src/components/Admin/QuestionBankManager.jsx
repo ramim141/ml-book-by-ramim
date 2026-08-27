@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, addDoc, writeBatch, query, where, limit, startAfter } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { Database, Search, Edit2, Trash2, X, Check, Loader2, UploadCloud, Eye, Download, FileDown, AlertTriangle, CheckCircle2, Copy, RotateCcw, ListChecks, Code2, ChevronDown, Stethoscope, Layers, Replace, Video, FileText, BookOpen, Brain, Zap } from 'lucide-react';
+import { Database, Search, Edit2, Trash2, X, Check, Loader2, UploadCloud, Eye, Download, FileDown, AlertTriangle, CheckCircle2, Copy, RotateCcw, ListChecks, Code2, ChevronDown, Stethoscope, Layers, Replace, Video, FileText, BookOpen, Brain, Zap, FileSpreadsheet, PlusCircle } from 'lucide-react';
 import MarkdownRenderer from '../UI/MarkdownRenderer';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -11,6 +11,7 @@ import { SkeletonList } from '../UI/Skeleton';
 import { useAuth } from '../../contexts/AuthContext';
 import { logAdminAction, AUDIT } from '../../lib/adminAudit';
 import { downloadJSON, downloadCSV, dateStamp } from '../../lib/adminExport';
+import BulkQuestionUploader from './BulkQuestionUploader';
 
 const BULK_TYPES = ['mcq', 'cq', 'knowledge', 'shortcut'];
 
@@ -76,19 +77,70 @@ function validateItem(type, item) {
 }
 
 export default function QuestionBankManager() {
-  const [mode, setMode] = useState('manage'); // 'manage' | 'upload'
+  const [mode, setMode] = useState('manage'); // 'manage' | 'bulk_upload' | 'single_add'
+
   return (
-    <div className="max-w-4xl">
-      {/* মোবাইলে শিরোনাম আর টগল পাশাপাশি রাখলে শিরোনামটা তিন লাইনে ভেঙে
-          বাটনের গায়ে উঠে যেত — তাই ছোট পর্দায় ওপর-নিচে সাজানো হয় */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <h2 className="text-xl font-bold flex items-center gap-2"><Database className="text-indigo-400 shrink-0" /> কন্টেন্ট ও কোশ্চেন ব্যাংক</h2>
-        <div className="flex shrink-0 bg-slate-900 rounded-lg p-1 border border-slate-800 self-start sm:self-auto">
-          <button onClick={() => setMode('manage')} className={`px-4 py-1.5 rounded-md text-sm font-bold whitespace-nowrap transition-colors ${mode === 'manage' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>ম্যানেজ করুন</button>
-          <button onClick={() => setMode('upload')} className={`px-4 py-1.5 rounded-md text-sm font-bold whitespace-nowrap transition-colors ${mode === 'upload' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}>আপলোড</button>
+    <div className="space-y-6">
+      {/* ── Top Header & Seamless Segmented Tabs ───────────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-white/[0.06]">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 ring-1 ring-indigo-400/20 shadow-inner">
+            <Database className="h-5 w-5 text-indigo-400" />
+          </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-white leading-none">
+              কোশ্চেন ব্যাংক ও কন্টেন্ট হাব
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              সকল প্রশ্ন ও অধ্যায়ভিত্তিক রিসোর্স পরিচালনা, সম্পাদনা ও বাল্ক আপলোড
+            </p>
+          </div>
+        </div>
+
+        {/* Shadcn-Style Clean Segmented Tab Switcher */}
+        <div className="flex items-center p-1 rounded-xl bg-zinc-950/80 border border-zinc-800/90 shadow-inner self-start md:self-auto overflow-x-auto no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <button
+            onClick={() => setMode('manage')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              mode === 'manage'
+                ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/80'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+            }`}
+          >
+            <ListChecks className="w-3.5 h-3.5 text-zinc-300" />
+            <span>সকল প্রশ্ন তালিকা</span>
+          </button>
+
+          <button
+            onClick={() => setMode('bulk_upload')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              mode === 'bulk_upload'
+                ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/80'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+            }`}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-zinc-300" />
+            <span>এক্সেল / CSV বাল্ক আপলোড</span>
+          </button>
+
+          <button
+            onClick={() => setMode('single_add')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              mode === 'single_add'
+                ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/80'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+            }`}
+          >
+            <PlusCircle className="w-3.5 h-3.5 text-zinc-300" />
+            <span>একক প্রশ্ন / JSON যোগ</span>
+          </button>
         </div>
       </div>
-      {mode === 'upload' ? <QuestionBankUpload /> : <QuestionBankList />}
+
+      {/* ── Active Sub-View ───────────────────────────────────────────────── */}
+      {mode === 'manage' && <QuestionBankList />}
+      {mode === 'bulk_upload' && <BulkQuestionUploader />}
+      {mode === 'single_add' && <QuestionBankUpload />}
     </div>
   );
 }

@@ -188,6 +188,8 @@ export default function ModelTestConfig() {
         durationSeconds: durationMinutes * 60,
         subjectTitle: selectedConfig.label || selectedConfig.name,
         subjectId: selectedConfig.id,
+        // বিষয়ের স্তর (SSC/HSC/Admission) — ভুলের খাতায় স্কোপ ফিল্টারের জন্য
+        program: String(selectedConfig.level || '').toLowerCase(),
       },
     });
   };

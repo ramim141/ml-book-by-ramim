@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { normalizeChapterKey } from '../../pages/Academic/QuestionBuilder/useBuilderQuestions';
 import { 
   GraduationCap, Zap, Plus, Trash2, Edit, Save, 
   RotateCcw, Check, X, Search, Sparkles, Layers,
@@ -274,14 +275,92 @@ export default function AdmissionManager() {
     active: true
   });
 
-  // ─── Program-Wise Subjects Map State ─────────────────────────────────────────
+  // ─── Program-Wise Subjects & Chapters State ─────────────────────────────────
   const [programSubjectsMap, setProgramSubjectsMap] = useState(DEFAULT_PROGRAM_SUBJECTS);
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
+  
+  // Subject Modal State
+  const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [editingSubject, setEditingSubject] = useState(null);
+  const [subjectForm, setSubjectForm] = useState({
+    id: '',
+    name: '',
+    marks: 25,
+    subTitle: '',
+    recommendedBooksText: ''
+  });
+
+  // Chapter Modal State (Clean & simplified)
   const [editingChapter, setEditingChapter] = useState(null);
   const [showChapterModal, setShowChapterModal] = useState(false);
+  const [chapterForm, setChapterForm] = useState({
+    id: '',
+    paper: '১ম পত্র',
+    name: '',
+    repeatedQuestionsCount: 30
+  });
+
   const [showHighlightedLinesModal, setShowHighlightedLinesModal] = useState(false);
   const [highlightedModalTarget, setHighlightedModalTarget] = useState({ programId: 'medical', subjectId: '', chapterId: '' });
   
+  // Live questions from Firestore question_bank collection
+  const { data: allQuestionBankQuestions = [] } = useQuery({
+    queryKey: ['admin_admission_question_bank_counts'],
+    queryFn: async () => {
+      try {
+        const snap = await getDocs(collection(db, 'question_bank'));
+        if (!snap.empty) {
+          return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        }
+      } catch (err) {
+        console.warn('Failed to fetch question_bank counts in AdmissionManager:', err);
+      }
+      return [];
+    },
+    staleTime: 1000 * 60 * 3
+  });
+
+  const getLiveChapterQuestionsCount = (subjectId, chapterObj) => {
+    if (!chapterObj) return 0;
+    const cId = String(chapterObj.id || '').toLowerCase().trim();
+    const cNorm = normalizeChapterKey(cId);
+    const cName = String(chapterObj.name || '').toLowerCase().trim();
+    const cleanTitle = cName.split(':')[1]?.trim().toLowerCase() || cName;
+    const targetSub = String(subjectId || '').replace('adm-', '').toLowerCase().trim();
+
+    const matched = allQuestionBankQuestions.filter(q => {
+      const qSub = String(q.subject || '').toLowerCase().trim();
+      const qSubOpt = String(q.subjectOptionId || '').toLowerCase().trim();
+      const matchSub =
+        !targetSub ||
+        qSub === targetSub ||
+        qSub.includes(targetSub) ||
+        targetSub.includes(qSub) ||
+        qSubOpt.includes(targetSub) ||
+        (targetSub === 'biology' && (qSub.includes('bio') || qSub.includes('bot') || qSub.includes('zoo'))) ||
+        (targetSub === 'physics' && qSub.includes('phy')) ||
+        (targetSub === 'chemistry' && qSub.includes('chem')) ||
+        (targetSub === 'higher_math' && (qSub.includes('math') || qSub.includes('hm')));
+
+      if (!matchSub) return false;
+
+      const qChapId = String(q.chapterId || '').toLowerCase().trim();
+      const qChapNorm = normalizeChapterKey(qChapId);
+      const qChapName = String(q.chapter || q.chapterName || '').toLowerCase().trim();
+      const qTopic = String(q.topic || '').toLowerCase().trim();
+
+      return (
+        (cId && qChapId === cId) ||
+        (cNorm && qChapNorm === cNorm) ||
+        (cName && qChapName === cName) ||
+        (cleanTitle && qChapName.includes(cleanTitle)) ||
+        (cleanTitle && qTopic.includes(cleanTitle))
+      );
+    });
+
+    return matched.length > 0 ? matched.length : (chapterObj.repeatedQuestionsCount || 0);
+  };
+
   const handleOpenHighlightedLinesUploader = (programId, subjectId, chapterId) => {
     setHighlightedModalTarget({
       programId: programId || selectedProgramId || 'medical',
@@ -290,15 +369,6 @@ export default function AdmissionManager() {
     });
     setShowHighlightedLinesModal(true);
   };
-
-  const [chapterForm, setChapterForm] = useState({
-    id: '',
-    paper: '১ম পত্র',
-    name: '',
-    highYieldTopicsText: '',
-    repeatedQuestionsCount: 40,
-    keyFactsText: ''
-  });
 
   useEffect(() => {
     fetchAdmissionData();
@@ -309,11 +379,10 @@ export default function AdmissionManager() {
     try {
       // 1. Programs
       const progSnap = await getDoc(doc(db, 'admin_settings', 'admission'));
-      if (progSnap.exists() && progSnap.data().programs?.length) {
-        setPrograms(progSnap.data().programs);
-      } else {
-        setPrograms(DEFAULT_ADMISSION_PROGRAMS);
-      }
+      const activePrograms = (progSnap.exists() && progSnap.data().programs?.length)
+        ? progSnap.data().programs
+        : DEFAULT_ADMISSION_PROGRAMS;
+      setPrograms(activePrograms);
 
       // 2. Shortcuts
       const shortSnap = await getDoc(doc(db, 'admin_settings', 'admission_shortcuts'));
@@ -331,23 +400,24 @@ export default function AdmissionManager() {
         setSessions(DEFAULT_ADMISSION_SESSIONS);
       }
 
-      // 4. Load program configs map
+      // 4. Load program configs map dynamically for ALL programs
       const loadedMap = { ...DEFAULT_PROGRAM_SUBJECTS };
-      const medSnap = await getDoc(doc(db, 'admin_settings', 'medical_config'));
-      if (medSnap.exists() && medSnap.data().subjects?.length) {
-        loadedMap.medical = medSnap.data().subjects;
-      }
+      const allProgIds = Array.from(new Set([
+        ...activePrograms.map(p => p.id),
+        ...Object.keys(DEFAULT_PROGRAM_SUBJECTS)
+      ]));
 
-      const programKeys = ['engineering', 'varsity-a', 'nursing', 'gst', 'agri'];
       const programSnaps = await Promise.all(
-        programKeys.map((p) =>
-          getDoc(doc(db, 'admin_settings', `program_config_${p}`)).catch(() => null)
-        )
+        allProgIds.map(pId => {
+          const docName = pId === 'medical' ? 'medical_config' : `program_config_${pId}`;
+          return getDoc(doc(db, 'admin_settings', docName)).catch(() => null);
+        })
       );
-      programKeys.forEach((p, i) => {
+
+      allProgIds.forEach((pId, i) => {
         const pSnap = programSnaps[i];
         if (pSnap?.exists() && pSnap.data().subjects?.length) {
-          loadedMap[p] = pSnap.data().subjects;
+          loadedMap[pId] = pSnap.data().subjects;
         }
       });
       setProgramSubjectsMap(loadedMap);
@@ -367,21 +437,25 @@ export default function AdmissionManager() {
   // Current Program Subjects
   const currentProgramSubjects = useMemo(() => {
     if (!selectedProgramId) return [];
-    return programSubjectsMap[selectedProgramId] || DEFAULT_PROGRAM_SUBJECTS[selectedProgramId] || DEFAULT_MEDICAL_CONFIG.subjects;
+    return programSubjectsMap[selectedProgramId] || DEFAULT_PROGRAM_SUBJECTS[selectedProgramId] || [];
   }, [programSubjectsMap, selectedProgramId]);
 
   // Current Subject inside selected Program
   const currentSelectedSubject = useMemo(() => {
     if (!currentProgramSubjects.length) return null;
-    return currentProgramSubjects.find(s => s.id === selectedSubjectId) || currentProgramSubjects[0];
+    return currentProgramSubjects.find(s => s.id === selectedSubjectId) || currentProgramSubjects[0] || null;
   }, [currentProgramSubjects, selectedSubjectId]);
 
-  // Update selectedSubjectId automatically when program changes
+  // Update selectedSubjectId automatically when program or subject list changes
   useEffect(() => {
     if (currentProgramSubjects && currentProgramSubjects.length > 0) {
-      setSelectedSubjectId(currentProgramSubjects[0].id);
+      if (!currentProgramSubjects.some(s => s.id === selectedSubjectId)) {
+        setSelectedSubjectId(currentProgramSubjects[0].id);
+      }
+    } else {
+      setSelectedSubjectId('');
     }
-  }, [selectedProgramId, programSubjectsMap]);
+  }, [selectedProgramId, currentProgramSubjects, selectedSubjectId]);
 
   // ─── Save Handlers ──────────────────────────────────────────────────────────
   const savePrograms = async (updatedList) => {
@@ -699,19 +773,103 @@ export default function AdmissionManager() {
     saveSessions(updated);
   };
 
-  // ─── Chapter / Topic CRUD Handlers ──────────────────────────────────────────
-  const handleOpenAddChapter = () => {
-    const isGk = currentSelectedSubject?.id === 'gk';
-    const isEng = currentSelectedSubject?.id === 'english';
-    const isBio = currentSelectedSubject?.id === 'biology';
-
-    setChapterForm({
-      id: `chap-${Date.now()}`,
-      paper: isBio ? 'উদ্ভিদবিজ্ঞান' : isGk ? 'বাংলাদেশ বিষয়াবলী' : isEng ? 'Vocabulary' : '১ম পত্র',
+  // ─── Subject CRUD Handlers ──────────────────────────────────────────────────
+  const handleOpenAddSubject = () => {
+    setSubjectForm({
+      id: `subj-${Date.now().toString().slice(-5)}`,
       name: '',
-      highYieldTopicsText: '',
-      repeatedQuestionsCount: 40,
-      keyFactsText: ''
+      marks: 25,
+      subTitle: '',
+      recommendedBooksText: ''
+    });
+    setEditingSubject(null);
+    setShowSubjectModal(true);
+  };
+
+  const handleOpenEditSubject = (subj) => {
+    setSubjectForm({
+      id: subj.id,
+      name: subj.name || '',
+      marks: subj.marks || 0,
+      subTitle: subj.subTitle || '',
+      recommendedBooksText: subj.recommendedBooks ? subj.recommendedBooks.join(', ') : ''
+    });
+    setEditingSubject(subj);
+    setShowSubjectModal(true);
+  };
+
+  const handleDeleteSubject = async (subj) => {
+    const ok = await confirm({
+      title: 'বিষয়টি মুছে ফেলবেন?',
+      message: `"${subj.name}" বিষয়টি এবং এর সকল অধ্যায় মুছে ফেলা হবে।`,
+      confirmText: 'মুছে ফেলুন',
+      danger: true
+    });
+    if (!ok) return;
+
+    const updatedSubjects = currentProgramSubjects.filter(s => s.id !== subj.id);
+    await saveProgramSubjects(selectedProgramId, updatedSubjects);
+    if (selectedSubjectId === subj.id && updatedSubjects.length > 0) {
+      setSelectedSubjectId(updatedSubjects[0].id);
+    }
+  };
+
+  const handleSaveSubjectForm = async (e) => {
+    e.preventDefault();
+    if (!subjectForm.name.trim()) {
+      toast.error('বিষয়ের নাম আবশ্যক!');
+      return;
+    }
+
+    const subjId = (subjectForm.id && subjectForm.id.trim())
+      ? subjectForm.id.trim().toLowerCase().replace(/\s+/g, '-')
+      : `subj-${Date.now().toString().slice(-5)}`;
+
+    const booksArray = subjectForm.recommendedBooksText
+      .split(',')
+      .map(b => b.trim())
+      .filter(Boolean);
+
+    let updatedSubjects;
+    if (editingSubject) {
+      updatedSubjects = currentProgramSubjects.map(s => {
+        if (s.id === editingSubject.id) {
+          return {
+            ...s,
+            name: subjectForm.name.trim(),
+            marks: Number(subjectForm.marks) || 0,
+            subTitle: subjectForm.subTitle.trim(),
+            recommendedBooks: booksArray
+          };
+        }
+        return s;
+      });
+    } else {
+      const newSubjItem = {
+        id: subjId,
+        name: subjectForm.name.trim(),
+        marks: Number(subjectForm.marks) || 0,
+        subTitle: subjectForm.subTitle.trim(),
+        recommendedBooks: booksArray,
+        chapters: []
+      };
+      updatedSubjects = [...currentProgramSubjects, newSubjItem];
+      setSelectedSubjectId(subjId);
+    }
+
+    await saveProgramSubjects(selectedProgramId, updatedSubjects);
+    setShowSubjectModal(false);
+    setEditingSubject(null);
+  };
+
+  // ─── Simplified Chapter CRUD Handlers ───────────────────────────────────────
+  const handleOpenAddChapter = () => {
+    const isBio = currentSelectedSubject?.id === 'biology';
+    setChapterForm({
+      id: `${currentSelectedSubject?.id || 'chap'}-ch-${Date.now().toString().slice(-4)}`,
+      paper: isBio ? 'উদ্ভিদবিজ্ঞান' : '১ম পত্র',
+      name: '',
+      repeatedQuestionsCount: 30
     });
     setEditingChapter(null);
     setShowChapterModal(true);
@@ -722,9 +880,7 @@ export default function AdmissionManager() {
       id: chap.id,
       paper: chap.paper || '',
       name: chap.name || '',
-      highYieldTopicsText: chap.highYieldTopics?.join(', ') || '',
-      repeatedQuestionsCount: chap.repeatedQuestionsCount || 0,
-      keyFactsText: chap.keyFacts?.join('\n') || ''
+      repeatedQuestionsCount: chap.repeatedQuestionsCount || 0
     });
     setEditingChapter(chap);
     setShowChapterModal(true);
@@ -747,10 +903,10 @@ export default function AdmissionManager() {
       };
     });
 
-    saveProgramSubjects(selectedProgramId, updatedSubjects);
+    await saveProgramSubjects(selectedProgramId, updatedSubjects);
   };
 
-  const handleSaveChapterForm = (e) => {
+  const handleSaveChapterForm = async (e) => {
     e.preventDefault();
     if (!chapterForm.name.trim()) {
       toast.error('অধ্যায়ের নাম আবশ্যক!');
@@ -761,23 +917,12 @@ export default function AdmissionManager() {
       ? chapterForm.id.trim() 
       : `${currentSelectedSubject?.id || 'chap'}-ch-${Date.now().toString().slice(-5)}`;
 
-    const topicsArray = chapterForm.highYieldTopicsText
-      .split(',')
-      .map(t => t.trim())
-      .filter(Boolean);
-
-    const factsArray = chapterForm.keyFactsText
-      .split('\n')
-      .map(f => f.trim())
-      .filter(Boolean);
-
     const newChapterItem = {
+      ...(editingChapter || {}),
       id: chapterId,
       paper: chapterForm.paper.trim(),
       name: chapterForm.name.trim(),
-      highYieldTopics: topicsArray,
-      repeatedQuestionsCount: Number(chapterForm.repeatedQuestionsCount) || 0,
-      keyFacts: factsArray
+      repeatedQuestionsCount: Number(chapterForm.repeatedQuestionsCount) || 0
     };
 
     const updatedSubjects = currentProgramSubjects.map(subj => {
@@ -791,7 +936,9 @@ export default function AdmissionManager() {
       return { ...subj, chapters: newChapters };
     });
 
-    saveProgramSubjects(selectedProgramId, updatedSubjects);
+    await saveProgramSubjects(selectedProgramId, updatedSubjects);
+    setShowChapterModal(false);
+    setEditingChapter(null);
   };
 
   // ─── Filtered Program & Session Memos ────────────────────────────────────────
@@ -1151,155 +1298,160 @@ export default function AdmissionManager() {
           {/* ── Sub-Tab 1: SUBJECTS & CHAPTERS CRUD ─────────────────────────────── */}
           {programSubTab === 'subjects' && (
             <div className="space-y-5">
-              {/* Subject Select Pills */}
+              {/* Subject Select Pills & Add Subject Button */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
                 {currentProgramSubjects.map(subj => (
                   <button
                     key={subj.id}
                     onClick={() => setSelectedSubjectId(subj.id)}
-                    className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap border ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 whitespace-nowrap border ${
                       currentSelectedSubject?.id === subj.id
-                        ? 'bg-white/[0.08] text-white border-indigo-400/40 shadow-sm'
-                        : 'border-white/[0.06] bg-white/[0.02] text-slate-400 hover:text-slate-200 hover:border-white/10'
+                        ? 'bg-zinc-800 text-white border-zinc-700 shadow-sm'
+                        : 'border-zinc-800/80 bg-zinc-900/40 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
                     }`}
                   >
                     <span>{subj.name}</span>
-                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-white/[0.06] text-slate-300">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-zinc-800 text-zinc-300 border border-zinc-700/60 font-mono">
                       {subj.chapters?.length || 0}
                     </span>
                   </button>
                 ))}
+
+                {/* Add New Subject Button */}
+                <button
+                  type="button"
+                  onClick={handleOpenAddSubject}
+                  className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-dashed border-zinc-700 bg-zinc-900/20 text-zinc-300 hover:text-white hover:border-zinc-500 hover:bg-zinc-800/40 transition-all flex items-center gap-1.5 whitespace-nowrap"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>নতুন বিষয় যোগ</span>
+                </button>
               </div>
 
               {/* Current Subject Header */}
-              {currentSelectedSubject && (
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              {currentSelectedSubject ? (
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h3 className="font-semibold text-white text-sm flex items-center gap-2">
+                    <h3 className="font-bold text-white text-sm sm:text-base flex items-center gap-2">
                       <span>{currentSelectedSubject.name}</span>
-                      <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">
+                      <span className="px-2.5 py-0.5 rounded-lg text-xs font-mono bg-zinc-800 text-zinc-300 border border-zinc-700">
                         মার্কস: {currentSelectedSubject.marks}
                       </span>
                     </h3>
-                    <p className="text-slate-400 text-xs mt-0.5">
-                      {currentSelectedSubject.subTitle} {currentSelectedSubject.recommendedBooks ? `• সহায়ক বই: ${currentSelectedSubject.recommendedBooks.join(', ')}` : ''}
+                    <p className="text-zinc-400 text-xs mt-1 flex items-center gap-2 flex-wrap">
+                      <span>মোট অধ্যায়: {currentSelectedSubject.chapters?.length || 0}টি</span>
+                      <span>•</span>
+                      <span>মোট বিগত প্রশ্ন: <strong className="text-zinc-200">{currentSelectedSubject.chapters?.reduce((sum, ch) => sum + getLiveChapterQuestionsCount(currentSelectedSubject.id, ch), 0) || 0}</strong>টি</span>
+                      {currentSelectedSubject.subTitle && <span>• {currentSelectedSubject.subTitle}</span>}
+                      {currentSelectedSubject.recommendedBooks?.length ? <span>• সহায়ক বই: {currentSelectedSubject.recommendedBooks.join(', ')}</span> : null}
                     </p>
                   </div>
 
                   <div className="flex items-center gap-2 self-start sm:self-center flex-wrap">
                     <button
                       type="button"
-                      onClick={() => handleOpenHighlightedLinesUploader(selectedProgramId, currentSelectedSubject?.id)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold transition-colors"
-                      title="LaTeX সাপোর্টেড JSON দিয়ে অধ্যায়ের টপিক ও দাগানো লাইন আপলোড করুন"
+                      onClick={handleOpenAddChapter}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-bold shadow transition-all"
                     >
-                      <Sparkles className="h-3.5 w-3.5 text-rose-400" />
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>অধ্যায় যোগ</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenHighlightedLinesUploader(selectedProgramId, currentSelectedSubject?.id)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-medium transition-colors"
+                      title="এই বিষয়ের অধ্যায়ে দাগানো লাইন JSON আপলোড করুন"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-zinc-400" />
                       <span>JSON দাগানো লাইন</span>
                     </button>
 
                     <button
                       type="button"
-                      onClick={handleOpenAddChapter}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 border border-white/10 text-xs font-medium transition-colors"
+                      onClick={() => handleOpenEditSubject(currentSelectedSubject)}
+                      className="p-2 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors"
+                      title="বিষয় সম্পাদনা"
                     >
-                      <Plus className="h-3.5 w-3.5" />
-                      <span>
-                        {currentSelectedSubject?.id === 'gk' || currentSelectedSubject?.id === 'english' ? 'টপিক যোগ' : 'অধ্যায় যোগ'}
-                      </span>
+                      <Edit className="h-3.5 w-3.5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteSubject(currentSelectedSubject)}
+                      className="p-2 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-rose-400 hover:border-rose-500/30 transition-colors"
+                      title="বিষয় মুছে ফেলুন"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
+                </div>
+              ) : (
+                <div className="p-8 text-center rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 text-zinc-400 text-xs">
+                  এই প্রোগ্রামে এখনও কোনো বিষয় তৈরি করা হয়নি। উপরে <strong>"+ নতুন বিষয় যোগ"</strong> বাটনে ক্লিক করে প্রথম বিষয় যুক্ত করুন।
                 </div>
               )}
 
               {/* Chapters List */}
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {currentSelectedSubject?.chapters && currentSelectedSubject.chapters.length > 0 ? (
                   currentSelectedSubject.chapters.map((chap) => (
                     <div
                       key={chap.id}
-                      className="rounded-xl border border-white/[0.06] bg-white/[0.015] hover:border-white/10 p-4 transition-colors space-y-3"
+                      className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 p-3.5 sm:p-4 transition-all flex items-center justify-between gap-3"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-white/[0.04] text-slate-400 border border-white/[0.06]">
-                              {chap.paper || 'পেপার'}
-                            </span>
-                            <span className="text-xs text-indigo-400 font-medium">
-                              বিগত প্রশ্ন: {chap.repeatedQuestionsCount || 0} টি
-                            </span>
-                          </div>
-                          <h4 className="font-semibold text-white text-sm mt-1">
-                            {chap.name}
-                          </h4>
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700/80">
+                            {chap.paper || '১ম পত্র'}
+                          </span>
+                          <span className="text-xs text-zinc-400 font-mono">
+                            বিগত প্রশ্ন: <strong className="text-zinc-200">{getLiveChapterQuestionsCount(currentSelectedSubject?.id, chap)}</strong> টি
+                          </span>
+                          <span className="text-[10.5px] font-mono text-zinc-500">
+                            ID: {chap.id}
+                          </span>
                         </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenHighlightedLinesUploader(selectedProgramId, currentSelectedSubject?.id, chap.id)}
-                            className="px-2 py-1 rounded-lg border border-rose-500/25 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 text-[11px] font-bold transition-colors flex items-center gap-1"
-                            title="এই অধ্যায়ে JSON দাগানো লাইন আপলোড করুন"
-                          >
-                            <Sparkles className="h-3 w-3" />
-                            <span>JSON</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditChapter(chap)}
-                            className="p-1.5 rounded-lg border border-white/[0.06] bg-white/[0.03] text-slate-400 hover:text-white transition-colors"
-                            title="সম্পাদনা"
-                          >
-                            <Edit className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteChapter(chap)}
-                            className="p-1.5 rounded-lg border border-white/[0.06] bg-white/[0.03] text-slate-400 hover:text-rose-400 transition-colors"
-                            title="মুছে ফেলুন"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
+                        <h4 className="font-semibold text-zinc-100 text-sm truncate">
+                          {chap.name}
+                        </h4>
                       </div>
 
-                      {/* High Yield Topics */}
-                      {chap.highYieldTopics && chap.highYieldTopics.length > 0 && (
-                        <div className="space-y-1">
-                          <span className="text-[11px] font-medium text-slate-500">বারবার আসা টপিকসমূহ:</span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {chap.highYieldTopics.map((top, tIdx) => (
-                              <span key={tIdx} className="px-2 py-0.5 rounded text-[11px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
-                                • {top}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Key Facts / Must-Memorize Lines */}
-                      {chap.keyFacts && chap.keyFacts.length > 0 && (
-                        <div className="rounded-lg border border-white/[0.04] bg-white/[0.01] p-3 space-y-1.5">
-                          <div className="flex items-center gap-1.5 text-xs font-medium text-amber-300/90">
-                            <Sparkles className="h-3.5 w-3.5" />
-                            <span>মূল বইয়ের দাগানো লাইনসমূহ (Must-Memorize):</span>
-                          </div>
-                          <ul className="space-y-1 text-xs text-slate-300">
-                            {chap.keyFacts.map((fact, fIdx) => (
-                              <li key={fIdx} className="flex items-start gap-1.5">
-                                <span className="text-indigo-400 font-bold mt-0.5">✓</span>
-                                <span>{fact}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenHighlightedLinesUploader(selectedProgramId, currentSelectedSubject?.id, chap.id)}
+                          className="px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/80 text-zinc-300 hover:bg-zinc-800 hover:text-white text-xs font-medium transition-colors flex items-center gap-1"
+                          title="এই অধ্যায়ে JSON দাগানো লাইন আপলোড করুন"
+                        >
+                          <Sparkles className="h-3 w-3 text-zinc-400" />
+                          <span className="hidden sm:inline">JSON</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditChapter(chap)}
+                          className="p-1.5 rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white transition-colors"
+                          title="সম্পাদনা"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteChapter(chap)}
+                          className="p-1.5 rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-rose-400 hover:border-rose-500/30 transition-colors"
+                          title="মুছে ফেলুন"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))
                 ) : (
-                  <div className="p-8 text-center rounded-xl border border-white/[0.06] bg-white/[0.01] text-slate-500 text-xs">
-                    কোনো অধ্যায় বা টপিক যুক্ত করা হয়নি। উপরে "+ অধ্যায় যোগ" এ ক্লিক করুন।
-                  </div>
+                  currentSelectedSubject && (
+                    <div className="p-8 text-center rounded-2xl border border-zinc-800 bg-zinc-900/20 text-zinc-500 text-xs">
+                      এই বিষয়ে কোনো অধ্যায় যুক্ত করা হয়নি। উপরে <strong>"+ অধ্যায় যোগ"</strong> বাটনে ক্লিক করে অধ্যায় যোগ করুন।
+                    </div>
+                  )
                 )}
               </div>
             </div>
@@ -1872,97 +2024,111 @@ export default function AdmissionManager() {
           MODALS
           ═══════════════════════════════════════════════════════════════════════════ */}
 
-      {/* 1. Program Modal */}
+      {/* ── 1. Program Modal ── */}
       {showProgramModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0f172a] border border-white/10 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
-              <h3 className="font-semibold text-white text-sm">
-                {editingProgram ? 'প্রোগ্রাম সম্পাদনা' : 'নতুন ভর্তি প্রোগ্রাম তৈরি'}
-              </h3>
-              <button onClick={() => setShowProgramModal(false)} className="p-1 rounded-md text-slate-400 hover:text-white">
+          <div className="bg-[#09090b] border border-zinc-800 rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto font-bangla">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200">
+                  <GraduationCap className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-sm">
+                    {editingProgram ? 'প্রোগ্রাম সম্পাদনা' : 'নতুন ভর্তি প্রোগ্রাম তৈরি'}
+                  </h3>
+                  <p className="text-xs text-zinc-400">ভর্তি ট্র্যাক কনফিগারেশন</p>
+                </div>
+              </div>
+              <button onClick={() => setShowProgramModal(false)} className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveProgramForm} className="space-y-3 text-xs">
+            <form onSubmit={handleSaveProgramForm} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <label className="block text-slate-400 font-medium mb-1">প্রোগ্রাম টাইটেল</label>
+                  <label className="block text-zinc-300 font-semibold mb-1">প্রোগ্রাম টাইটেল</label>
                   <input
                     type="text"
                     value={programForm.title}
                     onChange={(e) => setProgramForm({ ...programForm, title: e.target.value })}
                     placeholder="যেমন: ডেন্টাল (BDS)"
+                    className="w-full"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 font-medium mb-1">ইমোজি</label>
+                  <label className="block text-zinc-300 font-semibold mb-1">ইমোজি</label>
                   <input
                     type="text"
                     value={programForm.emoji}
                     onChange={(e) => setProgramForm({ ...programForm, emoji: e.target.value })}
                     placeholder="🦷"
+                    className="w-full text-center"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-400 font-medium mb-1">সাবটাইটেল / বিবরণ</label>
+                <label className="block text-zinc-300 font-semibold mb-1">সাবটাইটেল / বিবরণ</label>
                 <textarea
                   rows={2}
                   value={programForm.subtitle}
                   onChange={(e) => setProgramForm({ ...programForm, subtitle: e.target.value })}
-                  placeholder="বিবরণ লিখুন..."
+                  placeholder="প্রোগ্রামের সংক্ষিপ্ত বিবরণ..."
+                  className="w-full"
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-400 font-medium mb-1">রাউটিং পাথ (Path)</label>
+                  <label className="block text-zinc-300 font-semibold mb-1">রাউটিং পাথ (Path)</label>
                   <input
                     type="text"
                     value={programForm.path}
                     onChange={(e) => setProgramForm({ ...programForm, path: e.target.value })}
                     placeholder="/academic/admission/..."
+                    className="w-full font-mono"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 font-medium mb-1">হাইলাইট ব্যাজ</label>
+                  <label className="block text-zinc-300 font-semibold mb-1">হাইলাইট ব্যাজ</label>
                   <input
                     type="text"
                     value={programForm.badge}
                     onChange={(e) => setProgramForm({ ...programForm, badge: e.target.value })}
                     placeholder="যেমন: ১০০ MCQ / ৬০ মিনিট"
+                    className="w-full"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-400 font-medium mb-1">ট্যাগসমূহ (কমা দিয়ে আলাদা করুন)</label>
+                <label className="block text-zinc-300 font-semibold mb-1">ট্যাগসমূহ (কমা দিয়ে আলাদা করুন)</label>
                 <input
                   type="text"
                   value={programForm.tagsText}
                   onChange={(e) => setProgramForm({ ...programForm, tagsText: e.target.value })}
                   placeholder="BDS, ডেন্টাল, জীববিজ্ঞান ৩০..."
+                  className="w-full"
                 />
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-white/[0.06]">
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-zinc-800">
                 <button
                   type="button"
                   onClick={() => setShowProgramModal(false)}
-                  className="px-3.5 py-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-300 font-medium"
+                  className="px-4 py-2 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 font-medium"
                 >
                   বাতিল
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-sm"
+                  className="px-5 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-bold shadow-sm"
                 >
                   {saving ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
                 </button>
@@ -1972,29 +2138,38 @@ export default function AdmissionManager() {
         </div>
       )}
 
-      {/* 2. Shortcut Modal */}
+      {/* ── 2. Shortcut Modal ── */}
       {showShortcutModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0f172a] border border-white/10 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
-              <h3 className="font-semibold text-white text-sm">
-                {editingShortcut ? 'শর্টকাট সম্পাদনা' : 'নতুন শর্টকাট যোগ'}
-              </h3>
-              <button onClick={() => setShowShortcutModal(false)} className="p-1 rounded-md text-slate-400 hover:text-white">
+          <div className="bg-[#09090b] border border-zinc-800 rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto font-bangla">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-sm">
+                    {editingShortcut ? 'শর্টকাট সম্পাদনা' : 'নতুন শর্টকাট যোগ'}
+                  </h3>
+                  <p className="text-xs text-zinc-400">শর্টকাট ও ট্রিকস ডেটা</p>
+                </div>
+              </div>
+              <button onClick={() => setShowShortcutModal(false)} className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveShortcutForm} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleSaveShortcutForm} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-400 font-medium mb-1">ট্র্যাক</label>
+                  <label className="block text-zinc-300 font-semibold mb-1">ট্র্যাক</label>
                   <select
                     value={shortcutForm.track}
                     onChange={(e) => {
                       const sel = TRACK_OPTIONS.find(t => t.id === e.target.value);
                       setShortcutForm({ ...shortcutForm, track: e.target.value, trackLabel: sel ? sel.label : '' });
                     }}
+                    className="w-full"
                   >
                     {TRACK_OPTIONS.map(tr => (
                       <option key={tr.id} value={tr.id}>{tr.label}</option>
@@ -2002,82 +2177,88 @@ export default function AdmissionManager() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-400 font-medium mb-1">বিষয় (Subject)</label>
+                  <label className="block text-zinc-300 font-semibold mb-1">বিষয় (Subject)</label>
                   <input
                     type="text"
                     value={shortcutForm.subject}
                     onChange={(e) => setShortcutForm({ ...shortcutForm, subject: e.target.value })}
                     placeholder="যেমন: Biology / Math"
+                    className="w-full"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-400 font-medium mb-1">টপিক শিরোনাম</label>
+                <label className="block text-zinc-300 font-semibold mb-1">টপিক শিরোনাম</label>
                 <input
                   type="text"
                   value={shortcutForm.title}
                   onChange={(e) => setShortcutForm({ ...shortcutForm, title: e.target.value })}
                   placeholder="যেমন: অম্লীয় বাফার দ্রবণের pH নির্ণয়"
+                  className="w-full"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 font-medium mb-1">শর্টকাট টেকনিক / মূল ছন্দ</label>
+                <label className="block text-zinc-300 font-semibold mb-1">শর্টকাট টেকনিক / মূল ছন্দ</label>
                 <input
                   type="text"
                   value={shortcutForm.technique}
                   onChange={(e) => setShortcutForm({ ...shortcutForm, technique: e.target.value })}
                   placeholder="যেমন: pH = pKa + log([Salt]/[Acid])"
+                  className="w-full"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 font-medium mb-1">ব্যাখ্যা ও নিয়মসমূহ (প্রতি লাইনে একটি)</label>
+                <label className="block text-zinc-300 font-semibold mb-1">ব্যাখ্যা ও নিয়মসমূহ (প্রতি লাইনে একটি)</label>
                 <textarea
                   rows={3}
                   value={shortcutForm.detailsText}
                   onChange={(e) => setShortcutForm({ ...shortcutForm, detailsText: e.target.value })}
                   placeholder="পদ্ধতির বিবরণ..."
+                  className="w-full"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-400 font-medium mb-1">ক্যাটাগরি</label>
+                  <label className="block text-zinc-300 font-semibold mb-1">ক্যাটাগরি</label>
                   <input
                     type="text"
                     value={shortcutForm.category}
                     onChange={(e) => setShortcutForm({ ...shortcutForm, category: e.target.value })}
                     placeholder="রসায়ন শর্টকাট"
+                    className="w-full"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 font-medium mb-1">রেফারেন্স / বই</label>
+                  <label className="block text-zinc-300 font-semibold mb-1">রেফারেন্স / বই</label>
                   <input
                     type="text"
                     value={shortcutForm.reference}
                     onChange={(e) => setShortcutForm({ ...shortcutForm, reference: e.target.value })}
                     placeholder="হাজারী স্যার"
+                    className="w-full"
                   />
                 </div>
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-white/[0.06]">
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-zinc-800">
                 <button
                   type="button"
                   onClick={() => setShowShortcutModal(false)}
-                  className="px-3.5 py-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-300 font-medium"
+                  className="px-4 py-2 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 font-medium"
                 >
                   বাতিল
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-sm"
+                  className="px-5 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-bold shadow-sm"
                 >
                   {saving ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
                 </button>
@@ -2087,26 +2268,35 @@ export default function AdmissionManager() {
         </div>
       )}
 
-      {/* 3. Session Modal */}
+      {/* ── 3. Session Modal ── */}
       {showSessionModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0f172a] border border-white/10 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
-              <h3 className="font-semibold text-white text-sm">
-                {editingSession ? 'সেশন সম্পাদনা' : 'নতুন সেশন যোগ'}
-              </h3>
-              <button onClick={() => setShowSessionModal(false)} className="p-1 rounded-md text-slate-400 hover:text-white">
+          <div className="bg-[#09090b] border border-zinc-800 rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto font-bangla">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200">
+                  <CalendarClock className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-sm">
+                    {editingSession ? 'সেশন সম্পাদনা' : 'নতুন সেশন যোগ'}
+                  </h3>
+                  <p className="text-xs text-zinc-400">পরীক্ষার সেশন ও সাল</p>
+                </div>
+              </div>
+              <button onClick={() => setShowSessionModal(false)} className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveSessionForm} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleSaveSessionForm} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-400 font-medium mb-1">পরীক্ষার ধরন</label>
+                  <label className="block text-zinc-300 font-semibold mb-1">পরীক্ষার ধরন</label>
                   <select
                     value={sessionForm.examType}
                     onChange={(e) => setSessionForm({ ...sessionForm, examType: e.target.value })}
+                    className="w-full"
                   >
                     {EXAM_TYPE_OPTIONS.map(ex => (
                       <option key={ex} value={ex}>{ex}</option>
@@ -2114,59 +2304,63 @@ export default function AdmissionManager() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-400 font-medium mb-1">সেশন সাল</label>
+                  <label className="block text-zinc-300 font-semibold mb-1">সেশন সাল</label>
                   <input
                     type="text"
                     value={sessionForm.session}
                     onChange={(e) => setSessionForm({ ...sessionForm, session: e.target.value })}
                     placeholder="যেমন: 2023-2024"
+                    className="w-full"
                     required
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-400 font-medium mb-1">সংক্ষিপ্ত সাল (Short Year)</label>
+                  <label className="block text-zinc-300 font-semibold mb-1">সংক্ষিপ্ত সাল (Short Year)</label>
                   <input
                     type="text"
                     value={sessionForm.shortYear}
                     onChange={(e) => setSessionForm({ ...sessionForm, shortYear: e.target.value })}
                     placeholder="যেমন: 23-24"
+                    className="w-full"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 font-medium mb-1">মোট প্রশ্ন সংখ্যা</label>
+                  <label className="block text-zinc-300 font-semibold mb-1">মোট প্রশ্ন সংখ্যা</label>
                   <input
                     type="number"
                     value={sessionForm.totalQuestions}
                     onChange={(e) => setSessionForm({ ...sessionForm, totalQuestions: e.target.value })}
+                    className="w-full font-mono font-bold"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-400 font-medium mb-1">পরীক্ষার তারিখ (ঐচ্ছিক)</label>
+                <label className="block text-zinc-300 font-semibold mb-1">পরীক্ষার তারিখ (ঐচ্ছিক)</label>
                 <input
                   type="text"
                   value={sessionForm.examDate}
                   onChange={(e) => setSessionForm({ ...sessionForm, examDate: e.target.value })}
                   placeholder="যেমন: ৯ ফেব্রুয়ারি ২০২৪"
+                  className="w-full"
                 />
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-white/[0.06]">
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-zinc-800">
                 <button
                   type="button"
                   onClick={() => setShowSessionModal(false)}
-                  className="px-3.5 py-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-300 font-medium"
+                  className="px-4 py-2 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 font-medium"
                 >
                   বাতিল
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-sm"
+                  className="px-5 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-bold shadow-sm"
                 >
                   {saving ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
                 </button>
@@ -2176,237 +2370,226 @@ export default function AdmissionManager() {
         </div>
       )}
 
-      {/* 4. Universal Chapter / Topic Modal */}
-      {showChapterModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#0b1329] border border-indigo-500/20 rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3.5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 shadow-sm">
-                  <BookOpen className="h-5 w-5" />
+      {/* ── 4. Dynamic Subject Modal ── */}
+      {showSubjectModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#09090b] border border-zinc-800 rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto font-bangla">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200">
+                  <BookOpen className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white text-base">
-                    {editingChapter 
-                      ? (currentSelectedSubject?.id === 'gk' || currentSelectedSubject?.id === 'english' ? 'টপিক সম্পাদনা' : 'অধ্যায় সম্পাদনা')
-                      : (currentSelectedSubject?.id === 'gk' || currentSelectedSubject?.id === 'english' ? 'নতুন টপিক যুক্ত করুন' : 'নতুন অধ্যায় যুক্ত করুন')
-                    }
+                  <h3 className="font-bold text-white text-sm">
+                    {editingSubject ? 'বিষয় সম্পাদনা' : 'নতুন বিষয় যোগ করুন'}
                   </h3>
-                  <p className="text-slate-400 text-xs mt-0.5">
-                    বিষয়: <span className="text-indigo-300 font-medium">{currentSelectedSubject?.name}</span> ({currentSelectedProgram?.title})
+                  <p className="text-xs text-zinc-400">
+                    প্রোগ্রাম: <strong className="text-zinc-200">{currentSelectedProgram?.title}</strong>
                   </p>
                 </div>
               </div>
-              <button 
-                onClick={() => setShowChapterModal(false)} 
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.05] transition"
-              >
+              <button onClick={() => setShowSubjectModal(false)} className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveChapterForm} className="space-y-4 text-xs">
-              {/* Row 1: Paper / Category Selector & Question Count */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="block text-slate-300 font-medium mb-1.5">
-                    {currentSelectedSubject?.id === 'gk' || currentSelectedSubject?.id === 'english' ? 'ক্যাটাগরি / বিভাগ' : 'পেপার / বিভাগ'}
-                  </label>
-                  <div className="flex items-center gap-2">
-                    {currentSelectedSubject?.id === 'gk' ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setChapterForm({ ...chapterForm, paper: 'বাংলাদেশ বিষয়াবলী' })}
-                          className={`flex-1 py-2 px-3 rounded-lg border text-xs font-medium transition ${
-                            chapterForm.paper === 'বাংলাদেশ বিষয়াবলী'
-                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 shadow-sm'
-                              : 'bg-white/[0.02] border-white/[0.08] text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          🇧🇩 বাংলাদেশ বিষয়াবলী
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setChapterForm({ ...chapterForm, paper: 'আন্তর্জাতিক বিষয়াবলী' })}
-                          className={`flex-1 py-2 px-3 rounded-lg border text-xs font-medium transition ${
-                            chapterForm.paper === 'আন্তর্জাতিক বিষয়াবলী'
-                              ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/40 shadow-sm'
-                              : 'bg-white/[0.02] border-white/[0.08] text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          🌍 আন্তর্জাতিক বিষয়াবলী
-                        </button>
-                      </>
-                    ) : currentSelectedSubject?.id === 'english' ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setChapterForm({ ...chapterForm, paper: 'Vocabulary' })}
-                          className={`flex-1 py-2 px-3 rounded-lg border text-xs font-medium transition ${
-                            chapterForm.paper === 'Vocabulary'
-                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 shadow-sm'
-                              : 'bg-white/[0.02] border-white/[0.08] text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          📖 Vocabulary
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setChapterForm({ ...chapterForm, paper: 'Grammar' })}
-                          className={`flex-1 py-2 px-3 rounded-lg border text-xs font-medium transition ${
-                            chapterForm.paper === 'Grammar'
-                              ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/40 shadow-sm'
-                              : 'bg-white/[0.02] border-white/[0.08] text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          ✍️ Grammar & Usage
-                        </button>
-                      </>
-                    ) : currentSelectedSubject?.id === 'biology' ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setChapterForm({ ...chapterForm, paper: 'উদ্ভিদবিজ্ঞান' })}
-                          className={`flex-1 py-2 px-3 rounded-lg border text-xs font-medium transition ${
-                            chapterForm.paper === 'উদ্ভিদবিজ্ঞান'
-                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 shadow-sm'
-                              : 'bg-white/[0.02] border-white/[0.08] text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          🌿 উদ্ভিদবিজ্ঞান (১ম পত্র)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setChapterForm({ ...chapterForm, paper: 'প্রাণিবিজ্ঞান' })}
-                          className={`flex-1 py-2 px-3 rounded-lg border text-xs font-medium transition ${
-                            chapterForm.paper === 'প্রাণিবিজ্ঞান'
-                              ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/40 shadow-sm'
-                              : 'bg-white/[0.02] border-white/[0.08] text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          🧬 প্রাণিবিজ্ঞান (২য় পত্র)
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setChapterForm({ ...chapterForm, paper: '১ম পত্র' })}
-                          className={`flex-1 py-2 px-3 rounded-lg border text-xs font-medium transition ${
-                            chapterForm.paper === '১ম পত্র'
-                              ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/40 shadow-sm'
-                              : 'bg-white/[0.02] border-white/[0.08] text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          📄 ১ম পত্র
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setChapterForm({ ...chapterForm, paper: '২য় পত্র' })}
-                          className={`flex-1 py-2 px-3 rounded-lg border text-xs font-medium transition ${
-                            chapterForm.paper === '২য় পত্র'
-                              ? 'bg-purple-500/15 text-purple-300 border-purple-500/40 shadow-sm'
-                              : 'bg-white/[0.02] border-white/[0.08] text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          📑 ২য় পত্র
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-medium mb-1.5">বিগত সালের প্রশ্ন সংখ্যা</label>
-                  <input
-                    type="number"
-                    value={chapterForm.repeatedQuestionsCount}
-                    onChange={(e) => setChapterForm({ ...chapterForm, repeatedQuestionsCount: e.target.value })}
-                    className="w-full text-center font-mono font-bold"
-                    placeholder="40"
-                  />
-                </div>
-              </div>
-
-              {/* Row 2: Chapter / Topic Name */}
+            <form onSubmit={handleSaveSubjectForm} className="space-y-3.5 text-xs">
               <div>
-                <label className="block text-slate-300 font-medium mb-1.5">
-                  {currentSelectedSubject?.id === 'gk' || currentSelectedSubject?.id === 'english' ? 'টপিকের পুরো নাম' : 'অধ্যায়ের পুরো নাম'}
-                </label>
+                <label className="block text-zinc-300 font-semibold mb-1">বিষয়ের নাম (বাংলা ও ইংরেজি)</label>
                 <input
                   type="text"
-                  value={chapterForm.name}
-                  onChange={(e) => setChapterForm({ ...chapterForm, name: e.target.value })}
-                  placeholder={
-                    currentSelectedSubject?.id === 'gk'
-                      ? 'যেমন: টপিক ১: মুক্তিযুদ্ধ ও বাংলাদেশের ইতিহাস'
-                      : currentSelectedSubject?.id === 'english'
-                        ? 'যেমন: টপিক ১: Synonyms & Antonyms'
-                        : 'যেমন: অধ্যায় ১: কোষ ও এর গঠন'
-                  }
-                  className="w-full text-sm font-medium"
+                  value={subjectForm.name}
+                  onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })}
+                  placeholder="যেমন: উচ্চতর গণিত (Higher Math)"
+                  className="w-full"
                   required
                 />
               </div>
 
-              {/* Row 3: High-Yield Topics */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-slate-300 font-medium">
-                    বারবার আসা গুরুত্বপূর্ণ টপিকসমূহ (High-Yield Topics)
-                  </label>
-                  <span className="text-[11px] text-slate-500">কমা (,) দিয়ে আলাদা করুন</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1">মোট মার্কস (Marks)</label>
+                  <input
+                    type="number"
+                    value={subjectForm.marks}
+                    onChange={(e) => setSubjectForm({ ...subjectForm, marks: e.target.value })}
+                    placeholder="25"
+                    className="w-full font-mono font-bold"
+                    required
+                  />
                 </div>
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1">বিষয় আইডি / Slug</label>
+                  <input
+                    type="text"
+                    value={subjectForm.id}
+                    onChange={(e) => setSubjectForm({ ...subjectForm, id: e.target.value })}
+                    placeholder="যেমন: math"
+                    className="w-full font-mono"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-zinc-300 font-semibold mb-1">শাখা / পত্র বিবরণ (Sub-title)</label>
                 <input
                   type="text"
-                  value={chapterForm.highYieldTopicsText}
-                  onChange={(e) => setChapterForm({ ...chapterForm, highYieldTopicsText: e.target.value })}
-                  placeholder="যেমন: সূত্র, ব্যতিক্রম, বারবার আসা টপিক"
+                  value={subjectForm.subTitle}
+                  onChange={(e) => setSubjectForm({ ...subjectForm, subTitle: e.target.value })}
+                  placeholder="যেমন: ১ম পত্র + ২য় পত্র"
                   className="w-full"
                 />
-                {chapterForm.highYieldTopicsText && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {chapterForm.highYieldTopicsText.split(',').map((t, idx) => t.trim() && (
-                      <span key={idx} className="px-2 py-0.5 rounded text-[11px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
-                        • {t.trim()}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
 
-              {/* Row 4: Must-Memorize Lines */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-slate-300 font-medium">
-                    মূল বইয়ের দাগানো লাইনসমূহ (Must-Memorize Lines)
-                  </label>
-                  <span className="text-[11px] text-slate-500">প্রতি লাইনে একটি করে লাইন লিখুন</span>
-                </div>
-                <textarea
-                  rows={4}
-                  value={chapterForm.keyFactsText}
-                  onChange={(e) => setChapterForm({ ...chapterForm, keyFactsText: e.target.value })}
-                  placeholder="যেমন:&#10;গুরুত্বপূর্ণ তথ্য লাইন ১&#10;গুরুত্বপূর্ণ তথ্য লাইন ২"
-                  className="w-full leading-relaxed"
+              <div>
+                <label className="block text-zinc-300 font-semibold mb-1">সহায়ক বইসমূহ (কমা দিয়ে আলাদা করুন)</label>
+                <input
+                  type="text"
+                  value={subjectForm.recommendedBooksText}
+                  onChange={(e) => setSubjectForm({ ...subjectForm, recommendedBooksText: e.target.value })}
+                  placeholder="যেমন: অসীম কুমার সাহা, এস ইউ আহাম্মদ"
+                  className="w-full"
                 />
               </div>
 
-              {/* Bottom Actions */}
-              <div className="pt-3 flex items-center justify-end gap-2.5 border-t border-white/[0.08]">
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-zinc-800">
                 <button
                   type="button"
-                  onClick={() => setShowChapterModal(false)}
-                  className="px-4 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03] text-slate-300 hover:text-white hover:bg-white/[0.06] font-medium transition"
+                  onClick={() => setShowSubjectModal(false)}
+                  className="px-4 py-2 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 font-medium"
                 >
                   বাতিল
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-md shadow-indigo-600/20 flex items-center gap-1.5 transition"
+                  className="px-5 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-bold shadow-sm"
+                >
+                  {saving ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── 5. Simplified & Fast Chapter Modal ── */}
+      {showChapterModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#09090b] border border-zinc-800 rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto font-bangla">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200">
+                  <BookOpen className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-sm">
+                    {editingChapter ? 'অধ্যায় সম্পাদনা' : 'নতুন অধ্যায় যুক্ত করুন'}
+                  </h3>
+                  <p className="text-xs text-zinc-400">
+                    বিষয়: <strong className="text-zinc-200">{currentSelectedSubject?.name}</strong> ({currentSelectedProgram?.title})
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowChapterModal(false)} 
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveChapterForm} className="space-y-4 text-xs">
+              {/* Paper / Category Selector */}
+              <div>
+                <label className="block text-zinc-300 font-semibold mb-1.5">
+                  পেপার / শাখা নির্বাচন
+                </label>
+                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                  {['১ম পত্র', '২য় পত্র', 'উদ্ভিদবিজ্ঞান', 'প্রাণিবিজ্ঞান', 'সাধারণ', 'Grammar', 'Vocabulary'].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setChapterForm({ ...chapterForm, paper: p })}
+                      className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition ${
+                        chapterForm.paper === p
+                          ? 'bg-zinc-800 text-white border-zinc-600 font-bold shadow-sm'
+                          : 'bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={chapterForm.paper}
+                  onChange={(e) => setChapterForm({ ...chapterForm, paper: e.target.value })}
+                  placeholder="বা কাস্টম পেপার লিখুন (যেমন: ১ম পত্র)"
+                  className="w-full"
+                  required
+                />
+              </div>
+
+              {/* Chapter Name */}
+              <div>
+                <label className="block text-zinc-300 font-semibold mb-1">
+                  অধ্যায়ের পুরো নাম
+                </label>
+                <input
+                  type="text"
+                  value={chapterForm.name}
+                  onChange={(e) => setChapterForm({ ...chapterForm, name: e.target.value })}
+                  placeholder="যেমন: অধ্যায় ১: ভৌত জগত ও পরিমাপ"
+                  className="w-full text-sm font-medium"
+                  required
+                />
+              </div>
+
+              {/* Row: ID & Questions Count */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1">অধ্যায় আইডি / Slug</label>
+                  <input
+                    type="text"
+                    value={chapterForm.id}
+                    onChange={(e) => setChapterForm({ ...chapterForm, id: e.target.value })}
+                    placeholder="যেমন: phy-ch-1"
+                    className="w-full font-mono"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-zinc-300 font-semibold">বিগত সালের প্রশ্ন সংখ্যা</label>
+                    <span className="text-[11px] text-emerald-400 font-mono">
+                      (ডাটাবেজে প্রশ্ন: {getLiveChapterQuestionsCount(currentSelectedSubject?.id, editingChapter || chapterForm)}টি)
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    value={chapterForm.repeatedQuestionsCount}
+                    onChange={(e) => setChapterForm({ ...chapterForm, repeatedQuestionsCount: e.target.value })}
+                    className="w-full font-mono font-bold"
+                    placeholder="30"
+                  />
+                </div>
+              </div>
+
+              {/* Bottom Actions */}
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setShowChapterModal(false)}
+                  className="px-4 py-2 rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 font-medium transition"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-5 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-bold shadow-sm flex items-center gap-1.5 transition"
                 >
                   {saving ? (
                     <>

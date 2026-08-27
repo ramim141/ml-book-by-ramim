@@ -33,7 +33,7 @@ const MarkdownRenderer = ({ content }) => (
 export default function ModelTestExam() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { questions, durationSeconds, subjectTitle, subjectId } = location.state || {};
+  const { questions, durationSeconds, subjectTitle, subjectId, program } = location.state || {};
 
   const [answers, setAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(durationSeconds || 600);
@@ -66,11 +66,12 @@ export default function ModelTestExam() {
         totalTime: durationSeconds,
         timeTaken: durationSeconds - timeLeftRef.current,
         subjectTitle,
-        subjectId
+        subjectId,
+        program
       },
       replace: true
     });
-  }, [navigate, questions, answers, durationSeconds, subjectTitle, subjectId]);
+  }, [navigate, questions, answers, durationSeconds, subjectTitle, subjectId, program]);
 
   useEffect(() => {
     if (!questions) return;

@@ -123,29 +123,29 @@ export default function AdmissionCalculatorPage() {
 
       {/* Mode Switcher Tabs */}
       <div className="flex justify-center mb-8">
-        <div className="inline-flex p-1.5 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-xl shadow-lg">
+        <div className="flex sm:inline-flex flex-col sm:flex-row p-1.5 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-xl shadow-lg w-full sm:w-auto gap-1">
           <button
             type="button"
             onClick={() => setActiveTab('eligibility')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            className={`flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
               activeTab === 'eligibility'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <GraduationCap className="w-4 h-4" />
+            <GraduationCap className="w-4 h-4 shrink-0" />
             <span>১. ভর্তি যোগ্যতা ও জিপিএ চেকার</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('chances')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            className={`flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
               activeTab === 'chances'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <TrendingUp className="w-4 h-4" />
+            <TrendingUp className="w-4 h-4 shrink-0" />
             <span>২. কাট-মার্কস ও চান্স প্রেডিক্টর</span>
           </button>
         </div>
@@ -303,7 +303,7 @@ export default function AdmissionCalculatorPage() {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl">
               
               {/* Category Pills */}
-              <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
+              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 custom-scrollbar whitespace-nowrap">
                 {[
                   { id: 'All', label: 'সকল' },
                   { id: 'Medical', label: '🩺 মেডিকেল' },
@@ -317,7 +317,7 @@ export default function AdmissionCalculatorPage() {
                     key={cat.id}
                     type="button"
                     onClick={() => setCategoryFilter(cat.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${
                       categoryFilter === cat.id
                         ? 'bg-indigo-600 text-white shadow-sm'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
@@ -329,7 +329,7 @@ export default function AdmissionCalculatorPage() {
               </div>
 
               {/* Search Box */}
-              <div className="relative w-full sm:w-48">
+              <div className="relative w-full sm:w-48 shrink-0">
                 <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400" />
                 <input
                   type="text"
@@ -535,12 +535,12 @@ export default function AdmissionCalculatorPage() {
             {/* Probability Gauge Card */}
             <div className="p-6 sm:p-7 rounded-3xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl shadow-xl space-y-5">
               
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <span className="text-xs font-semibold text-slate-400">চান্স পাওয়ার সম্ভাবনা সূচক</span>
                   <h3 className="text-lg font-bold text-white">{currentUniv.name}</h3>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${chanceAnalysis.statusColor}`}>
+                <span className={`self-start sm:self-auto px-3 py-1 rounded-full text-xs font-bold border ${chanceAnalysis.statusColor}`}>
                   {chanceAnalysis.statusLabel}
                 </span>
               </div>

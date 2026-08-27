@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { MEDICAL_SUBJECTS_DETAILED } from '../../../data/academic/medicalConfig';
 import { NURSING_SUBJECTS_CONFIG, NURSING_TRACKS } from '../../../data/academic/nursingConfig';
-import { useMedicalConfig } from '../../../hooks/useAdmissionData';
+import { useAdmissionProgramSubjects } from '../../../hooks/useAdmissionData';
 import { useQuery } from '@tanstack/react-query';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
@@ -192,20 +192,24 @@ export default function HighlightedLinesPage() {
     return theme.backPath;
   }, [programKey, trackId, theme.backPath]);
 
-  const { data: dynamicMedicalSubjects } = useMedicalConfig();
+  const { data: dynamicProgramSubjects } = useAdmissionProgramSubjects(programKey);
 
   const subjectsList = useMemo(() => {
-    if (programKey === 'medical') {
-      return dynamicMedicalSubjects?.length > 0 ? dynamicMedicalSubjects : MEDICAL_SUBJECTS_DETAILED;
+    if (dynamicProgramSubjects?.length > 0) {
+      if (programKey === 'nursing' && activeNursingTrack) {
+        return dynamicProgramSubjects.filter(s => !s.applicableTracks || s.applicableTracks.includes(activeNursingTrack.id));
+      }
+      return dynamicProgramSubjects;
     }
+    if (programKey === 'medical') return MEDICAL_SUBJECTS_DETAILED;
     if (programKey === 'nursing') {
       if (activeNursingTrack) {
-        return NURSING_SUBJECTS_CONFIG.filter(s => s.applicableTracks?.includes(activeNursingTrack.id));
+        return NURSING_SUBJECTS_CONFIG.filter(s => !s.applicableTracks || s.applicableTracks.includes(activeNursingTrack.id));
       }
       return NURSING_SUBJECTS_CONFIG;
     }
     return MEDICAL_SUBJECTS_DETAILED;
-  }, [programKey, dynamicMedicalSubjects, activeNursingTrack]);
+  }, [programKey, dynamicProgramSubjects, activeNursingTrack]);
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [selectedSubjectId, setSelectedSubjectId] = useState('');

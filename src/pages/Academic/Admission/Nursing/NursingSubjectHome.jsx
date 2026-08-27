@@ -8,7 +8,7 @@ import {
   Library, Flag, HeartPulse, Target, Check, X, ListChecks
 } from 'lucide-react';
 import { NURSING_TRACKS, NURSING_SUBJECTS_CONFIG } from '../../../../data/academic/nursingConfig';
-import { useAdmissionShortcuts } from '../../../../hooks/useAdmissionData';
+import { useAdmissionShortcuts, useAdmissionProgramSubjects } from '../../../../hooks/useAdmissionData';
 import { useQuery } from '@tanstack/react-query';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../../../config/firebase';
@@ -24,16 +24,17 @@ const SUBJECT_ICONS = { Dna, FlaskConical, Zap, BookOpen, Globe, HeartPulse };
 export default function NursingSubjectHome() {
   const { trackId, subjectSlug } = useParams();
   const { data: allShortcuts = [] } = useAdmissionShortcuts();
+  const { data: dynamicNursingSubjects = NURSING_SUBJECTS_CONFIG } = useAdmissionProgramSubjects('nursing');
 
   const currentTrack = useMemo(() => {
     return NURSING_TRACKS.find(t => t.id === trackId) || NURSING_TRACKS[0];
   }, [trackId]);
 
   const subject = useMemo(() => {
-    return NURSING_SUBJECTS_CONFIG.find(
+    return dynamicNursingSubjects.find(
       s => s.id.toLowerCase() === (subjectSlug || '').toLowerCase()
     );
-  }, [subjectSlug]);
+  }, [dynamicNursingSubjects, subjectSlug]);
 
   // Distinct papers in this subject
   const availablePapers = useMemo(() => {

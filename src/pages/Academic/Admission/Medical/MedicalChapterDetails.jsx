@@ -254,7 +254,8 @@ export default function MedicalChapterDetails() {
             await recordMistake(currentUser.uid, q, {
               userAnswer: userAns,
               subjectId: subject.id,
-              subjectTitle: `${subject.name} - ${chapter.name}`
+              subjectTitle: `${subject.name} - ${chapter.name}`,
+              program: 'medical'
             });
           } catch (e) {
             console.error('Failed to log mistake:', e);
@@ -321,20 +322,20 @@ export default function MedicalChapterDetails() {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
         {/* ── 1. Top Navigation Bar ───────────────────────────────────────── */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-3">
           <Link 
             to={subjectHomePath} 
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-rose-400 hover:text-white hover:border-rose-500/40 hover:bg-rose-500/10 text-xs sm:text-sm font-bold transition shadow-sm group backdrop-blur-md"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-rose-400 hover:text-white hover:border-rose-500/40 hover:bg-rose-500/10 text-xs sm:text-sm font-bold transition shadow-sm group backdrop-blur-md max-w-[75%] sm:max-w-none"
           >
-            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> 
-            <span>{subject.name}-এ ফিরে যান</span>
+            <ArrowLeft className="h-4 w-4 shrink-0 group-hover:-translate-x-1 transition-transform" /> 
+            <span className="truncate">{subject.name}-এ ফিরে যান</span>
           </Link>
 
           {/* Quick Progress Indicator */}
           {totalQuestionsInChapter > 0 && (
-            <div className="hidden sm:flex items-center gap-3 px-3.5 py-1.5 rounded-xl bg-slate-900/70 border border-slate-800/80 text-xs font-bold text-slate-300">
-              <span className="text-slate-400">প্র্যাকটিস প্রগ্রেস:</span>
-              <div className="w-24 h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div className="flex items-center gap-2 sm:gap-3 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-900/70 border border-slate-800/80 text-xs font-bold text-slate-300 shrink-0">
+              <span className="hidden sm:inline text-slate-400">প্র্যাকটিস:</span>
+              <div className="w-16 sm:w-24 h-1.5 sm:h-2 rounded-full bg-slate-800 overflow-hidden">
                 <div 
                   className="h-full bg-gradient-to-r from-rose-500 to-pink-500 transition-all duration-300"
                   style={{ width: `${progressPercent}%` }}
@@ -346,27 +347,27 @@ export default function MedicalChapterDetails() {
         </div>
 
         {/* ── 2. Glassmorphism Hero Chapter Banner ────────────────────────── */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900/95 via-[#0d1424]/95 to-slate-950/95 border border-white/[0.08] p-6 sm:p-8 shadow-2xl backdrop-blur-2xl">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-slate-900/95 via-[#0d1424]/95 to-slate-950/95 border border-white/[0.08] p-5 sm:p-8 shadow-2xl backdrop-blur-2xl">
           {/* Subtle Decorative Pattern */}
           <div className="absolute -right-8 -bottom-8 w-44 h-44 rounded-full bg-rose-500/10 blur-3xl pointer-events-none" />
           
-          <div className="relative z-10 space-y-4">
+          <div className="relative z-10 space-y-3 sm:space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-black bg-rose-500/20 text-rose-300 border border-rose-500/30">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[11px] sm:text-xs font-black bg-rose-500/20 text-rose-300 border border-rose-500/30">
                 <Dna className="w-3.5 h-3.5" />
                 {chapter.paper || '১ম পত্র'}
               </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[11px] sm:text-xs font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">
                 <Target className="w-3.5 h-3.5" />
                 মোট {totalQuestionsInChapter}+ টি প্রশ্ন
               </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20">
-                <Flame className="w-3 h-3 text-amber-400" /> হাই-ইয়েল্ড অধ্যায়
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10.5px] sm:text-[11px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                <Flame className="w-3 h-3 text-amber-400" /> হাই-ইয়েল্ড
               </span>
             </div>
 
             <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-300 leading-tight">
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-300 leading-tight">
                 {chapter.name}
               </h1>
               {subject.recommendedBooks && (
@@ -383,19 +384,19 @@ export default function MedicalChapterDetails() {
 
         {/* ── 3. Interactive Floating Tabs Bar ────────────────────────────── */}
         <div className="space-y-4">
-          <div className="p-1.5 rounded-2xl bg-slate-900/80 border border-white/[0.08] backdrop-blur-xl shadow-lg flex flex-wrap gap-1.5">
+          <div className="p-1 sm:p-1.5 rounded-2xl bg-slate-900/80 border border-white/[0.08] backdrop-blur-xl shadow-lg flex items-center gap-1.5 overflow-x-auto pb-1.5 sm:pb-1.5 custom-scrollbar">
             {/* Category 1: Chapter Question Bank */}
             <button
               onClick={() => setActiveTab('mcq')}
-              className={`flex-1 min-w-[150px] px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+              className={`shrink-0 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
                 activeTab === 'mcq' 
                   ? 'bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-md shadow-rose-500/25' 
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
             >
-              <Layers className="w-4 h-4" />
+              <Layers className="w-4 h-4 shrink-0" />
               <span>অধ্যায় প্রশ্নব্যাংক (MCQ)</span>
-              <span className={`text-[10.5px] px-1.5 py-0.5 rounded-md font-mono ${activeTab === 'mcq' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'}`}>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${activeTab === 'mcq' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'}`}>
                 {admissionQuestions.length}
               </span>
             </button>
@@ -403,15 +404,15 @@ export default function MedicalChapterDetails() {
             {/* Category 2: Main Book MCQ */}
             <button
               onClick={() => setActiveTab('main_book_mcq')}
-              className={`flex-1 min-w-[150px] px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+              className={`shrink-0 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
                 activeTab === 'main_book_mcq' 
                   ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-md shadow-amber-500/25' 
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
             >
-              <BookOpen className="w-4 h-4" />
-              <span>মূল বইয়ের অনুশীলনী MCQ</span>
-              <span className={`text-[10.5px] px-1.5 py-0.5 rounded-md font-mono ${activeTab === 'main_book_mcq' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'}`}>
+              <BookOpen className="w-4 h-4 shrink-0" />
+              <span>মূল বইয়ের অনুশীলনী</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${activeTab === 'main_book_mcq' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'}`}>
                 {mainBookQuestions.length}
               </span>
             </button>
@@ -419,15 +420,15 @@ export default function MedicalChapterDetails() {
             {/* Category 3: Highlighted Lines */}
             <button
               onClick={() => setActiveTab('lines')}
-              className={`flex-1 min-w-[140px] px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+              className={`shrink-0 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
                 activeTab === 'lines' 
                   ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/25' 
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
             >
-              <Highlighter className="w-4 h-4" />
-              <span>মূল বইয়ের দাগানো লাইন</span>
-              <span className={`text-[10.5px] px-1.5 py-0.5 rounded-md font-mono ${activeTab === 'lines' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'}`}>
+              <Highlighter className="w-4 h-4 shrink-0" />
+              <span>দাগানো লাইন</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${activeTab === 'lines' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'}`}>
                 {chapter.keyFacts?.length || 0}
               </span>
             </button>
@@ -435,15 +436,15 @@ export default function MedicalChapterDetails() {
             {/* Category 4: Shortcuts & Tricks */}
             <button
               onClick={() => setActiveTab('mnemonics')}
-              className={`flex-1 min-w-[130px] px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+              className={`shrink-0 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
                 activeTab === 'mnemonics' 
                   ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md shadow-teal-500/25' 
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-4 h-4 shrink-0" />
               <span>শর্টকাট ও ট্রিকস</span>
-              <span className={`text-[10.5px] px-1.5 py-0.5 rounded-md font-mono ${activeTab === 'mnemonics' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'}`}>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${activeTab === 'mnemonics' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'}`}>
                 {chapterMnemonics.length}
               </span>
             </button>
@@ -451,14 +452,14 @@ export default function MedicalChapterDetails() {
             {/* Category 5: Speed Test */}
             <button
               onClick={() => setActiveTab('speed_test')}
-              className={`flex-1 min-w-[130px] px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+              className={`shrink-0 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
                 activeTab === 'speed_test' 
                   ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md shadow-red-500/25' 
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
             >
-              <Clock className="w-4 h-4" />
-              <span>চ্যাপ্টার স্পিড টেস্ট</span>
+              <Clock className="w-4 h-4 shrink-0" />
+              <span>স্পিড টেস্ট</span>
             </button>
           </div>
 

@@ -586,6 +586,74 @@ export default function AdmissionQuestionManager() {
     }
   };
 
+  // ─── Smart Exam Type Matching Helper ────────────────────────────────────────
+  const isQuestionMatchingExamType = (q, filterType) => {
+    if (!filterType || filterType === 'all') return true;
+
+    const target = String(filterType).toLowerCase().trim();
+    const qType = String(q.examType || '').toLowerCase().trim();
+    const tags = Array.isArray(q.examTags) ? q.examTags : [];
+    const tagTypes = tags.map(t => {
+      if (typeof t === 'string') return t.toLowerCase().trim();
+      return String(t?.type || t?.name || '').toLowerCase().trim();
+    });
+    const allExamStrings = [qType, ...tagTypes].filter(Boolean);
+
+    // 1. Main Book matching
+    if (target.includes('main book') || target.includes('অনুশীলনী') || target.includes('বই')) {
+      if (q.isMainBook || q.category === 'main_book' || q.source === 'main_book') return true;
+      return allExamStrings.some(s => s.includes('main book') || s.includes('বই') || s.includes('অনুশীলনী') || s.includes('হাজারী') || s.includes('আজমল') || s.includes('ইসহাক'));
+    }
+
+    // 2. Exact match against top-level or any tag
+    if (allExamStrings.some(s => s === target)) return true;
+
+    // 3. MBBS / BDS / Medical matching
+    if (target === 'mbbs & bds' || target === 'mbbs' || target === 'bds' || target === 'medical' || target === 'মেডিকেল') {
+      return allExamStrings.some(s =>
+        s.includes('mbbs') || s.includes('bds') || s.includes('mat') || s.includes('dat') || s.includes('medical') || s.includes('dental') || s.includes('মেডিকেল') || s.includes('ডেন্টাল')
+      );
+    }
+
+    // 4. BUET
+    if (target === 'buet' || target === 'বুয়েট') {
+      return allExamStrings.some(s => s.includes('buet') || s.includes('বুয়েট') || s.includes('বুয়েট'));
+    }
+
+    // 5. CKET / Engineering
+    if (target === 'cket' || target === 'engineering' || target === 'ইঞ্জিনিয়ারিং' || target === 'ইঞ্জিনিয়ারিং') {
+      return allExamStrings.some(s => s.includes('cket') || s.includes('ruet') || s.includes('kuet') || s.includes('cuet') || s.includes('butex') || s.includes('mist') || s.includes('engineering') || s.includes('ইঞ্জিনিয়ারিং') || s.includes('ইঞ্জিনিয়ারিং'));
+    }
+
+    // 6. DU A / DU / Dhaka University
+    if (target === 'du a' || target === 'du-a' || target === 'du' || target === 'ঢাবি') {
+      return allExamStrings.some(s => s.includes('du') || s.includes('ঢাবি') || s.includes('ঢাকা'));
+    }
+
+    // 7. GST / Gucche
+    if (target === 'gst' || target === 'গুচ্ছ') {
+      return allExamStrings.some(s => s.includes('gst') || s.includes('গুচ্ছ') || s.includes('cluster'));
+    }
+
+    // 8. Agri / Agriculture
+    if (target === 'agri' || target === 'কৃষি') {
+      return allExamStrings.some(s => s.includes('agri') || s.includes('কৃষি') || s.includes('bau') || s.includes('bsmrau'));
+    }
+
+    // 9. Nursing
+    if (target === 'nursing' || target === 'নার্সিং') {
+      return allExamStrings.some(s => s.includes('nursing') || s.includes('নার্সিং') || s.includes('bsc') || s.includes('diploma') || s.includes('midwifery'));
+    }
+
+    // 10. Varsity
+    if (target === 'varsity' || target === 'ভার্সিটি') {
+      return allExamStrings.some(s => s.includes('varsity') || s.includes('ভার্সিটি') || s.includes('ru') || s.includes('cu') || s.includes('ju') || s.includes('sust'));
+    }
+
+    // 11. Generic fallback substring match
+    return allExamStrings.some(s => s.includes(target) || target.includes(s));
+  };
+
   // ─── Filtered Questions Memo ────────────────────────────────────────────────
   const filteredQuestions = useMemo(() => {
     return questions.filter(q => {
@@ -608,15 +676,17 @@ export default function AdmissionQuestionManager() {
 
       const matchChapter = filterChapter === 'all' || q.chapterId === filterChapter;
 
-      // একটা প্রশ্ন একাধিক পরীক্ষা/সেশনে থাকতে পারে (examTags), তাই top-level
-      // examType/year এর পাশাপাশি examTags অ্যারেতেও মিলিয়ে দেখা হয়
+      // Smart Exam Type match (top-level + examTags + isMainBook)
+      const matchExamType = isQuestionMatchingExamType(q, filterExamType);
+
+      // Session match (year + examTags)
       const tags = Array.isArray(q.examTags) ? q.examTags : [];
-      const matchExamType = filterExamType === 'all' ||
-        q.examType === filterExamType ||
-        tags.some(t => t.type === filterExamType);
       const matchSession = filterSession === 'all' ||
         q.year === filterSession ||
-        tags.some(t => t.session === filterSession);
+        tags.some(t => {
+          const s = typeof t === 'string' ? t : t?.session;
+          return s === filterSession || (s && filterSession && s.includes(filterSession));
+        });
 
       const matchSearch = !searchQuery.trim() ||
         q.question?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -627,8 +697,29 @@ export default function AdmissionQuestionManager() {
     });
   }, [questions, filterSubjectOptionId, currentFilterSubjectOption, filterChapter, filterExamType, filterSession, searchQuery]);
 
-  // সেশন সাল ড্রপডাউন প্রশ্নের `year` ফিল্ড ও `examTags[].session` — দুই জায়গা
-  // থেকেই বের করা হয়, যেহেতু একটা প্রশ্ন একাধিক সেশনে থাকতে পারে
+  // Dynamic Exam Types from questions database
+  const examTypeOptions = useMemo(() => {
+    const defaultTypes = ['MBBS & BDS', 'BUET', 'CKET', 'DU A', 'GST', 'Agri', 'Nursing', 'Varsity', 'Main Book (বইয়ের অনুশীলনী)'];
+    const found = new Set(defaultTypes);
+
+    questions.forEach(q => {
+      if (q.examType && typeof q.examType === 'string' && q.examType.trim()) {
+        found.add(q.examType.trim());
+      }
+      if (Array.isArray(q.examTags)) {
+        q.examTags.forEach(t => {
+          const typeName = typeof t === 'string' ? t : (t?.type || t?.name);
+          if (typeName && typeof typeName === 'string' && typeName.trim()) {
+            found.add(typeName.trim());
+          }
+        });
+      }
+    });
+
+    return Array.from(found);
+  }, [questions]);
+
+  // সেশন সাল ড্রপডাউন প্রশ্নের `year` ফিল্ড ও `examTags[].session` — দুই জায়গা থেকেই বের করা হয়
   const sessionOptions = useMemo(() => {
     const years = new Set();
     questions.forEach(q => {
@@ -740,7 +831,7 @@ export default function AdmissionQuestionManager() {
               className="w-full"
             >
               <option value="all">সকল পরীক্ষা</option>
-              {EXAM_TYPE_OPTIONS.map(e => (
+              {examTypeOptions.map(e => (
                 <option key={e} value={e}>{e}</option>
               ))}
             </select>

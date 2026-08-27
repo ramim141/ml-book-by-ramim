@@ -269,6 +269,9 @@ export default function LiveExamEngine() {
             subjectId: examConfig.subject,
             subjectTitle: examConfig.title || 'লাইভ এক্সাম',
             userAnswer: answers[idx],
+            program: String(
+              examConfig.level === 'Admission' ? (examConfig.admissionTrack || '') : (examConfig.level || '')
+            ).toLowerCase(),
           }).catch((err) => console.error('ভুলের খাতায় জমা হয়নি', err));
         }
       });

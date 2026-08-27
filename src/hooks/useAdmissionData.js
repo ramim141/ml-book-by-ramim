@@ -316,8 +316,8 @@ export function useAdmissionPrograms() {
   return useQuery({
     queryKey: ['academic', 'admission', 'programs'],
     queryFn: fetchAdmissionPrograms,
-    staleTime: STALE?.CONFIG || 60 * 1000 * 60,
-    initialData: DEFAULT_ADMISSION_PROGRAMS,
+    staleTime: 1000 * 60 * 2,
+    placeholderData: DEFAULT_ADMISSION_PROGRAMS,
   });
 }
 
@@ -328,8 +328,8 @@ export function useAdmissionShortcuts() {
   return useQuery({
     queryKey: ['academic', 'admission', 'shortcuts'],
     queryFn: fetchAdmissionShortcuts,
-    staleTime: STALE?.CONFIG || 60 * 1000 * 60,
-    initialData: DEFAULT_ADMISSION_SHORTCUTS,
+    staleTime: 1000 * 60 * 2,
+    placeholderData: DEFAULT_ADMISSION_SHORTCUTS,
   });
 }
 
@@ -340,8 +340,8 @@ export function useAdmissionSessions() {
   return useQuery({
     queryKey: ['academic', 'admission', 'sessions'],
     queryFn: fetchAdmissionSessions,
-    staleTime: STALE?.CONFIG || 60 * 1000 * 60,
-    initialData: DEFAULT_ADMISSION_SESSIONS,
+    staleTime: 1000 * 60 * 2,
+    placeholderData: DEFAULT_ADMISSION_SESSIONS,
   });
 }
 
@@ -373,8 +373,42 @@ export function useMedicalConfig() {
   return useQuery({
     queryKey: ['academic', 'admission', 'medical_config'],
     queryFn: fetchMedicalConfig,
-    staleTime: STALE?.CONFIG || 60 * 1000 * 60,
-    initialData: MEDICAL_SUBJECTS_DETAILED,
+    staleTime: 1000 * 60 * 2,
+    placeholderData: MEDICAL_SUBJECTS_DETAILED,
+  });
+}
+
+/**
+ * Fetch dynamic subjects & chapters for ANY admission program:
+ * - 'medical' -> admin_settings/medical_config
+ * - other -> admin_settings/program_config_${programId}
+ */
+export async function fetchProgramSubjectsConfig(programId) {
+  if (!programId) return [];
+  try {
+    const docName = programId === 'medical' ? 'medical_config' : `program_config_${programId}`;
+    const snap = await getDoc(doc(db, 'admin_settings', docName));
+    if (snap.exists() && snap.data().subjects?.length) {
+      return snap.data().subjects;
+    }
+    if (programId === 'medical') return MEDICAL_SUBJECTS_DETAILED;
+    return [];
+  } catch (error) {
+    console.error(`Error fetching subjects config for program ${programId}:`, error);
+    if (programId === 'medical') return MEDICAL_SUBJECTS_DETAILED;
+    return [];
+  }
+}
+
+/**
+ * React Query hook for dynamic program subjects across ANY admission program
+ */
+export function useAdmissionProgramSubjects(programId) {
+  return useQuery({
+    queryKey: ['academic', 'admission', 'program_subjects', programId],
+    queryFn: () => fetchProgramSubjectsConfig(programId),
+    staleTime: 1000 * 60 * 2,
+    enabled: !!programId,
   });
 }
 
@@ -403,9 +437,10 @@ export function useAdmissionExamSchedules() {
   return useQuery({
     queryKey: ['academic', 'admission', 'exam_schedules'],
     queryFn: fetchAdmissionExamSchedules,
-    staleTime: STALE?.CONFIG || 60 * 1000 * 60,
-    initialData: DEFAULT_ADMISSION_EXAM_SCHEDULES,
+    staleTime: 1000 * 60 * 2,
+    placeholderData: DEFAULT_ADMISSION_EXAM_SCHEDULES,
   });
 }
+
 
 

@@ -12,6 +12,7 @@ import {
   ArrowRight, Flame, Trophy, Clock, ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAcademicSubjects } from '../../../hooks/useAcademicSubjects';
 import { db } from '../../../config/firebase';
 import { recordReviewResult, dismissMistake } from '../../../lib/mistakes';
 import { toBn } from '../../../lib/format';
@@ -250,7 +251,13 @@ function InteractiveMistakeItem({ item, idx, dueNow, handleDismiss }) {
   );
 }
 
-const PROGRAM_SUBJECTS = {
+/**
+ * পুরনো রেকর্ডে `program` ফিল্ড নেই, আর ভর্তি প্রোগ্রামভিত্তিক বিষয় ম্যাপিং
+ * `admin_settings/subjects` এ রাখা হয় না (ওখানে level শুধু SSC/HSC/Admission)।
+ * তাই এই তালিকাটা শেষ ভরসা — এইচএসসি/এসএসসি-র বিষয় ডেটাবেস থেকেই আসে,
+ * নিচের `programSubjects` দেখুন।
+ */
+const FALLBACK_PROGRAM_SUBJECTS = {
   medical: ['জীববিজ্ঞান', 'রসায়ন', 'পদার্থবিজ্ঞান', 'ইংরেজি', 'সাধারণ জ্ঞান', 'Biology', 'Chemistry', 'Physics', 'English', 'GK', 'Medical', 'MBBS', 'BDS'],
   nursing: ['জীববিজ্ঞান', 'সাধারণ বিজ্ঞান', 'বাংলা', 'ইংরেজি', 'সাধারণ গণিত', 'সাধারণ জ্ঞান', 'Biology', 'Science', 'Bangla', 'English', 'Math', 'GK', 'Nursing'],
   engineering: ['উচ্চতর গণিত', 'পদার্থবিজ্ঞান', 'রসায়ন', 'ইংরেজি', 'Higher Math', 'Math', 'Physics', 'Chemistry', 'English', 'BUET', 'CKET', 'Engineering'],
@@ -260,8 +267,18 @@ const PROGRAM_SUBJECTS = {
   ssc: ['পদার্থবিজ্ঞান', 'রসায়ন', 'উচ্চতর গণিত', 'জীববিজ্ঞান', 'সাধারণ গণিত', 'সাধারণ বিজ্ঞান', 'বাংলা', 'ইংরেজি']
 };
 
-const PILL_BASE = 'px-3 py-1.5 rounded-lg text-[11.5px] sm:text-xs font-bold transition whitespace-nowrap border';
-const PILL_OFF = 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700';
+/* ফিল্টারের দুই সারি যেন একই কন্ট্রোলের মতো পড়ে — চিপ আর সেগমেন্টের ভাষা এক রাখা হলো */
+const CHIP_BASE = 'inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12px] sm:text-[12.5px] font-bold whitespace-nowrap transition active:scale-[0.97]';
+const CHIP_OFF = 'border-white/[0.07] bg-white/[0.03] text-slate-400 hover:text-slate-200 hover:border-white/15';
+
+const SEG_BASE = 'flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2.5 py-2.5 text-[12px] sm:text-[12.5px] font-bold transition active:scale-[0.98]';
+const SEG_OFF = 'text-slate-400 hover:text-slate-200';
+
+const COUNT_BASE = 'inline-flex min-w-[18px] shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-black leading-[16px]';
+const COUNT_OFF = 'bg-white/[0.07] text-slate-500';
+const COUNT_ON = 'bg-black/25 text-white';
+
+const FILTER_LABEL = 'hidden text-[10px] font-bold tracking-wide text-slate-500 sm:block sm:w-11 sm:shrink-0';
 
 const TAB_ACTIVE = {
   rose: 'bg-rose-500 text-white border-rose-500',
@@ -269,11 +286,47 @@ const TAB_ACTIVE = {
   blue: 'bg-blue-500 text-white border-blue-500',
   indigo: 'bg-indigo-500 text-white border-indigo-500',
   teal: 'bg-teal-500 text-white border-teal-500',
-  violet: 'bg-violet-500 text-white border-violet-500'
+  violet: 'bg-violet-500 text-white border-violet-500',
+  amber: 'bg-amber-500 text-white border-amber-500',
+  cyan: 'bg-cyan-500 text-white border-cyan-500',
+  lime: 'bg-lime-500 text-white border-lime-500',
+  fuchsia: 'bg-fuchsia-500 text-white border-fuchsia-500',
+  sky: 'bg-sky-500 text-white border-sky-500'
 };
 
-export default function MistakeNotebook({ program = null, accent = 'rose' }) {
+const SEG_ACTIVE = {
+  rose: 'bg-rose-500 text-white shadow-md shadow-rose-950/40',
+  emerald: 'bg-emerald-500 text-white shadow-md shadow-emerald-950/40',
+  blue: 'bg-blue-500 text-white shadow-md shadow-blue-950/40',
+  indigo: 'bg-indigo-500 text-white shadow-md shadow-indigo-950/40',
+  teal: 'bg-teal-500 text-white shadow-md shadow-teal-950/40',
+  violet: 'bg-violet-500 text-white shadow-md shadow-violet-950/40',
+  amber: 'bg-amber-500 text-white shadow-md shadow-amber-950/40',
+  cyan: 'bg-cyan-500 text-white shadow-md shadow-cyan-950/40',
+  lime: 'bg-lime-500 text-white shadow-md shadow-lime-950/40',
+  fuchsia: 'bg-fuchsia-500 text-white shadow-md shadow-fuchsia-950/40',
+  sky: 'bg-sky-500 text-white shadow-md shadow-sky-950/40'
+};
+
+/* প্রাইমারি বাটনগুলোও প্রোগ্রামের রঙ ধরে — আগে সবখানে rose হার্ডকোড ছিল */
+const ACCENT_BTN = {
+  rose: 'bg-rose-600 hover:bg-rose-500 shadow-rose-950/30',
+  emerald: 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-950/30',
+  blue: 'bg-blue-600 hover:bg-blue-500 shadow-blue-950/30',
+  indigo: 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-950/30',
+  teal: 'bg-teal-600 hover:bg-teal-500 shadow-teal-950/30',
+  violet: 'bg-violet-600 hover:bg-violet-500 shadow-violet-950/30',
+  amber: 'bg-amber-600 hover:bg-amber-500 shadow-amber-950/30',
+  cyan: 'bg-cyan-600 hover:bg-cyan-500 shadow-cyan-950/30',
+  lime: 'bg-lime-600 hover:bg-lime-500 shadow-lime-950/30',
+  fuchsia: 'bg-fuchsia-600 hover:bg-fuchsia-500 shadow-fuchsia-950/30',
+  sky: 'bg-sky-600 hover:bg-sky-500 shadow-sky-950/30'
+};
+
+export default function MistakeNotebook({ program = null, accent = 'rose', modelTestPath = '/academic/admission/model-test' }) {
   const tabActive = TAB_ACTIVE[accent] || TAB_ACTIVE.rose;
+  const segActive = SEG_ACTIVE[accent] || SEG_ACTIVE.rose;
+  const accentBtn = ACCENT_BTN[accent] || ACCENT_BTN.rose;
   const { currentUser } = useAuth();
   const queryClient = useQueryClient();
   const [confirm, confirmDialog] = useConfirm();
@@ -285,6 +338,19 @@ export default function MistakeNotebook({ program = null, accent = 'rose' }) {
   const [sessionScore, setSessionScore] = useState({ correct: 0, total: 0 });
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [programScope, setProgramScope] = useState(Boolean(program));
+
+  // এই প্রোগ্রামের বিষয়গুলো — এইচএসসি/এসএসসি হলে `admin_settings/subjects`
+  // থেকেই আসে, ফলে অ্যাডমিন নতুন বিষয় যোগ করলে এখানেও ধরা পড়ে।
+  const { data: allSubjects = [] } = useAcademicSubjects();
+  const programSubjects = useMemo(() => {
+    if (!program) return [];
+    const level = String(program).toLowerCase();
+    const fromDb = allSubjects
+      .filter((s) => String(s.level || '').toLowerCase() === level)
+      .map((s) => s.label)
+      .filter(Boolean);
+    return fromDb.length ? fromDb : (FALLBACK_PROGRAM_SUBJECTS[program] || []);
+  }, [allSubjects, program]);
 
   const queryKey = ['mistakes', currentUser?.uid || 'guest'];
 
@@ -338,13 +404,12 @@ export default function MistakeNotebook({ program = null, accent = 'rose' }) {
   // Filter mistakes by program if active
   const mistakes = useMemo(() => {
     if (!program || !programScope) return rawMistakes;
-    const allowedSubjects = PROGRAM_SUBJECTS[program] || [];
     return rawMistakes.filter(m => {
       if (m.program && m.program.toLowerCase() === program.toLowerCase()) return true;
       const subj = m.subjectTitle || m.subject || m.subjectId || '';
-      return allowedSubjects.some(as => subj.toLowerCase().includes(as.toLowerCase()));
+      return programSubjects.some(as => subj.toLowerCase().includes(as.toLowerCase()));
     });
-  }, [rawMistakes, program, programScope]);
+  }, [rawMistakes, program, programScope, programSubjects]);
 
   // Date.now() রেন্ডারের সময় সরাসরি ডাকা "impure" ধরা হয়, তাই একবার state
   // এ ধরে রাখা হলো — পেজ খোলা থাকা অবস্থায় নতুন কিছু due হলে রিফ্রেশেই দেখা যাবে।
@@ -474,68 +539,76 @@ export default function MistakeNotebook({ program = null, accent = 'rose' }) {
         )
       ) : (
         <>
-          {/* Subject Filter & Stats */}
+          {/* ফিল্টার ও সারসংক্ষেপ */}
           {rawMistakes.length > 0 && (
-            <div className="space-y-2.5 mb-5">
-              {/* Both filter rows share one pill style so they read as one control */}
+            <div className="mb-5 space-y-3">
+
+              {/* স্কোপ — মোবাইলে পুরো প্রস্থ জুড়ে সেগমেন্টেড কন্ট্রোল, দুই পাশ সমান */}
               {program && (
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="text-[10.5px] font-bold text-slate-500 tracking-wide shrink-0">স্কোপ</span>
-                  <div className="flex items-center gap-1.5 min-w-0">
+                <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                  <span className={FILTER_LABEL}>স্কোপ</span>
+                  <div className="grid grid-cols-2 gap-1 rounded-2xl border border-white/[0.07] bg-slate-950/50 p-1 sm:inline-grid sm:w-auto">
                     <button
                       type="button"
                       onClick={() => { setProgramScope(true); setSelectedSubject('all'); }}
-                      className={`${PILL_BASE} ${programScope ? tabActive : PILL_OFF}`}
+                      className={`${SEG_BASE} ${programScope ? segActive : SEG_OFF}`}
                     >
-                      এই প্রোগ্রাম ({toBn(mistakes.length)})
+                      <span className="truncate">এই প্রোগ্রাম</span>
+                      <span className={`${COUNT_BASE} ${programScope ? COUNT_ON : COUNT_OFF}`}>{toBn(mistakes.length)}</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => { setProgramScope(false); setSelectedSubject('all'); }}
-                      className={`${PILL_BASE} ${!programScope ? tabActive : PILL_OFF}`}
+                      className={`${SEG_BASE} ${!programScope ? segActive : SEG_OFF}`}
                     >
-                      সকল ভুল ({toBn(rawMistakes.length)})
+                      <span className="truncate">সকল ভুল</span>
+                      <span className={`${COUNT_BASE} ${!programScope ? COUNT_ON : COUNT_OFF}`}>{toBn(rawMistakes.length)}</span>
                     </button>
                   </div>
                 </div>
               )}
 
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="text-[10.5px] font-bold text-slate-500 tracking-wide shrink-0">বিষয়</span>
-                <div className="overflow-x-auto no-scrollbar min-w-0 -mr-3 sm:mr-0">
-                  <div className="flex items-center gap-1.5 w-max pr-3 sm:pr-0">
+              {/* বিষয় — স্ক্রলটা মোবাইলে স্ক্রিনের কিনারা পর্যন্ত যায়, তাই চিপ কাটা মনে হয় না */}
+              <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                <span className={FILTER_LABEL}>বিষয়</span>
+                <div className="no-scrollbar -mx-4 min-w-0 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+                  <div className="flex w-max items-center gap-1.5">
                     <button
+                      type="button"
                       onClick={() => setSelectedSubject('all')}
-                      className={`${PILL_BASE} ${selectedSubject === 'all' ? tabActive : PILL_OFF}`}
+                      className={`${CHIP_BASE} ${selectedSubject === 'all' ? tabActive : CHIP_OFF}`}
                     >
-                      সব বিষয় ({toBn(mistakes.length)})
+                      সব বিষয়
+                      <span className={`${COUNT_BASE} ${selectedSubject === 'all' ? COUNT_ON : COUNT_OFF}`}>{toBn(mistakes.length)}</span>
                     </button>
                     {subjectsList.map(subj => (
                       <button
                         key={subj.title}
+                        type="button"
                         onClick={() => setSelectedSubject(subj.title)}
-                        className={`${PILL_BASE} ${selectedSubject === subj.title ? tabActive : PILL_OFF}`}
+                        className={`${CHIP_BASE} ${selectedSubject === subj.title ? tabActive : CHIP_OFF}`}
                       >
-                        {subj.title} ({toBn(subj.count)})
+                        {subj.title}
+                        <span className={`${COUNT_BASE} ${selectedSubject === subj.title ? COUNT_ON : COUNT_OFF}`}>{toBn(subj.count)}</span>
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
 
-              {/* Summary Stats */}
-              <div className="mt-1.5 grid grid-cols-3 rounded-2xl border border-white/[0.07] divide-x divide-white/[0.07] overflow-hidden">
-                <div className="px-2 py-3 sm:py-3.5 text-center">
-                  <p className="text-xl sm:text-2xl font-black text-rose-400 leading-none">{toBn(dueNow.length)}</p>
-                  <p className="mt-1.5 text-[10.5px] sm:text-xs font-bold text-slate-500 truncate">আজ বাকি</p>
+              {/* সারসংক্ষেপ */}
+              <div className="grid grid-cols-3 divide-x divide-white/[0.07] overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02]">
+                <div className="px-2 py-2.5 text-center sm:py-3.5">
+                  <p className="text-lg font-black leading-none text-rose-400 sm:text-2xl">{toBn(dueNow.length)}</p>
+                  <p className="mt-1.5 truncate text-[10.5px] font-bold text-slate-500 sm:text-xs">আজ বাকি</p>
                 </div>
-                <div className="px-2 py-3 sm:py-3.5 text-center">
-                  <p className="text-xl sm:text-2xl font-black text-amber-400 leading-none">{toBn(upcoming.length)}</p>
-                  <p className="mt-1.5 text-[10.5px] sm:text-xs font-bold text-slate-500 truncate">আসছে</p>
+                <div className="px-2 py-2.5 text-center sm:py-3.5">
+                  <p className="text-lg font-black leading-none text-amber-400 sm:text-2xl">{toBn(upcoming.length)}</p>
+                  <p className="mt-1.5 truncate text-[10.5px] font-bold text-slate-500 sm:text-xs">আসছে</p>
                 </div>
-                <div className="px-2 py-3 sm:py-3.5 text-center">
-                  <p className="text-xl sm:text-2xl font-black text-emerald-400 leading-none">{toBn(masteredCount)}</p>
-                  <p className="mt-1.5 text-[10.5px] sm:text-xs font-bold text-slate-500 truncate">আয়ত্ত</p>
+                <div className="px-2 py-2.5 text-center sm:py-3.5">
+                  <p className="text-lg font-black leading-none text-emerald-400 sm:text-2xl">{toBn(masteredCount)}</p>
+                  <p className="mt-1.5 truncate text-[10.5px] font-bold text-slate-500 sm:text-xs">আয়ত্ত</p>
                 </div>
               </div>
             </div>
@@ -551,8 +624,8 @@ export default function MistakeNotebook({ program = null, accent = 'rose' }) {
                 মডেল টেস্ট বা লাইভ এক্সাম দেওয়ার সময় যেসব প্রশ্নে ভুল হবে, সেগুলো এখানে স্বয়ংক্রিয়ভাবে তালিকাভুক্ত হবে।
               </p>
               <Link
-                to="/academic/admission/model-test"
-                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-500 px-5 py-2.5 text-xs sm:text-sm font-bold text-white transition shadow-lg shadow-rose-900/20"
+                to={modelTestPath}
+                className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs sm:text-sm font-bold text-white transition shadow-lg ${accentBtn}`}
               >
                 মডেল টেস্ট শুরু করুন <ChevronRight className="h-4 w-4" />
               </Link>
@@ -561,7 +634,7 @@ export default function MistakeNotebook({ program = null, accent = 'rose' }) {
             <button
               type="button"
               onClick={startReview}
-              className="mb-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-600 to-orange-500 px-6 py-3.5 text-sm sm:text-base font-black text-white shadow-lg shadow-rose-950/30 transition hover:from-rose-500 hover:to-orange-400 active:scale-[0.99]"
+              className={`mb-5 flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm sm:text-base font-black text-white shadow-lg transition active:scale-[0.99] ${accentBtn}`}
             >
               <RotateCcw className="h-4.5 w-4.5" /> {toBn(dueNow.length)} টি প্রশ্ন রিভিউ শুরু করো
             </button>

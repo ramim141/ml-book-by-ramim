@@ -12,7 +12,7 @@ import {
   NURSING_DEFAULT_SESSIONS,
   NURSING_MNEMONICS
 } from '../../../../data/academic/nursingConfig';
-import { useAdmissionSessions, useAdmissionShortcuts } from '../../../../hooks/useAdmissionData';
+import { useAdmissionSessions, useAdmissionShortcuts, useAdmissionProgramSubjects } from '../../../../hooks/useAdmissionData';
 
 export default function NursingTrackDashboard() {
   const { trackId = 'bsc' } = useParams();
@@ -84,16 +84,18 @@ export default function NursingTrackDashboard() {
     };
   }, [trackId]);
 
+  const { data: dynamicNursingSubjects = NURSING_SUBJECTS_CONFIG } = useAdmissionProgramSubjects('nursing');
+
   const currentTrack = useMemo(() => {
     return NURSING_TRACKS.find(t => t.id === trackId) || NURSING_TRACKS[0];
   }, [trackId]);
 
   // Track-specific subjects filter
   const trackSubjects = useMemo(() => {
-    return NURSING_SUBJECTS_CONFIG.filter(s =>
-      s.applicableTracks.includes(currentTrack.id)
+    return dynamicNursingSubjects.filter(s =>
+      !s.applicableTracks || s.applicableTracks.includes(currentTrack.id)
     );
-  }, [currentTrack]);
+  }, [dynamicNursingSubjects, currentTrack]);
 
   // Track-specific sessions
   const trackSessions = useMemo(() => {

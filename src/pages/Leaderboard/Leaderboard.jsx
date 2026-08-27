@@ -9,12 +9,39 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { toBn } from '../../lib/format';
+import { useAdmissionPrograms } from '../../hooks/useAdmissionData';
 
 export default function Leaderboard() {
   const { currentUser } = useAuth();
   const [selectedLevel, setSelectedLevel] = useState('all'); // 'all' | 'SSC' | 'HSC' | 'Admission'
-  const [admissionTrack, setAdmissionTrack] = useState('all'); // 'all' | 'medical' | 'engineering' | 'varsity' | 'nursing'
+  const [admissionTrack, setAdmissionTrack] = useState('all'); // 'all' | dynamic program id
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Fetch dynamic admission programs from Firestore
+  const { data: dynamicAdmissionPrograms = [] } = useAdmissionPrograms();
+
+  const admissionTrackTabs = useMemo(() => {
+    const list = [{ id: 'all', label: 'সকল ইউনিট' }];
+    const activeProgs = (dynamicAdmissionPrograms || []).filter(p => p.active !== false);
+
+    activeProgs.forEach(p => {
+      const rawTitle = p.title || p.name || p.id;
+      const cleanTitle = rawTitle
+        .split('(')[0]
+        .replace('ভর্তি প্রস্তুতি', '')
+        .replace('ভর্তি পরীক্ষা', '')
+        .trim();
+
+      list.push({
+        id: p.id,
+        label: `${p.emoji || '🎯'} ${cleanTitle}`,
+        title: p.title,
+        tags: p.tags || []
+      });
+    });
+
+    return list;
+  }, [dynamicAdmissionPrograms]);
 
   // Fetch top 100 users sorted by XP
   const { data: allLeaders = [], isLoading, isError } = useQuery({
@@ -56,8 +83,36 @@ export default function Leaderboard() {
       }
 
       if (selectedLevel === 'Admission' && admissionTrack !== 'all') {
-        const userTrack = (user.targetTrack || '').toLowerCase();
-        if (!userTrack.includes(admissionTrack.toLowerCase())) {
+        const userTrack = (user.targetTrack || user.dreamVarsity || '').toLowerCase();
+        const selectedProg = dynamicAdmissionPrograms.find(p => p.id === admissionTrack);
+        
+        let isMatch = userTrack.includes(admissionTrack.toLowerCase());
+
+        if (!isMatch && selectedProg) {
+          const progTitle = (selectedProg.title || '').toLowerCase();
+          const words = progTitle.split(/[\s,()/]+/).filter(w => w.length > 2);
+          isMatch = words.some(w => userTrack.includes(w));
+
+          if (!isMatch && Array.isArray(selectedProg.tags)) {
+            isMatch = selectedProg.tags.some(t => userTrack.includes(t.toLowerCase()));
+          }
+        }
+
+        // Smart fallback keywords matching
+        if (!isMatch) {
+          const target = admissionTrack.toLowerCase();
+          if (target.includes('medical') && (userTrack.includes('mbbs') || userTrack.includes('bds') || userTrack.includes('মেডিকেল'))) isMatch = true;
+          else if (target.includes('nursing') && (userTrack.includes('nursing') || userTrack.includes('নার্সিং') || userTrack.includes('bsc') || userTrack.includes('diploma') || userTrack.includes('midwifery'))) isMatch = true;
+          else if (target.includes('engineering') && (userTrack.includes('buet') || userTrack.includes('cket') || userTrack.includes('eng') || userTrack.includes('ইঞ্জিনিয়ারিং') || userTrack.includes('বুয়েট') || userTrack.includes('রুয়েট') || userTrack.includes('কুয়েট') || userTrack.includes('চুয়েট'))) isMatch = true;
+          else if (target.includes('varsity-a') && (userTrack.includes('du a') || userTrack.includes('ঢাকা বিশ্ববিদ্যালয়') || userTrack.includes('সাস্ট') || userTrack.includes('sust'))) isMatch = true;
+          else if (target.includes('varsity-b') && (userTrack.includes('du b') || userTrack.includes('arts') || userTrack.includes('মানবিক'))) isMatch = true;
+          else if (target.includes('varsity-c') && (userTrack.includes('du c') || userTrack.includes('commerce') || userTrack.includes('ব্যবসায়'))) isMatch = true;
+          else if (target.includes('gst') && (userTrack.includes('gst') || userTrack.includes('গুচ্ছ'))) isMatch = true;
+          else if (target.includes('agri') && (userTrack.includes('agri') || userTrack.includes('কৃষি') || userTrack.includes('bau'))) isMatch = true;
+          else if (target.includes('iba') && (userTrack.includes('iba') || userTrack.includes('bup'))) isMatch = true;
+        }
+
+        if (!isMatch) {
           return false;
         }
       }
@@ -69,7 +124,7 @@ export default function Leaderboard() {
 
       return true;
     });
-  }, [allLeaders, selectedLevel, admissionTrack, searchQuery]);
+  }, [allLeaders, selectedLevel, admissionTrack, searchQuery, dynamicAdmissionPrograms]);
 
   // Current User's Rank
   const myRankIndex = useMemo(() => {
@@ -184,31 +239,25 @@ export default function Leaderboard() {
 
       </div>
 
-      {/* Admission Track Pills */}
+      {/* Dynamic Admission Track Pills from Firestore */}
       {selectedLevel === 'Admission' && (
-        <div className="flex flex-wrap items-center gap-2 mb-8 px-4 py-3 rounded-2xl bg-slate-900/40 border border-slate-800/70 backdrop-blur-md">
-          <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5 mr-1">
+        <div className="flex items-center gap-2 mb-8 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl shadow-lg overflow-x-auto no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5 mr-1 shrink-0">
             <Compass className="w-3.5 h-3.5 text-indigo-400" />
             <span>ভর্তি ইউনিট:</span>
           </span>
-          {[
-            { id: 'all', label: 'সকল ইউনিট' },
-            { id: 'medical', label: '🩺 মেডিকেল ও ডেন্টাল' },
-            { id: 'engineering', label: '⚡ বুয়েট ও ইঞ্জিনিয়ারিং' },
-            { id: 'varsity', label: '🏛️ বিশ্ববিদ্যালয় ও গুচ্ছ' },
-            { id: 'nursing', label: '💉 নার্সিং' },
-          ].map(track => (
+          {admissionTrackTabs.map(track => (
             <button
               key={track.id}
               type="button"
               onClick={() => setAdmissionTrack(track.id)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
                 admissionTrack === track.id
-                  ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-600/30 ring-1 ring-purple-400/40'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] bg-slate-950/40 border border-slate-800/60'
               }`}
             >
-              {track.label}
+              <span>{track.label}</span>
             </button>
           ))}
         </div>
