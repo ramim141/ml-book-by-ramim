@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  collection, getDocs, doc, setDoc, deleteDoc, writeBatch, query, where, limit 
+  collection, getDocs, doc, setDoc, deleteDoc, writeBatch, query, where 
 } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
@@ -8,28 +8,22 @@ import {
   Search, Plus, Trash2, Edit, Save, UploadCloud, 
   Check, X, Sparkles, Filter, Database, BookOpen, 
   CheckCircle2, AlertTriangle, Copy, RotateCcw, 
-  Loader2, Tag, Calendar, Layers, Eye, Code2, FileText, ChevronRight
+  Loader2, Tag, Calendar, Layers, Eye, Code2, FileText, ChevronRight,
+  ChevronDown, HelpCircle, CheckSquare
 } from 'lucide-react';
 import MarkdownRenderer from '../UI/MarkdownRenderer';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useMedicalConfig } from '../../hooks/useAdmissionData';
+import {
+  SUBJECT_OPTIONS, isSubjectMatched, isChapterMatched,
+  isQuestionMatchingExamType, isSessionMatched, isSearchMatched,
+  isMainBookLabel, isMainBookQuestion, displayExamType, MAIN_BOOK_EXAM_TYPE
+} from '../../lib/questionFilters';
 
-// ─── 1st Paper & 2nd Paper Separated Subject Options ─────────────────────────────
-export const SUBJECT_OPTIONS = [
-  { id: 'biology-1', rawSubject: 'biology', paperName: 'উদ্ভিদবিজ্ঞান', name: 'জীববিজ্ঞান ১ম পত্র (উদ্ভিদবিজ্ঞান)' },
-  { id: 'biology-2', rawSubject: 'biology', paperName: 'প্রাণিবিজ্ঞান', name: 'জীববিজ্ঞান ২য় পত্র (প্রাণিবিজ্ঞান)' },
-  { id: 'chemistry-1', rawSubject: 'chemistry', paperName: '১ম পত্র', name: 'রসায়ন ১ম পত্র' },
-  { id: 'chemistry-2', rawSubject: 'chemistry', paperName: '২য় পত্র', name: 'রসায়ন ২য় পত্র' },
-  { id: 'physics-1', rawSubject: 'physics', paperName: '১ম পত্র', name: 'পদার্থবিজ্ঞান ১ম পত্র' },
-  { id: 'physics-2', rawSubject: 'physics', paperName: '২য় পত্র', name: 'পদার্থবিজ্ঞান ২য় পত্র' },
-  { id: 'math-1', rawSubject: 'math', paperName: '১ম পত্র', name: 'উচ্চতর গণিত ১ম পত্র' },
-  { id: 'math-2', rawSubject: 'math', paperName: '২য় পত্র', name: 'উচ্চতর গণিত ২য় পত্র' },
-  { id: 'english', rawSubject: 'english', paperName: 'জেনারেল', name: 'ইংরেজি (English)' },
-  { id: 'gk', rawSubject: 'gk', paperName: 'সাধারণ জ্ঞান', name: 'সাধারণ জ্ঞান (General Knowledge)' }
-];
 
 const EXAM_TYPE_OPTIONS = ['MBBS & BDS', 'BUET', 'CKET', 'DU A', 'GST', 'Agri', 'Nursing', 'Varsity', 'Main Book (বইয়ের অনুশীলনী)', 'অন্যান্য'];
+
 
 /**
  * Smart LaTeX Sanitizer:
@@ -187,11 +181,14 @@ export default function AdmissionQuestionManager() {
   const [bulkChapterId, setBulkChapterId] = useState('');
   const [bulkExamType, setBulkExamType] = useState('MBBS & BDS');
   const [isBulkMainBook, setIsBulkMainBook] = useState(false);
+  // ডুপ্লিকেট পেলে বাদ না দিয়ে বিদ্যমান প্রশ্নের মেটাডেটা ঠিক করার মোড
+  const [updateDuplicates, setUpdateDuplicates] = useState(false);
   const [bulkBookName, setBulkBookName] = useState('');
   const [bulkJsonText, setBulkJsonText] = useState('');
   const [parsedQuestions, setParsedQuestions] = useState([]);
   const [parseError, setParseError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [markingMainBook, setMarkingMainBook] = useState(false);
 
   // ─── Single Question Modal State ───────────────────────────────────────────
   const [showSingleModal, setShowSingleModal] = useState(false);
@@ -223,29 +220,15 @@ export default function AdmissionQuestionManager() {
   }, [bulkSubjectOptionId]);
 
   // Fetch Questions from Firestore
-  // পরীক্ষার ধরন (examType) দিয়ে সার্ভার-সাইডে ফিল্টার করা হয় না ইচ্ছাকৃতভাবে —
-  // একটা প্রশ্ন এখন একসাথে একাধিক পরীক্ষায় (MBBS & BDS, MAT, DU A...) থাকতে
-  // পারে `examTags` অ্যারেতে, যেটা top-level `examType` ফিল্ডে ধরা পড়ে না।
-  // তাই পরীক্ষার ধরন অনুযায়ী ফিল্টারিং হয় নিচে filteredQuestions মেমোতে, client-side এ।
   useEffect(() => {
     fetchQuestions();
-  }, [filterSubjectOptionId]);
+  }, []);
 
   const fetchQuestions = async () => {
     setLoading(true);
     try {
       const qRef = collection(db, 'question_bank');
-      let qConstraints = [];
-
-      if (currentFilterSubjectOption) {
-        qConstraints.push(where('subject', '==', currentFilterSubjectOption.rawSubject));
-      }
-
-      const q = qConstraints.length > 0
-        ? query(qRef, ...qConstraints, limit(300))
-        : query(qRef, limit(300));
-
-      const snap = await getDocs(q);
+      const snap = await getDocs(qRef);
       const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setQuestions(items);
     } catch (err) {
@@ -384,38 +367,53 @@ export default function AdmissionQuestionManager() {
       const existingQuery = query(qRef, where('subject', '==', currentBulkSubjectOption.rawSubject));
       const existingSnap = await getDocs(existingQuery);
       
-      const existingFpSet = new Set();
+      // ফিঙ্গারপ্রিন্ট → বিদ্যমান ডকের আইডি, যাতে ডুপ্লিকেট পেলে সেটাকে আপডেটও করা যায়
+      const existingByFp = new Map();
       if (!existingSnap.empty) {
         existingSnap.docs.forEach(docSnap => {
           const d = docSnap.data();
           const fp = generateQuestionFingerprint(d.question, d.options);
-          if (fp) existingFpSet.add(fp);
+          if (fp && !existingByFp.has(fp)) existingByFp.set(fp, docSnap.id);
         });
       }
 
-      // 2. Filter out questions that already exist in database
-      const uniqueToUpload = parsedQuestions.filter(qItem => {
+      // 2. কোনগুলো নতুন আর কোনগুলো আগে থেকেই আছে
+      const uniqueToUpload = [];
+      const duplicateTargets = [];
+      parsedQuestions.forEach(qItem => {
         const fp = generateQuestionFingerprint(qItem.question, qItem.options);
-        return !existingFpSet.has(fp);
+        const existingId = fp ? existingByFp.get(fp) : null;
+        if (existingId) duplicateTargets.push({ qItem, docId: existingId });
+        else uniqueToUpload.push(qItem);
       });
 
-      const dbDuplicatesCount = parsedQuestions.length - uniqueToUpload.length;
+      const dbDuplicatesCount = duplicateTargets.length;
+      // আপডেট মোড চালু থাকলে ডুপ্লিকেটগুলো বাদ না দিয়ে তাদের মেটাডেটা (অধ্যায়,
+      // পরীক্ষার ধরন, মূল বই ফ্ল্যাগ) ঠিক করা হয় — আগে একই প্রশ্ন আবার আপলোড
+      // করে ভুল ট্যাগ শোধরানোর কোনো উপায়ই ছিল না।
+      const toUpdate = updateDuplicates ? duplicateTargets : [];
 
-      if (uniqueToUpload.length === 0) {
-        toast.error(`আপলোড করা সকল (${parsedQuestions.length}টি) প্রশ্ন ইতিমধ্যে ডাটাবেসে বিদ্যমান রয়েছে! কোনো ডুপ্লিকেট প্রশ্ন যুক্ত করা হয়নি।`, { duration: 5000 });
+      if (uniqueToUpload.length === 0 && toUpdate.length === 0) {
+        toast.error(
+          `আপলোড করা সকল (${parsedQuestions.length}টি) প্রশ্ন ইতিমধ্যে ডাটাবেসে আছে। ট্যাগ বা অধ্যায় ঠিক করতে চাইলে উপরের "ডুপ্লিকেট হলে মেটাডেটা আপডেট করো" টিক দিয়ে আবার চেষ্টা করুন।`,
+          { duration: 6000 }
+        );
         setUploading(false);
         return;
       }
 
       const batchSize = 100;
-      let totalSaved = 0;
+      const writeJobs = [
+        ...uniqueToUpload.map(qItem => ({ qItem, existingId: null })),
+        ...toUpdate.map(t => ({ qItem: t.qItem, existingId: t.docId }))
+      ];
 
-      for (let i = 0; i < uniqueToUpload.length; i += batchSize) {
-        const chunk = uniqueToUpload.slice(i, i + batchSize);
+      for (let i = 0; i < writeJobs.length; i += batchSize) {
+        const chunk = writeJobs.slice(i, i + batchSize);
         const batch = writeBatch(db);
 
-        chunk.forEach((qItem) => {
-          const docId = qItem.id || `adm-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+        chunk.forEach(({ qItem, existingId }) => {
+          const docId = existingId || qItem.id || `adm-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
           const docRef = doc(db, 'question_bank', docId);
 
           const finalExamTags = qItem.examTags?.length > 0 
@@ -424,7 +422,13 @@ export default function AdmissionQuestionManager() {
 
           const primaryExamType = finalExamTags[0]?.type || qItem.examType || bulkExamType || 'MBBS & BDS';
           const primaryYear = finalExamTags[0]?.session || qItem.year || '';
-          const isMainBookVal = qItem.isMainBook ?? (isBulkMainBook || primaryExamType.includes('Main Book') || primaryExamType.includes('বইয়ের অনুশীলনী'));
+          // চেকবক্সে টিক থাকলে সেটাই ব্যাচের চূড়ান্ত সিদ্ধান্ত — আগে JSON এ
+          // examTags থাকলে primaryExamType হয়ে যেত 'MAT'/'DU A', আর মূল বইয়ের
+          // পরিচয়টা কেবল এই ফ্ল্যাগে টিকত; ফ্ল্যাগ না বসলে ফিল্টারে কিছুই আসত না।
+          const isMainBookVal = Boolean(
+            isBulkMainBook || qItem.isMainBook || isMainBookLabel(primaryExamType) ||
+            (finalExamTags || []).some(t => isMainBookLabel(typeof t === 'string' ? t : (t?.type || t?.name)))
+          );
           const bookNameVal = qItem.bookName || (isBulkMainBook ? bulkBookName : '') || '';
 
           const payload = {
@@ -447,22 +451,24 @@ export default function AdmissionQuestionManager() {
             tracks: qItem.tracks || [primaryExamType.toLowerCase().includes('mbbs') || primaryExamType.toLowerCase().includes('bds') || primaryExamType.toLowerCase().includes('mat') ? 'medical' : 'varsity'],
             difficulty: qItem.difficulty || 'medium',
             isHighYield: qItem.isHighYield ?? true,
-            createdAt: new Date().toISOString()
+            ...(existingId
+              ? { updatedAt: new Date().toISOString() }
+              : { createdAt: new Date().toISOString() })
           };
 
           batch.set(docRef, payload, { merge: true });
         });
 
         await batch.commit();
-        totalSaved += chunk.length;
       }
 
-      const totalDups = (batchDuplicatesRemoved || 0) + dbDuplicatesCount;
-      if (totalDups > 0) {
-        toast.success(`মোট ${totalSaved}টি নতুন প্রশ্ন সেভ হয়েছে (${totalDups}টি ডুপ্লিকেট বাদ দেওয়া হয়েছে)!`, { duration: 5000 });
-      } else {
-        toast.success(`${totalSaved}টি প্রশ্ন সফলভাবে আপলোড ও সেভ করা হয়েছে!`);
-      }
+
+      const skippedDups = (batchDuplicatesRemoved || 0) + (updateDuplicates ? 0 : dbDuplicatesCount);
+      const parts = [];
+      if (uniqueToUpload.length) parts.push(`${uniqueToUpload.length}টি নতুন প্রশ্ন সেভ`);
+      if (toUpdate.length) parts.push(`${toUpdate.length}টি পুরনো প্রশ্নের তথ্য আপডেট`);
+      if (skippedDups) parts.push(`${skippedDups}টি ডুপ্লিকেট বাদ`);
+      toast.success(`${parts.join(', ')} হয়েছে!`, { duration: 5000 });
 
       setShowBulkModal(false);
       setBulkJsonText('');
@@ -481,22 +487,85 @@ export default function AdmissionQuestionManager() {
     }
   };
 
-  // ─── Single Question Handlers ───────────────────────────────────────────────
+  const handleResetFilters = () => {
+    setFilterSubjectOptionId('all');
+    setFilterChapter('all');
+    setFilterExamType('all');
+    setFilterSession('all');
+    setSearchQuery('');
+  };
+
+  // ফিল্টারে টিকে থাকা প্রশ্নগুলোতে মূল বইয়ের ফ্ল্যাগ বসায়। আগে যেসব প্রশ্ন
+  // চেকবক্স ছাড়া আপলোড হয়েছে, সেগুলো "Main Book" ফিল্টারে আসত না — এটা তারই মেরামত।
+  const handleMarkAsMainBook = async () => {
+    const targets = stageInput.examType || [];
+    if (!targets.length) return;
+
+    const ok = await confirm({
+      title: 'মূল বই হিসেবে চিহ্নিত করবেন?',
+      message: `${targets.length}টি প্রশ্নে মূল বইয়ের ফ্ল্যাগ বসানো হবে। প্রশ্ন, অপশন বা উত্তর কিছুই বদলাবে না।`,
+      confirmText: 'চিহ্নিত করুন'
+    });
+    if (!ok) return;
+
+    setMarkingMainBook(true);
+    try {
+      for (let i = 0; i < targets.length; i += 100) {
+        const batch = writeBatch(db);
+        targets.slice(i, i + 100).forEach(q => {
+          batch.set(
+            doc(db, 'question_bank', q.id),
+            { isMainBook: true, updatedAt: new Date().toISOString() },
+            { merge: true }
+          );
+        });
+        await batch.commit();
+      }
+      toast.success(`${targets.length}টি প্রশ্ন মূল বই হিসেবে চিহ্নিত হয়েছে।`);
+      fetchQuestions();
+    } catch (err) {
+      console.error('Main book tagging failed:', err);
+      toast.error('চিহ্নিত করা যায়নি।');
+    } finally {
+      setMarkingMainBook(false);
+    }
+  };
+
+  const handleOpenBulkModal = () => {
+    if (filterSubjectOptionId !== 'all') {
+      setBulkSubjectOptionId(filterSubjectOptionId);
+    }
+    if (filterChapter !== 'all') {
+      setBulkChapterId(filterChapter);
+    }
+    if (filterExamType.includes('Main Book') || filterExamType.includes('অনুশীলনী')) {
+      setIsBulkMainBook(true);
+      setBulkExamType('Main Book (বইয়ের অনুশীলনী)');
+    } else if (filterExamType !== 'all') {
+      setBulkExamType(filterExamType);
+    }
+    setShowBulkModal(true);
+  };
+
   const handleOpenAddSingle = () => {
+    const defaultSub = filterSubjectOptionId !== 'all' ? filterSubjectOptionId : 'physics-1';
+    const defaultChap = filterChapter !== 'all' ? filterChapter : '';
+    const defaultIsMainBook = filterExamType.includes('Main Book') || filterExamType.includes('অনুশীলনী');
+
     setSingleForm({
-      id: `adm-${Date.now()}`,
-      subjectOptionId: filterSubjectOptionId !== 'all' ? filterSubjectOptionId : 'physics-1',
-      chapterId: filterChapter !== 'all' ? filterChapter : '',
+      id: '',
+      subjectOptionId: defaultSub,
+      chapterId: defaultChap,
       topic: '',
       question: '',
       options: ['', '', '', ''],
       answer: 0,
       explanation: '',
-      examType: filterExamType !== 'all' ? filterExamType : 'MBBS & BDS',
-      year: '2023-2024',
+      examType: defaultIsMainBook ? 'Main Book (বইয়ের অনুশীলনী)' : (filterExamType !== 'all' ? filterExamType : 'MBBS & BDS'),
+      year: filterSession !== 'all' ? filterSession : '2023-2024',
       difficulty: 'medium',
       isHighYield: true,
-      isMainBook: isBulkMainBook || false,
+      isMainBook: defaultIsMainBook,
       bookName: bulkBookName || ''
     });
     setEditingQuestion(null);
@@ -521,7 +590,7 @@ export default function AdmissionQuestionManager() {
       year: item.year || '2023-2024',
       difficulty: item.difficulty || 'medium',
       isHighYield: item.isHighYield ?? true,
-      isMainBook: item.isMainBook || item.category === 'main_book' || item.source === 'main_book' || false,
+      isMainBook: isMainBookQuestion(item),
       bookName: item.bookName || item.writer || item.author || ''
     });
     setEditingQuestion(item);
@@ -586,137 +655,58 @@ export default function AdmissionQuestionManager() {
     }
   };
 
-  // ─── Smart Exam Type Matching Helper ────────────────────────────────────────
-  const isQuestionMatchingExamType = (q, filterType) => {
-    if (!filterType || filterType === 'all') return true;
-
-    const target = String(filterType).toLowerCase().trim();
-    const qType = String(q.examType || '').toLowerCase().trim();
-    const tags = Array.isArray(q.examTags) ? q.examTags : [];
-    const tagTypes = tags.map(t => {
-      if (typeof t === 'string') return t.toLowerCase().trim();
-      return String(t?.type || t?.name || '').toLowerCase().trim();
-    });
-    const allExamStrings = [qType, ...tagTypes].filter(Boolean);
-
-    // 1. Main Book matching
-    if (target.includes('main book') || target.includes('অনুশীলনী') || target.includes('বই')) {
-      if (q.isMainBook || q.category === 'main_book' || q.source === 'main_book') return true;
-      return allExamStrings.some(s => s.includes('main book') || s.includes('বই') || s.includes('অনুশীলনী') || s.includes('হাজারী') || s.includes('আজমল') || s.includes('ইসহাক'));
-    }
-
-    // 2. Exact match against top-level or any tag
-    if (allExamStrings.some(s => s === target)) return true;
-
-    // 3. MBBS / BDS / Medical matching
-    if (target === 'mbbs & bds' || target === 'mbbs' || target === 'bds' || target === 'medical' || target === 'মেডিকেল') {
-      return allExamStrings.some(s =>
-        s.includes('mbbs') || s.includes('bds') || s.includes('mat') || s.includes('dat') || s.includes('medical') || s.includes('dental') || s.includes('মেডিকেল') || s.includes('ডেন্টাল')
-      );
-    }
-
-    // 4. BUET
-    if (target === 'buet' || target === 'বুয়েট') {
-      return allExamStrings.some(s => s.includes('buet') || s.includes('বুয়েট') || s.includes('বুয়েট'));
-    }
-
-    // 5. CKET / Engineering
-    if (target === 'cket' || target === 'engineering' || target === 'ইঞ্জিনিয়ারিং' || target === 'ইঞ্জিনিয়ারিং') {
-      return allExamStrings.some(s => s.includes('cket') || s.includes('ruet') || s.includes('kuet') || s.includes('cuet') || s.includes('butex') || s.includes('mist') || s.includes('engineering') || s.includes('ইঞ্জিনিয়ারিং') || s.includes('ইঞ্জিনিয়ারিং'));
-    }
-
-    // 6. DU A / DU / Dhaka University
-    if (target === 'du a' || target === 'du-a' || target === 'du' || target === 'ঢাবি') {
-      return allExamStrings.some(s => s.includes('du') || s.includes('ঢাবি') || s.includes('ঢাকা'));
-    }
-
-    // 7. GST / Gucche
-    if (target === 'gst' || target === 'গুচ্ছ') {
-      return allExamStrings.some(s => s.includes('gst') || s.includes('গুচ্ছ') || s.includes('cluster'));
-    }
-
-    // 8. Agri / Agriculture
-    if (target === 'agri' || target === 'কৃষি') {
-      return allExamStrings.some(s => s.includes('agri') || s.includes('কৃষি') || s.includes('bau') || s.includes('bsmrau'));
-    }
-
-    // 9. Nursing
-    if (target === 'nursing' || target === 'নার্সিং') {
-      return allExamStrings.some(s => s.includes('nursing') || s.includes('নার্সিং') || s.includes('bsc') || s.includes('diploma') || s.includes('midwifery'));
-    }
-
-    // 10. Varsity
-    if (target === 'varsity' || target === 'ভার্সিটি') {
-      return allExamStrings.some(s => s.includes('varsity') || s.includes('ভার্সিটি') || s.includes('ru') || s.includes('cu') || s.includes('ju') || s.includes('sust'));
-    }
-
-    // 11. Generic fallback substring match
-    return allExamStrings.some(s => s.includes(target) || target.includes(s));
-  };
-
-  // ─── Filtered Questions Memo ────────────────────────────────────────────────
-  const filteredQuestions = useMemo(() => {
-    return questions.filter(q => {
-      // Check paper/subject filter
-      let matchSub = true;
-      if (filterSubjectOptionId !== 'all') {
-        const sel = currentFilterSubjectOption;
-        if (sel) {
-          if (q.subjectOptionId) {
-            matchSub = q.subjectOptionId === sel.id;
-          } else {
-            matchSub = q.subject === sel.rawSubject;
-            if (sel.id === 'biology-1') matchSub = matchSub && (q.paper?.includes('উদ্ভিদ') || q.paper?.includes('১ম'));
-            else if (sel.id === 'biology-2') matchSub = matchSub && (q.paper?.includes('প্রাণি') || q.paper?.includes('২য়'));
-            else if (sel.id.endsWith('-1')) matchSub = matchSub && q.paper?.includes('১ম');
-            else if (sel.id.endsWith('-2')) matchSub = matchSub && q.paper?.includes('২য়');
-          }
-        }
-      }
-
-      const matchChapter = filterChapter === 'all' || q.chapterId === filterChapter;
-
-      // Smart Exam Type match (top-level + examTags + isMainBook)
-      const matchExamType = isQuestionMatchingExamType(q, filterExamType);
-
-      // Session match (year + examTags)
-      const tags = Array.isArray(q.examTags) ? q.examTags : [];
-      const matchSession = filterSession === 'all' ||
-        q.year === filterSession ||
-        tags.some(t => {
-          const s = typeof t === 'string' ? t : t?.session;
-          return s === filterSession || (s && filterSession && s.includes(filterSession));
-        });
-
-      const matchSearch = !searchQuery.trim() ||
-        q.question?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        q.topic?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        q.explanation?.toLowerCase().includes(searchQuery.toLowerCase());
-
-      return matchSub && matchChapter && matchExamType && matchSession && matchSearch;
-    });
-  }, [questions, filterSubjectOptionId, currentFilterSubjectOption, filterChapter, filterExamType, filterSession, searchQuery]);
-
-  // Dynamic Exam Types from questions database
-  const examTypeOptions = useMemo(() => {
-    const defaultTypes = ['MBBS & BDS', 'BUET', 'CKET', 'DU A', 'GST', 'Agri', 'Nursing', 'Varsity', 'Main Book (বইয়ের অনুশীলনী)'];
-    const found = new Set(defaultTypes);
+  // ─── ফিল্টার ফানেল ──────────────────────────────────────────
+  // শুধু ফলাফল নয়, প্রতিটি ধাপে কতটা প্রশ্ন টিকল সেটাও গোনা হয় — ০টা এলে
+  // খালি স্টেটে দেখানো যায় কোন ফিল্টারটা সব বাদ দিয়েছে।
+  const { filteredQuestions, funnel, stageInput } = useMemo(() => {
+    const cleanSearch = searchQuery.toLowerCase().trim();
+    const counts = { subject: 0, chapter: 0, examType: 0, session: 0, search: 0 };
+    // কোন ধাপে কোন প্রশ্নগুলো ঢুকেছিল — বাদ পড়ার কারণ দেখাতে দরকার হয়
+    const input = { subject: questions, chapter: [], examType: [], session: [], search: [] };
+    const list = [];
 
     questions.forEach(q => {
-      if (q.examType && typeof q.examType === 'string' && q.examType.trim()) {
-        found.add(q.examType.trim());
-      }
+      if (!isSubjectMatched(q, currentFilterSubjectOption)) return;
+      counts.subject++;
+      input.chapter.push(q);
+      if (!isChapterMatched(q, filterChapter, availableChapters)) return;
+      counts.chapter++;
+      input.examType.push(q);
+      if (!isQuestionMatchingExamType(q, filterExamType)) return;
+      counts.examType++;
+      input.session.push(q);
+      if (!isSessionMatched(q, filterSession)) return;
+      counts.session++;
+      input.search.push(q);
+      if (!isSearchMatched(q, cleanSearch)) return;
+      counts.search++;
+      list.push(q);
+    });
+
+    return { filteredQuestions: list, funnel: counts, stageInput: input };
+  }, [questions, currentFilterSubjectOption, filterChapter, availableChapters, filterExamType, filterSession, searchQuery]);
+
+  // Dynamic Exam Types from questions database
+  // ডাটাবেসে একই জিনিস 'Textbook'/'Main Book'/'অনুশীলনী' — নানা নামে থাকতে পারে।
+  // ড্রপডাউনে সেগুলো আলাদা অপশন হয়ে ভাগ হয়ে যেত, তাই এক নামে মিলিয়ে দেওয়া হয়।
+  const examTypeOptions = useMemo(() => {
+    const defaultTypes = ['MBBS & BDS', 'BUET', 'CKET', 'DU A', 'GST', 'Agri', 'Nursing', 'Varsity'];
+    const found = new Set(defaultTypes);
+
+    const addType = (raw) => {
+      if (!raw || typeof raw !== 'string' || !raw.trim()) return;
+      if (isMainBookLabel(raw)) return;   // মূল বইয়ের নামগুলো নিচে একবারেই যোগ হয়
+      found.add(raw.trim());
+    };
+
+    questions.forEach(q => {
+      addType(q.examType);
       if (Array.isArray(q.examTags)) {
-        q.examTags.forEach(t => {
-          const typeName = typeof t === 'string' ? t : (t?.type || t?.name);
-          if (typeName && typeof typeName === 'string' && typeName.trim()) {
-            found.add(typeName.trim());
-          }
-        });
+        q.examTags.forEach(t => addType(typeof t === 'string' ? t : (t?.type || t?.name)));
       }
     });
 
-    return Array.from(found);
+    return [...Array.from(found), MAIN_BOOK_EXAM_TYPE];
   }, [questions]);
 
   // সেশন সাল ড্রপডাউন প্রশ্নের `year` ফিল্ড ও `examTags[].session` — দুই জায়গা থেকেই বের করা হয়
@@ -732,6 +722,145 @@ export default function AdmissionQuestionManager() {
   }, [questions]);
 
   // ২০টি করে পেজিনেশন
+  // প্রতিটি অপশনে কতটা প্রশ্ন পাওয়া যাবে — বাকি ফিল্টারগুলো ধরে রেখে হিসাব,
+  // তাই ড্রপডাউন খুললেই বোঝা যায় কোন কম্বিনেশনে ০টা আসবে।
+  const optionCounts = useMemo(() => {
+    const cleanSearch = searchQuery.toLowerCase().trim();
+    const passSubject = q => isSubjectMatched(q, currentFilterSubjectOption);
+    const passChapter = q => isChapterMatched(q, filterChapter, availableChapters);
+    const passExam = q => isQuestionMatchingExamType(q, filterExamType);
+    const passSession = q => isSessionMatched(q, filterSession);
+    const passSearch = q => isSearchMatched(q, cleanSearch);
+
+    const forSubject = questions.filter(q => passExam(q) && passSession(q) && passSearch(q));
+    const subject = { all: forSubject.length };
+    SUBJECT_OPTIONS.forEach(opt => {
+      subject[opt.id] = forSubject.filter(q => isSubjectMatched(q, opt)).length;
+    });
+
+    const forChapter = questions.filter(q => passSubject(q) && passExam(q) && passSession(q) && passSearch(q));
+    const chapter = { all: forChapter.length };
+    availableChapters.forEach(c => {
+      chapter[c.id] = forChapter.filter(q => isChapterMatched(q, c.id, availableChapters)).length;
+    });
+
+    const forExam = questions.filter(q => passSubject(q) && passChapter(q) && passSession(q) && passSearch(q));
+    const examType = { all: forExam.length };
+    examTypeOptions.forEach(t => {
+      examType[t] = forExam.filter(q => isQuestionMatchingExamType(q, t)).length;
+    });
+
+    const forSession = questions.filter(q => passSubject(q) && passChapter(q) && passExam(q) && passSearch(q));
+    const session = { all: forSession.length };
+    sessionOptions.forEach(y => {
+      session[y] = forSession.filter(q => isSessionMatched(q, y)).length;
+    });
+
+    return { subject, chapter, examType, session };
+  }, [questions, currentFilterSubjectOption, filterChapter, availableChapters, filterExamType, filterSession, searchQuery, examTypeOptions, sessionOptions]);
+
+  // খালি ফলাফলের সময় কোন ধাপে বাদ পড়ল, তার তালিকা
+  const filterStages = useMemo(() => {
+    const stages = [
+      {
+        key: 'subject',
+        label: 'বিষয় ও পত্র',
+        value: currentFilterSubjectOption?.name || '',
+        active: filterSubjectOptionId !== 'all',
+        count: funnel.subject,
+        clear: () => { setFilterSubjectOptionId('all'); setFilterChapter('all'); }
+      },
+      {
+        key: 'chapter',
+        label: 'অধ্যায়',
+        value: availableChapters.find(c => c.id === filterChapter)?.name || '',
+        active: filterChapter !== 'all',
+        count: funnel.chapter,
+        clear: () => setFilterChapter('all')
+      },
+      {
+        key: 'examType',
+        label: 'পরীক্ষার ধরন',
+        value: filterExamType === 'all' ? '' : filterExamType,
+        active: filterExamType !== 'all',
+        count: funnel.examType,
+        clear: () => setFilterExamType('all')
+      },
+      {
+        key: 'session',
+        label: 'সেশন সাল',
+        value: filterSession === 'all' ? '' : filterSession,
+        active: filterSession !== 'all',
+        count: funnel.session,
+        clear: () => setFilterSession('all')
+      },
+      {
+        key: 'search',
+        label: 'সার্চ',
+        value: searchQuery.trim(),
+        active: Boolean(searchQuery.trim()),
+        count: funnel.search,
+        clear: () => setSearchQuery('')
+      }
+    ];
+    const culpritIdx = stages.findIndex(st => st.count === 0);
+    return stages.map((st, i) => ({ ...st, isCulprit: i === culpritIdx && st.active }));
+  }, [funnel, currentFilterSubjectOption, filterSubjectOptionId, filterChapter, availableChapters, filterExamType, filterSession, searchQuery]);
+
+  // যে ফিল্টারটা সব বাদ দিল, তার আগের ধাপে টিকে থাকা প্রশ্নগুলোতে ওই ফিল্ডের
+  // আসল মানগুলো কী কী — "মূল বইয়ের প্রশ্ন আপলোড দিয়েছি কিন্তু দেখায় না" ধরনের
+  // সমস্যায় এটাই বলে দেয় প্রশ্নগুলো আসলে কোন ধরনে জমা পড়েছে।
+  // দায়ী ফিল্টারটা কি "Main Book"? তাহলে এক ক্লিকে ঠিক করার পথ দেখানো হয়
+  const isMainBookFilter = filterStages.some(st => st.isCulprit && st.key === 'examType') &&
+    isMainBookLabel(filterExamType);
+
+  const culpritBreakdown = useMemo(() => {
+    const culprit = filterStages.find(st => st.isCulprit);
+    if (!culprit || culprit.key === 'search') return null;
+
+    const source = stageInput[culprit.key] || [];
+    if (source.length === 0) return null;
+
+    const labelOf = (q) => {
+      if (culprit.key === 'subject') {
+        const opt = SUBJECT_OPTIONS.find(o => o.id === q.subjectOptionId);
+        return { value: opt?.id || '', text: opt?.name || q.subject || 'বিষয় লেখা নেই' };
+      }
+      if (culprit.key === 'chapter') {
+        const chap = availableChapters.find(c => c.id === q.chapterId);
+        return { value: q.chapterId || '', text: chap?.name || q.chapterId || q.chapter || 'অধ্যায় লেখা নেই' };
+      }
+      if (culprit.key === 'examType') {
+        const shown = displayExamType(q);
+        return { value: shown, text: shown || 'ধরন লেখা নেই' };
+      }
+      return { value: q.year || '', text: q.year || 'সাল লেখা নেই' };
+    };
+
+    const map = new Map();
+    source.forEach(q => {
+      const { value, text } = labelOf(q);
+      const row = map.get(text) || { value, text, count: 0 };
+      row.count++;
+      map.set(text, row);
+    });
+
+    const apply = (value) => {
+      if (!value) return null;
+      if (culprit.key === 'subject') return () => { setFilterSubjectOptionId(value); setFilterChapter('all'); };
+      if (culprit.key === 'chapter') return () => setFilterChapter(value);
+      if (culprit.key === 'examType') return () => setFilterExamType(value);
+      return () => setFilterSession(value);
+    };
+
+    const rows = Array.from(map.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6)
+      .map(r => ({ ...r, apply: apply(r.value) }));
+
+    return { label: culprit.label, rows };
+  }, [filterStages, stageInput, availableChapters]);
+
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
 
@@ -778,7 +907,7 @@ export default function AdmissionQuestionManager() {
             </button>
 
             <button
-              onClick={() => setShowBulkModal(true)}
+              onClick={handleOpenBulkModal}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-sm transition-colors"
             >
               <UploadCloud className="h-3.5 w-3.5" />
@@ -800,9 +929,9 @@ export default function AdmissionQuestionManager() {
               }}
               className="w-full"
             >
-              <option value="all">সকল বিষয় ও পত্র</option>
+              <option value="all">সকল বিষয় ও পত্র ({optionCounts.subject.all})</option>
               {SUBJECT_OPTIONS.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+                <option key={s.id} value={s.id}>{s.name} ({optionCounts.subject[s.id] || 0})</option>
               ))}
             </select>
           </div>
@@ -815,9 +944,9 @@ export default function AdmissionQuestionManager() {
               onChange={(e) => setFilterChapter(e.target.value)}
               className="w-full"
             >
-              <option value="all">সকল অধ্যায়</option>
+              <option value="all">সকল অধ্যায় ({optionCounts.chapter.all})</option>
               {availableChapters.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>{c.name} ({optionCounts.chapter[c.id] || 0})</option>
               ))}
             </select>
           </div>
@@ -830,9 +959,9 @@ export default function AdmissionQuestionManager() {
               onChange={(e) => setFilterExamType(e.target.value)}
               className="w-full"
             >
-              <option value="all">সকল পরীক্ষা</option>
+              <option value="all">সকল পরীক্ষা ({optionCounts.examType.all})</option>
               {examTypeOptions.map(e => (
-                <option key={e} value={e}>{e}</option>
+                <option key={e} value={e}>{e} ({optionCounts.examType[e] || 0})</option>
               ))}
             </select>
           </div>
@@ -845,9 +974,9 @@ export default function AdmissionQuestionManager() {
               onChange={(e) => setFilterSession(e.target.value)}
               className="w-full"
             >
-              <option value="all">সকল সেশন</option>
+              <option value="all">সকল সেশন ({optionCounts.session.all})</option>
               {sessionOptions.map(year => (
-                <option key={year} value={year}>{year}</option>
+                <option key={year} value={year}>{year} ({optionCounts.session[year] || 0})</option>
               ))}
             </select>
           </div>
@@ -874,8 +1003,8 @@ export default function AdmissionQuestionManager() {
           ═══════════════════════════════════════════════════════════════════════════ */}
       <div className="space-y-3">
         <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-          <span>মোট প্রশ্ন পাওয়া গেছে: {filteredQuestions.length} টি</span>
-          <button onClick={fetchQuestions} className="hover:text-white flex items-center gap-1">
+          <span>মোট প্রশ্ন পাওয়া গেছে: <strong className="text-white">{filteredQuestions.length}</strong> টি {questions.length > 0 && <span className="text-slate-500">(ডাটাবেসে মোট {questions.length} টি)</span>}</span>
+          <button onClick={fetchQuestions} className="hover:text-white flex items-center gap-1 transition-colors">
             <RotateCcw className="h-3 w-3" /> রিফ্রেশ
           </button>
         </div>
@@ -886,12 +1015,103 @@ export default function AdmissionQuestionManager() {
             <p className="text-slate-400 text-xs">প্রশ্ন লোড হচ্ছে...</p>
           </div>
         ) : filteredQuestions.length === 0 ? (
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.01] p-10 text-center space-y-3">
-            <BookOpen className="h-8 w-8 text-slate-600 mx-auto" />
-            <p className="text-slate-400 text-sm font-medium">কোনো প্রশ্ন পাওয়া যায়নি</p>
-            <p className="text-slate-500 text-xs">
-              উপরের 'বাল্ক JSON আপলোড' বাটনে ক্লিক করে প্রশ্ন পেস্ট করুন।
-            </p>
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.01] p-8 sm:p-10 text-center space-y-4">
+            <BookOpen className="h-10 w-10 text-slate-600 mx-auto" />
+            <div className="space-y-1">
+              <p className="text-slate-200 text-sm font-medium">কোনো প্রশ্ন পাওয়া যায়নি</p>
+              <p className="text-slate-400 text-xs max-w-md mx-auto">
+                {questions.length > 0
+                  ? `ডাটাবেসে মোট ${questions.length}টি প্রশ্ন রয়েছে, তবে আপনার নির্বাচিত বিষয়, অধ্যায় বা পরীক্ষার ধরনের সাথে কোনোটি মেলেনি।`
+                  : 'ডাটাবেসে এখনো কোনো প্রশ্ন আপলোড করা হয়নি। নিচের বাটনে ক্লিক করে প্রশ্ন যুক্ত করুন।'}
+              </p>
+            </div>
+            {/* কোন ফিল্টারে বাদ পড়ল — ধাপে ধাপে সংখ্যা, দায়ী ফিল্টারটা লাল */}
+            {questions.length > 0 && (
+              <div className="mx-auto max-w-sm rounded-lg border border-white/[0.07] bg-white/[0.02] p-3 text-left">
+                <p className="mb-2 text-[11px] font-semibold text-slate-300">ফিল্টার ধাপে কতটা প্রশ্ন টিকেছে</p>
+                <ul className="space-y-1.5">
+                  {filterStages.map(stage => (
+                    <li key={stage.key} className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className={`truncate ${stage.isCulprit ? 'text-rose-300 font-semibold' : 'text-slate-400'}`}>
+                        {stage.label}{stage.value ? `: ${stage.value}` : ''}
+                      </span>
+                      <span className="flex shrink-0 items-center gap-2">
+                        <span className={`font-mono ${stage.isCulprit ? 'text-rose-300' : 'text-slate-300'}`}>{stage.count}</span>
+                        {stage.isCulprit && (
+                          <button
+                            onClick={stage.clear}
+                            className="rounded border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium text-rose-300 transition hover:bg-rose-500/20"
+                          >
+                            সরান
+                          </button>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                {isMainBookFilter && (stageInput.examType || []).length > 0 && (
+                  <div className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/[0.07] p-2.5">
+                    <p className="mb-2 text-[11px] text-amber-200">
+                      এই {(stageInput.examType || []).length}টি প্রশ্ন আপলোডের সময় মূল বইয়ের ফ্ল্যাগ পায়নি, তাই এই ফিল্টারে আসছে না।
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleMarkAsMainBook}
+                      disabled={markingMainBook}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white transition hover:bg-amber-500 disabled:opacity-60"
+                    >
+                      {markingMainBook ? 'চিহ্নিত করা হচ্ছে...' : `এই ${(stageInput.examType || []).length}টিকে মূল বই হিসেবে চিহ্নিত করুন`}
+                    </button>
+                  </div>
+                )}
+
+                {culpritBreakdown && (
+                  <div className="mt-3 border-t border-white/[0.07] pt-2.5">
+                    <p className="mb-1.5 text-[11px] text-slate-400">
+                      আগের ধাপের প্রশ্নগুলোতে <span className="text-slate-200">{culpritBreakdown.label}</span> আসলে যা আছে:
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {culpritBreakdown.rows.map(row => (
+                        <button
+                          key={row.text}
+                          type="button"
+                          onClick={row.apply || undefined}
+                          disabled={!row.apply}
+                          className={`rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10.5px] text-slate-300 transition ${row.apply ? 'hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-white' : 'cursor-default opacity-70'}`}
+                        >
+                          {row.text} <span className="font-mono text-slate-400">{row.count}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+              {(filterSubjectOptionId !== 'all' || filterChapter !== 'all' || filterExamType !== 'all' || filterSession !== 'all' || searchQuery) && (
+                <button
+                  onClick={handleResetFilters}
+                  className="px-3.5 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 text-xs font-medium transition"
+                >
+                  সকল ফিল্টার রিসেট করুন
+                </button>
+              )}
+              <button
+                onClick={handleOpenAddSingle}
+                className="px-3.5 py-1.5 rounded-lg border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-xs font-medium transition"
+              >
+                + এই অধ্যায়ে প্রশ্ন যুক্ত করুন
+              </button>
+              <button
+                onClick={handleOpenBulkModal}
+                className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-sm transition"
+              >
+                <UploadCloud className="h-3.5 w-3.5 inline mr-1" />
+                বাল্ক JSON আপলোড
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -916,7 +1136,7 @@ export default function AdmissionQuestionManager() {
                         ))
                       ) : (
                         <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                          {q.examType || 'MBBS & BDS'} {q.year || ''}
+                          {displayExamType(q) || 'MBBS & BDS'} {q.year || ''}
                         </span>
                       )}
                       {q.paper && (
@@ -1123,6 +1343,22 @@ export default function AdmissionQuestionManager() {
                 </div>
               )}
             </div>
+
+            {/* ডুপ্লিকেট হলে কী করব */}
+            <label className="flex items-start gap-2 text-xs bg-indigo-500/[0.07] p-2.5 rounded-xl border border-indigo-500/20 text-indigo-200 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={updateDuplicates}
+                onChange={(e) => setUpdateDuplicates(e.target.checked)}
+                className="mt-0.5 rounded text-indigo-500 focus:ring-indigo-400 h-4 w-4"
+              />
+              <span>
+                <span className="font-bold">ডুপ্লিকেট হলে মেটাডেটা আপডেট করো</span>
+                <span className="block text-[11px] text-indigo-300/70">
+                  একই প্রশ্ন আগে থেকে থাকলে বাদ না দিয়ে তার অধ্যায়, পরীক্ষার ধরন ও মূল বইয়ের ফ্ল্যাগ ঠিক করে দেবে।
+                </span>
+              </span>
+            </label>
 
             <p className="text-[11px] text-slate-500 -mt-1.5">
               সেশন সাল আলাদা করে দিতে হবে না — নিচের JSON-এর প্রতিটা প্রশ্নের নিজস্ব <code className="text-indigo-300">"year"</code> ফিল্ড থেকে স্বয়ংক্রিয়ভাবে নেওয়া হবে।

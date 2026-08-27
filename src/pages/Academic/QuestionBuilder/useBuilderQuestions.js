@@ -3,6 +3,10 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { STALE } from '../../../lib/queryConfig';
 import { ADMISSION_BUILDER_QUESTIONS } from '../../../data/academic/admissionBuilderConfig';
+import { normalizeChapterKey } from '../../../lib/questionFilters';
+// চ্যাপ্টার কী নরমালাইজেশন এখন শেয়ার্ড লাইব্রেরিতে — পুরনো ইমপোর্টগুলো
+// যেন না ভাঙে, তাই এখান থেকেই আবার এক্সপোর্ট করা হয়।
+export { normalizeChapterKey } from '../../../lib/questionFilters';
 
 /** Firestore এ জ্ঞান/অনুধাবন দুটোই `type: 'knowledge'`, আসল ভাগটা ভিতরের ফিল্ডে। */
 const normalizeType = (docType, raw) => {
@@ -10,17 +14,6 @@ const normalizeType = (docType, raw) => {
   return raw.type === 'k' ? 'k' : 'kh';
 };
 
-export const normalizeChapterKey = (id = '') => {
-  return String(id || '')
-    .toLowerCase()
-    .trim()
-    .replace('bio-bot-', 'bio-1-')
-    .replace('bio-zoo-', 'bio-2-')
-    .replace('bio-bot', 'bio-1')
-    .replace('bio-zoo', 'bio-2')
-    .replace('bot-', 'bio-1-')
-    .replace('zoo-', 'bio-2-');
-};
 
 export const findMatchingChapter = (chapters, raw) => {
   if (!Array.isArray(chapters) || chapters.length === 0) return null;

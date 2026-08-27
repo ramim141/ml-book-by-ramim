@@ -865,11 +865,14 @@ export default function AdmissionManager() {
   // ─── Simplified Chapter CRUD Handlers ───────────────────────────────────────
   const handleOpenAddChapter = () => {
     const isBio = currentSelectedSubject?.id === 'biology';
+    const subPrefix = currentSelectedSubject?.id === 'biology' ? 'bio-bot' : (currentSelectedSubject?.id || 'chap');
+    const existingCount = (currentSelectedSubject?.chapters || []).length;
+
     setChapterForm({
-      id: `${currentSelectedSubject?.id || 'chap'}-ch-${Date.now().toString().slice(-4)}`,
+      id: `${subPrefix}-${existingCount + 1}`,
       paper: isBio ? 'উদ্ভিদবিজ্ঞান' : '১ম পত্র',
       name: '',
-      repeatedQuestionsCount: 30
+      repeatedQuestionsCount: 0
     });
     setEditingChapter(null);
     setShowChapterModal(true);
@@ -2548,33 +2551,37 @@ export default function AdmissionManager() {
                 />
               </div>
 
-              {/* Row: ID & Questions Count */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-zinc-300 font-semibold mb-1">অধ্যায় আইডি / Slug</label>
-                  <input
-                    type="text"
-                    value={chapterForm.id}
-                    onChange={(e) => setChapterForm({ ...chapterForm, id: e.target.value })}
-                    placeholder="যেমন: phy-ch-1"
-                    className="w-full font-mono"
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-zinc-300 font-semibold">বিগত সালের প্রশ্ন সংখ্যা</label>
+              {/* Chapter ID / Slug */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-zinc-300 font-semibold">
+                    অধ্যায় আইডি / Slug <span className="text-zinc-500 font-normal">(ইচ্ছামতো দিতে পারেন)</span>
+                  </label>
+                  {editingChapter && (
                     <span className="text-[11px] text-emerald-400 font-mono">
-                      (ডাটাবেজে প্রশ্ন: {getLiveChapterQuestionsCount(currentSelectedSubject?.id, editingChapter || chapterForm)}টি)
+                      (ডাটাবেজে মোট প্রশ্ন: {getLiveChapterQuestionsCount(currentSelectedSubject?.id, editingChapter)}টি)
                     </span>
-                  </div>
-                  <input
-                    type="number"
-                    value={chapterForm.repeatedQuestionsCount}
-                    onChange={(e) => setChapterForm({ ...chapterForm, repeatedQuestionsCount: e.target.value })}
-                    className="w-full font-mono font-bold"
-                    placeholder="30"
-                  />
+                  )}
                 </div>
+                <input
+                  type="text"
+                  value={chapterForm.id}
+                  onChange={(e) => setChapterForm({ ...chapterForm, id: e.target.value })}
+                  placeholder="যেমন: bio-bot-3, bio-zoo-1, phy-1-2"
+                  className="w-full font-mono text-sm"
+                  required
+                />
+                <p className="text-[11px] text-zinc-400 mt-1">
+                  💡 আপনি আপনার সুবিধামতো যেকোনো ইউনিক Slug দিতে পারবেন (যেমন: <code className="text-indigo-300">bio-bot-3</code>, <code className="text-indigo-300">bio-1-3</code>, <code className="text-indigo-300">phy-1-2</code>)।
+                </p>
+              </div>
+
+              {/* Dynamic Auto-Count Info Banner */}
+              <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-200">
+                <Sparkles className="h-4 w-4 shrink-0 text-indigo-400" />
+                <p className="text-[11px] leading-relaxed">
+                  <strong>অটো ডাইনামিক কাউন্টিং:</strong> বিগত সালের প্রশ্ন সংখ্যা ম্যানুয়ালি দেওয়ার প্রয়োজন নেই। প্রশ্ন আপলোড করলে তা স্বয়ংক্রিয়ভাবে রিয়েল-টাইমে গণনা হবে।
+                </p>
               </div>
 
               {/* Bottom Actions */}
