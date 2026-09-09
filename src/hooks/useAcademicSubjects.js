@@ -3,17 +3,21 @@ import { useQuery } from '@tanstack/react-query';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { QK, STALE } from '../lib/queryConfig';
-import { getSubjectPath } from '../utils/academicRoutes';
+import { getSubjectPath, DEFAULT_ACADEMIC_SUBJECTS } from '../utils/academicRoutes';
 
 /**
- * `admin_settings/subjects` পুরো একাডেমিক হাবের মেরুদণ্ড — বিষয়, অধ্যায়, স্তর
- * সবই এখান থেকে আসে। আগে এই একটি ডকুমেন্ট ২০+ জায়গায় আলাদা করে পড়া হতো,
- * প্রতিবার নেভিগেট করলেই আবার। এখন একটাই ক্যাশড কোয়েরি সবাই ভাগ করে নেয়।
+ * `admin_settings/subjects`
  */
 async function fetchSubjects() {
-  const snap = await getDoc(doc(db, 'admin_settings', 'subjects'));
-  if (!snap.exists()) return [];
-  return snap.data().list || [];
+  try {
+    const snap = await getDoc(doc(db, 'admin_settings', 'subjects'));
+    if (!snap.exists()) return DEFAULT_ACADEMIC_SUBJECTS;
+    const list = snap.data().list || [];
+    return list.length > 0 ? list : DEFAULT_ACADEMIC_SUBJECTS;
+  } catch (err) {
+    console.warn('Failed to fetch subjects from Firestore, using defaults:', err);
+    return DEFAULT_ACADEMIC_SUBJECTS;
+  }
 }
 
 export function useAcademicSubjects() {
@@ -24,7 +28,7 @@ export function useAcademicSubjects() {
   });
 }
 
-/** নির্দিষ্ট স্তরের (SSC / HSC / Admission) বিষয়গুলো */
+/** SSC / HSC / Admission */
 export function useSubjectsByLevel(level) {
   const { data = [], ...rest } = useAcademicSubjects();
   const filtered = useMemo(
@@ -44,10 +48,6 @@ export const SUBJECT_COLOR_PRESETS = [
   'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
 ];
 
-/**
- * SSC / HSC / Admission — তিনটি ড্যাশবোর্ডই একই আকৃতির কার্ড দেখায়,
- * তাই ম্যাপিংটা এক জায়গায় রাখা হলো।
- */
 export function useDashboardSubjects(level) {
   const { data, isLoading, isError } = useSubjectsByLevel(level);
 
@@ -55,7 +55,7 @@ export function useDashboardSubjects(level) {
     () => data.map((s, idx) => ({
       id: s.id,
       title: s.label,
-      subtitle: s.chapters?.length ? `${s.chapters.length} টি অধ্যায়` : 'সকল অধ্যায়',
+      subtitle: s.chapters?.length ? `${s.chapters.length} টি অধ্যায়` : 'সকল অধ্যায়',
       emoji: s.emoji,
       path: getSubjectPath(s),
       color: SUBJECT_COLOR_PRESETS[idx % SUBJECT_COLOR_PRESETS.length],

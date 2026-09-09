@@ -1,31 +1,32 @@
 import { useState, useEffect, useMemo, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, Navigate } from 'react-router-dom';
-import { HelpCircle, ChevronDown, ChevronUp, CheckCircle2, Circle, ArrowLeft, Loader2, Search, SlidersHorizontal, LayoutGrid, Filter, Flag, FileText } from 'lucide-react';
+import { ArrowLeft, Loader2, Search, SlidersHorizontal, LayoutGrid, FileText } from 'lucide-react';
 import FilterSelect from '../../../components/UI/FilterSelect';
 import SharedMCQItem from '../../../components/Academic/SharedMCQItem';
 import ExamPdfExportModal from '../../../components/Academic/ExamPdfExportModal';
 import { SkeletonList } from '../../../components/UI/Skeleton';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
-import { resolveSubjectFromRoute } from '../../../utils/academicRoutes';
+import { resolveSubjectFromRoute, DEFAULT_ACADEMIC_SUBJECTS } from '../../../utils/academicRoutes';
 import { optionsOf } from '../../../lib/questionUtils';
 
+const BN_DIGITS = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
 const enToBnNumber = (numStr) => {
   if (numStr === null || numStr === undefined || numStr === '') return numStr;
-  const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
-  return String(numStr).replace(/[0-9]/g, w => bn[w]);
+  return String(numStr).replace(/[0-9]/g, w => BN_DIGITS[w] || w);
 };
 
 const normalizeYear = (yearStr) => {
   if (!yearStr) return yearStr;
   const bnToEn = { '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9' };
-  let enYear = String(yearStr).replace(/[০-৯]/g, w => bnToEn[w]);
+  let enYear = String(yearStr).replace(/[০-৯]/g, w => bnToEn[w] || w);
   if (enYear.length === 2) {
     enYear = "20" + enYear;
   }
   return enYear;
 };
+
 export default function MCQQuestionViewer({ educationLevel: propEdu, subject: propSub } = {}) {
   const { educationLevel: paramEdu, subject: paramSub } = useParams();
   const educationLevel = propEdu || paramEdu;
@@ -41,7 +42,6 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
   const [visibleCount, setVisibleCount] = useState(15);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
 
-  // Reset visible count when filters change
   useEffect(() => {
     setVisibleCount(15);
   }, [searchQuery, selectedChapter, selectedBoard, selectedYear, selectedTopic, selectedInstitution]);
@@ -49,24 +49,55 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
   const { data = { config: null, questions: [] }, isLoading: loading, isError, error } = useQuery({
     queryKey: ['mcqQuestions', educationLevel, subject],
     queryFn: async () => {
-      const subjectsSnap = await getDoc(doc(db, 'admin_settings', 'subjects'));
-      const subjects = subjectsSnap.exists() ? subjectsSnap.data().list || [] : [];
+      let subjects = DEFAULT_ACADEMIC_SUBJECTS;
+      try {
+        const subjectsSnap = await getDoc(doc(db, 'admin_settings', 'subjects'));
+        if (subjectsSnap.exists() && subjectsSnap.data().list?.length > 0) {
+          subjects = subjectsSnap.data().list;
+        }
+      } catch (e) {
+        console.warn('Using default subjects fallback for MCQ:', e);
+      }
+
       const resolved = resolveSubjectFromRoute(subjects, educationLevel, subject);
 
       if (!resolved) {
         throw new Error('NotFound');
       }
 
-      const contentSnap = await getDocs(query(
-        collection(db, 'academic_content'),
-        where('subject', '==', resolved.id),
-        where('type', '==', 'mcq')
-      ));
+      const subjectVariants = Array.from(new Set([
+        resolved.id,
+        `${educationLevel}-${subject}`.toLowerCase(),
+        String(subject).toLowerCase(),
+        resolved.id.replace(/-1$/, '')
+      ])).filter(Boolean);
+
+      let contentSnapDocs = [];
+      try {
+        const snap = await getDocs(query(
+          collection(db, 'academic_content'),
+          where('subject', 'in', subjectVariants),
+          where('type', '==', 'mcq')
+        ));
+        contentSnapDocs = snap.docs;
+      } catch (err) {
+        const snap = await getDocs(query(
+          collection(db, 'academic_content'),
+          where('subject', '==', resolved.id),
+          where('type', '==', 'mcq')
+        ));
+        contentSnapDocs = snap.docs;
+      }
 
       const chapters = resolved.chapters || [];
-      const questions = contentSnap.docs.map((docSnap) => {
+      const questions = contentSnapDocs.map((docSnap) => {
         const data = docSnap.data();
-        const chapter = chapters.find((item) => item.id === data.chapterId);
+        const chapter = chapters.find((item) => {
+          if (item.id === data.chapterId) return true;
+          const itemNum = String(item.id || '').replace(/\D/g, '');
+          const docNum = String(data.chapterId || '').replace(/\D/g, '');
+          return Boolean(itemNum && docNum && itemNum === docNum);
+        });
         return {
           firebaseId: docSnap.id,
           id: docSnap.id,
@@ -83,14 +114,12 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
   const subjectConfig = data?.config;
   const allQuestions = data?.questions || [];
   
-  // NotFound logic
   useEffect(() => {
     if (isError && error?.message === 'NotFound') {
       setNotFound(true);
     }
   }, [isError, error]);
 
-  // Extract filter options dynamically
   const filterOptions = useMemo(() => {
     const chapters = (subjectConfig?.chapters || []).map(c => ({ value: c.id, label: c.title || c.name || c.id }));
 
@@ -112,7 +141,11 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
           if (i.year) yearsSet.add(normalizeYear(i.year));
         });
       }
-      if (mcq.topic && (selectedChapter === 'all' || mcq.chapterId === selectedChapter)) {
+      const matchesChapter = selectedChapter === 'all' || 
+        mcq.chapterId === selectedChapter ||
+        (String(mcq.chapterId || '').replace(/\D/g, '') === String(selectedChapter).replace(/\D/g, '') && String(selectedChapter).replace(/\D/g, '') !== '');
+
+      if (mcq.topic && matchesChapter) {
         topicsSet.add(mcq.topic);
       }
     });
@@ -127,7 +160,6 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
     return { chapters, boards, years, topics, institutions };
   }, [allQuestions, subjectConfig, selectedChapter]);
 
-  // Apply filters & search
   const filteredQuestions = useMemo(() => {
     return allQuestions.filter(mcq => {
       const matchesSearch = searchQuery === '' ||
@@ -135,7 +167,10 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
         mcq.topic?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         optionsOf(mcq).some(o => String(o ?? '').toLowerCase().includes(searchQuery.toLowerCase()));
 
-      const matchesChapter = selectedChapter === 'all' || mcq.chapterId === selectedChapter;
+      const matchesChapter = selectedChapter === 'all' || 
+        mcq.chapterId === selectedChapter ||
+        (String(mcq.chapterId || '').replace(/\D/g, '') === String(selectedChapter).replace(/\D/g, '') && String(selectedChapter).replace(/\D/g, '') !== '');
+
       const matchesBoard = selectedBoard === 'all' || mcq.boards?.some(b => b.name === selectedBoard);
       const matchesInstitution = selectedInstitution === 'all' || mcq.institutions?.some(i => i.name === selectedInstitution);
       const matchesYear = selectedYear === 'all' ||
@@ -150,7 +185,7 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
   const renderFilters = () => (
     <>
       <div>
-        <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">অধ্যায়</label>
+        <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">অধ্যায়</label>
         <FilterSelect
           value={selectedChapter}
           onChange={setSelectedChapter}
@@ -216,7 +251,7 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              {subjectConfig?.label || 'লোডিং...'} বহুনির্বাচনী (MCQ) প্রশ্নব্যাংক
+              {subjectConfig?.label || 'লোড হচ্ছে...'} বহুনির্বাচনী (MCQ) প্রশ্নব্যাংক
             </h1>
             <p className="text-slate-400 text-xs sm:text-sm mt-1">
               সকল অধ্যায়ের বিগত সালের গুরুত্বপূর্ণ বোর্ড ও কলেজ প্রশ্ন সমাধান একসাথে।
@@ -229,7 +264,7 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-600/20 transition-all"
             >
               <FileText className="w-4 h-4" />
-              <span>প্রশ্নপত্র ও উত্তরমালা PDF</span>
+              <span>প্রশ্নপত্র ও সমাধান PDF</span>
             </button>
             <div className="text-xs sm:text-sm bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-1.5 rounded-full text-indigo-300 font-bold">
               মোট প্রশ্ন: {enToBnNumber(filteredQuestions.length)} টি
@@ -305,13 +340,13 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
 
         {/* Loader or Questions Grid */}
         {loading ? (
-          <div className="py-4">
+          <div className="py-8">
             <SkeletonList count={5} />
           </div>
         ) : filteredQuestions.length > 0 ? (
           <div className="flex flex-col gap-4 pb-8">
             {filteredQuestions.slice(0, visibleCount).map((mcq, idx) => (
-              <SharedMCQItem key={mcq.firebaseId || idx} mcq={mcq} index={idx} />
+              <SharedMCQItem key={mcq.firebaseId || mcq.id || idx} mcq={mcq} index={idx} />
             ))}
 
             {visibleCount < filteredQuestions.length && (
@@ -320,7 +355,7 @@ export default function MCQQuestionViewer({ educationLevel: propEdu, subject: pr
                   onClick={() => setVisibleCount(prev => prev + 15)}
                   className="px-6 py-2.5 bg-indigo-500/20 text-indigo-300 font-bold rounded-xl border border-indigo-500/30 hover:bg-indigo-500/30 transition-colors"
                 >
-                  আরও দেখুন
+                  আরো দেখুন
                 </button>
               </div>
             )}

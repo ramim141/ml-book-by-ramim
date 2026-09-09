@@ -8,6 +8,8 @@ import {
   GraduationCap, PanelLeftClose, PanelLeftOpen, Settings,
   ExternalLink, Sparkles, ShieldCheck, Check
 } from 'lucide-react';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 import AdminCommandPalette from '../../components/Admin/AdminCommandPalette';
 
@@ -80,6 +82,37 @@ export default function AdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [pendingPayments, setPendingPayments] = useState(0);
+  const [pendingReports, setPendingReports] = useState(0);
+
+  useEffect(() => {
+    // Live listener for pending payments
+    const paymentsQuery = query(
+      collection(db, 'payment_requests'),
+      where('status', '==', 'pending')
+    );
+    const unsubscribePayments = onSnapshot(paymentsQuery, (snapshot) => {
+      setPendingPayments(snapshot.size);
+    }, (error) => {
+      console.warn('Error listening to pending payments:', error);
+    });
+
+    // Live listener for pending reports
+    const reportsQuery = query(
+      collection(db, 'reported_errors'),
+      where('status', '==', 'pending')
+    );
+    const unsubscribeReports = onSnapshot(reportsQuery, (snapshot) => {
+      setPendingReports(snapshot.size);
+    }, (error) => {
+      console.warn('Error listening to pending reports:', error);
+    });
+
+    return () => {
+      unsubscribePayments();
+      unsubscribeReports();
+    };
+  }, []);
   
   // Sidebar minimize/collapse state with localStorage persistence
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -183,37 +216,37 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100 font-bangla pb-16 selection:bg-zinc-800">
       
-      {/* ── Modern Monochromatic Topbar ───────────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-zinc-800/90 bg-[#09090b]/95 backdrop-blur-xl">
+      {/* ── Sleek Minimalist Topbar ───────────────────────────────────── */}
+      <header className="sticky top-0 z-50 border-b border-zinc-800/80 bg-[#09090b]/80 backdrop-blur-md shadow-sm">
         <div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
-          <div className="flex h-14 items-center justify-between gap-3 sm:gap-4">
+          <div className="flex h-16 items-center justify-between gap-3 sm:gap-4">
             
-            {/* Left: Brand, Sidebar Toggle & System Pulse */}
+            {/* Left: Brand, Sidebar Toggle & System Status */}
             <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={toggleSidebar}
-                className="hidden lg:flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-100 transition-colors"
+                className="hidden lg:flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-100 transition-all duration-200"
                 title={sidebarCollapsed ? 'সাইডবার প্রসারিত করুন' : 'সাইডবার মিনিমাইজ করুন'}
                 aria-label="Toggle Sidebar"
               >
                 {sidebarCollapsed ? (
-                  <PanelLeftOpen className="h-4 w-4 text-zinc-300" />
+                  <PanelLeftOpen className="h-4.5 w-4.5 text-zinc-300" />
                 ) : (
-                  <PanelLeftClose className="h-4 w-4 text-zinc-400" />
+                  <PanelLeftClose className="h-4.5 w-4.5 text-zinc-400" />
                 )}
               </button>
 
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200">
-                  <ShieldCheck className="h-4 w-4" />
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-300 shadow-inner">
+                  <ShieldCheck className="h-4.5 w-4.5" />
                 </div>
                 <div className="truncate">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-zinc-100 tracking-tight">
                       অ্যাডমিন কনসোল
                     </span>
-                    <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10.5px] font-medium">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-medium animate-pulse">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                       লাইভ
                     </span>
                   </div>
@@ -221,17 +254,18 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Middle: Command Palette Search Trigger */}
-            <div className="flex items-center gap-2">
+            {/* Middle & Right: Actions */}
+            <div className="flex items-center gap-3">
+              {/* Command Search */}
               <button
                 onClick={() => setPaletteOpen(true)}
                 title="ট্যাব বা কমান্ড খুঁজুন (Ctrl+K)"
-                className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/70 px-2.5 py-1.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+                className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-1.5 text-xs text-zinc-400 transition-all duration-200 hover:border-zinc-700 hover:bg-zinc-900/80 hover:text-zinc-200"
               >
                 <Search className="h-3.5 w-3.5 text-zinc-500" />
-                <span className="hidden md:inline">কমান্ড বা ট্যাব খুঁজুন...</span>
-                <kbd className="hidden rounded border border-zinc-800 bg-zinc-950 px-1.5 py-0.5 font-sans text-[10px] text-zinc-400 md:inline font-mono">
-                  ⌘K
+                <span className="hidden md:inline font-medium">কমান্ড খুঁজুন...</span>
+                <kbd className="hidden rounded bg-zinc-850 border border-zinc-800 px-1.5 py-0.5 font-sans text-[9px] text-zinc-500 md:inline font-mono tracking-wide">
+                  Ctrl+K
                 </kbd>
               </button>
 
@@ -240,33 +274,33 @@ export default function AdminDashboard() {
                 to="/"
                 target="_blank"
                 rel="noreferrer"
-                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 text-xs font-medium text-zinc-300 hover:text-white hover:border-zinc-700 transition-colors"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-800 bg-zinc-900/30 text-xs font-semibold text-zinc-300 hover:text-white hover:border-zinc-700 hover:bg-zinc-900/70 transition-all duration-200"
                 title="মূল ওয়েবসাইট দেখুন"
               >
                 <span>ওয়েবসাইট</span>
                 <ExternalLink className="h-3 w-3 text-zinc-500" />
               </Link>
 
-              {/* User Avatar & Logout */}
-              <div className="flex items-center gap-2 pl-2 border-l border-zinc-800">
+              {/* Profile & Logout Group */}
+              <div className="flex items-center gap-2.5 pl-2.5 border-l border-zinc-800/80">
                 {currentUser?.photoURL ? (
                   <img
                     src={currentUser.photoURL}
                     alt="Admin"
-                    className="w-7 h-7 rounded-lg object-cover border border-zinc-700"
+                    className="w-8 h-8 rounded-xl object-cover border border-zinc-800 hover:border-zinc-700 transition"
                   />
                 ) : (
-                  <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 font-bold text-xs">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-900 border border-zinc-750 flex items-center justify-center text-zinc-300 font-bold text-xs tracking-wider">
                     {currentUser?.displayName?.charAt(0) || 'A'}
                   </div>
                 )}
 
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs font-semibold text-zinc-400 transition-colors hover:border-rose-500/30 hover:text-rose-300 hover:bg-rose-500/10 active:scale-95"
+                  className="flex items-center gap-1.5 rounded-xl border border-zinc-800/80 bg-zinc-900/40 px-3 py-1.5 text-xs font-semibold text-zinc-400 transition-all duration-200 hover:border-rose-500/30 hover:text-rose-400 hover:bg-rose-500/10 active:scale-95"
                   title="লগআউট"
                 >
-                  <LogOut className="h-3.5 w-3.5" />
+                  <LogOut className="h-3.5 w-3.5 text-zinc-500 hover:text-rose-400" />
                   <span className="hidden md:inline">লগআউট</span>
                 </button>
               </div>
@@ -284,49 +318,59 @@ export default function AdminDashboard() {
           type="button"
           onClick={() => setMobileNavOpen((v) => !v)}
           aria-expanded={mobileNavOpen}
-          className="mb-4 flex w-full items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900/90 p-3 text-left lg:hidden"
+          className="mb-4 flex w-full items-center justify-between gap-3 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md p-3 text-left lg:hidden hover:border-zinc-750 transition"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             {activeTabInfo?.icon && (
-              <div className="p-1.5 rounded-lg bg-zinc-800 text-zinc-300 border border-zinc-700 shrink-0">
+              <div className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 shrink-0">
                 <activeTabInfo.icon className="h-4 w-4" />
               </div>
             )}
             <div className="min-w-0">
-              <span className="text-[11px] text-zinc-500 font-medium block leading-tight">বর্তমান ট্যাব:</span>
-              <span className="text-xs font-semibold text-zinc-200 truncate block">
+              <span className="text-[10px] text-zinc-500 font-semibold block uppercase tracking-wider leading-tight">বর্তমান ট্যাব</span>
+              <span className="text-xs font-semibold text-zinc-200 truncate block mt-0.5">
                 {getActiveTabTitle()}
               </span>
             </div>
           </div>
-          <div className="px-2 py-1 rounded-md bg-zinc-800 text-[11px] font-semibold text-zinc-300 border border-zinc-700">
+          <div className="px-3 py-1.5 rounded-xl bg-zinc-800 text-xs font-semibold text-zinc-300 border border-zinc-700">
             {mobileNavOpen ? 'বন্ধ করুন' : 'মেন্যু তালিকা'}
           </div>
         </button>
 
         {/* Mobile Menu Grid (Collapsible) */}
         {mobileNavOpen && (
-          <div className="mb-6 space-y-3 lg:hidden p-3 rounded-xl bg-zinc-900/95 border border-zinc-800 shadow-xl">
+          <div className="mb-6 space-y-4 lg:hidden p-3.5 rounded-2xl bg-zinc-900/90 backdrop-blur-lg border border-zinc-800 shadow-xl max-h-[70vh] overflow-y-auto">
             {tabCategories.map((category, idx) => (
-              <div key={idx} className="space-y-1 pb-2 border-b border-zinc-800/80 last:border-0 last:pb-0">
+              <div key={idx} className="space-y-1.5 pb-2.5 border-b border-zinc-800/60 last:border-0 last:pb-0 last:border-b-0">
                 <h3 className="px-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                   {category.title}
                 </h3>
-                <div className="grid grid-cols-2 gap-1">
+                <div className="grid grid-cols-2 gap-1.5">
                   {category.tabs.map(tab => {
                     const on = activeTab === tab.id;
+                    let badgeCount = 0;
+                    if (tab.id === 'payments') badgeCount = pendingPayments;
+                    if (tab.id === 'reports') badgeCount = pendingReports;
                     return (
                       <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center gap-2 p-2 rounded-lg text-left text-xs font-medium transition-colors ${
+                        className={`flex items-center justify-between gap-2 p-2.5 rounded-xl text-left text-xs font-medium transition-colors ${
                           on
-                            ? 'bg-zinc-800 text-white font-semibold border border-zinc-700'
-                            : 'bg-zinc-950/60 text-zinc-400 border border-zinc-900 hover:bg-zinc-900 hover:text-zinc-200'
+                            ? 'bg-zinc-850 text-white font-semibold border border-zinc-700'
+                            : 'bg-zinc-950/40 text-zinc-400 border border-zinc-900 hover:bg-zinc-850 hover:text-zinc-250'
                         }`}
                       >
-                        <tab.icon className={`h-3.5 w-3.5 shrink-0 ${on ? 'text-zinc-200' : 'text-zinc-500'}`} />
-                        <span className="truncate">{tab.label}</span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <tab.icon className={`h-4 w-4 shrink-0 ${on ? 'text-zinc-100' : 'text-zinc-550'}`} />
+                          <span className="truncate">{tab.label}</span>
+                        </div>
+                        {badgeCount > 0 && (
+                          <span className="shrink-0 flex h-4.5 min-w-[18px] px-1 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-bold text-white leading-none">
+                            {badgeCount}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -340,44 +384,69 @@ export default function AdminDashboard() {
         <div className="flex flex-col lg:flex-row items-start gap-5 lg:gap-6">
           
           {/* ── Sleek Minimalist Sidebar ────────────────────────────────────── */}
-          <aside className={`shrink-0 hidden lg:block transition-all duration-200 sticky top-20 ${
-            sidebarCollapsed ? 'w-[58px]' : 'w-60'
+          <aside className={`shrink-0 hidden lg:block transition-all duration-300 sticky top-20 ${
+            sidebarCollapsed ? 'w-[72px]' : 'w-64'
           }`}>
-            <div className="p-2 rounded-xl bg-zinc-900/50 border border-zinc-800/80 space-y-3 max-h-[calc(100vh-100px)] overflow-y-auto no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="p-2.5 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 backdrop-blur-md space-y-4 max-h-[calc(100vh-100px)] overflow-y-auto shadow-lg no-scrollbar">
               {tabCategories.map((category, idx) => (
-                <div key={idx} className="space-y-0.5">
+                <div key={idx} className="space-y-1">
                   {!sidebarCollapsed ? (
-                    <h3 className="px-2.5 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center justify-between">
+                    <h3 className="px-2.5 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex items-center justify-between">
                       <span>{category.title}</span>
-                      <span className="text-[9px] font-mono text-zinc-600">{category.tabs.length}</span>
+                      <span className="text-[9px] font-mono font-semibold px-1 py-0.5 rounded bg-zinc-950 text-zinc-650 border border-zinc-850">{category.tabs.length}</span>
                     </h3>
                   ) : (
-                    idx > 0 && <div className="my-1.5 border-t border-zinc-800/60" />
+                    idx > 0 && <div className="my-2.5 border-t border-zinc-800/60" />
                   )}
 
                   <div className="space-y-0.5">
                     {category.tabs.map(tab => {
                       const on = activeTab === tab.id;
+                      let badgeCount = 0;
+                      if (tab.id === 'payments') badgeCount = pendingPayments;
+                      if (tab.id === 'reports') badgeCount = pendingReports;
                       return (
                         <button
                           key={tab.id}
                           onClick={() => setActiveTab(tab.id)}
-                          title={tab.label}
-                          className={`group relative flex w-full items-center rounded-lg text-xs font-medium transition-colors ${
+                          className={`group relative flex w-full items-center rounded-xl text-xs font-medium transition-all duration-200 ${
                             sidebarCollapsed 
-                              ? 'justify-center p-2' 
-                              : 'gap-2.5 px-2.5 py-1.5'
+                              ? 'justify-center p-2.5' 
+                              : 'gap-2.5 px-3 py-2 border border-transparent'
                           } ${
                             on
-                              ? 'bg-zinc-800 text-white font-semibold border border-zinc-700/80 shadow-sm'
-                              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+                              ? 'bg-zinc-800/80 text-white font-semibold border-zinc-700/65 shadow-md shadow-black/10'
+                              : 'text-zinc-400 hover:text-zinc-105 hover:bg-zinc-800/35 border-transparent'
                           }`}
                         >
-                          <tab.icon className={`h-3.5 w-3.5 shrink-0 transition-colors ${
-                            on ? 'text-zinc-100' : 'text-zinc-500 group-hover:text-zinc-300'
+                          <tab.icon className={`h-4 w-4 shrink-0 transition-colors ${
+                            on 
+                              ? 'text-indigo-400 drop-shadow-[0_0_6px_rgba(99,102,241,0.45)]' 
+                              : 'text-zinc-500 group-hover:text-zinc-350'
                           }`} />
+                          
                           {!sidebarCollapsed && (
                             <span className="truncate">{tab.label}</span>
+                          )}
+
+                          {/* Desktop Badge Count */}
+                          {badgeCount > 0 && (
+                            sidebarCollapsed ? (
+                              <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[9px] font-bold text-white ring-2 ring-zinc-900 leading-none">
+                                {badgeCount}
+                              </span>
+                            ) : (
+                              <span className="ml-auto shrink-0 flex h-4.5 min-w-[18px] px-1 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-bold text-white leading-none">
+                                {badgeCount}
+                              </span>
+                            )
+                          )}
+
+                          {/* Hover Tooltip when collapsed */}
+                          {sidebarCollapsed && (
+                            <div className="absolute left-full ml-3 px-2.5 py-1 bg-zinc-950 border border-zinc-800 text-zinc-200 text-[11px] rounded-lg opacity-0 translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 pointer-events-none whitespace-nowrap z-[60] shadow-xl">
+                              {tab.label}
+                            </div>
                           )}
                         </button>
                       );
@@ -390,37 +459,126 @@ export default function AdminDashboard() {
 
           {/* ── Main Content Work Surface ──────────────────────────────────── */}
           <main className="flex-1 min-w-0 w-full">
-            {/* Global Input & Surface Styles */}
+            {/* Global Input & Surface Styles (Global Theme Injection) */}
             <style>{`
+              /* Slim custom scrollbars */
+              ::-webkit-scrollbar {
+                width: 4px;
+                height: 4px;
+              }
+              ::-webkit-scrollbar-track {
+                background: transparent;
+              }
+              ::-webkit-scrollbar-thumb {
+                background: #27272a;
+                border-radius: 9999px;
+              }
+              ::-webkit-scrollbar-thumb:hover {
+                background: #3f3f46;
+              }
+
+              /* Unified Input & Forms Styling */
               .admin-surface input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
               .admin-surface select,
               .admin-surface textarea {
                 width: 100% !important;
                 display: block !important;
                 box-sizing: border-box !important;
-                background-color: rgba(18, 18, 20, 0.95) !important;
-                border: 1px solid rgba(255, 255, 255, 0.12) !important;
+                background-color: #0c0c0e !important;
+                border: 1px solid #27272a !important;
                 border-radius: 10px !important;
                 color: #f4f4f5 !important;
-                padding: 10px 14px !important;
-                font-size: 13.5px !important;
+                padding: 9px 12px !important;
+                font-size: 13px !important;
                 line-height: 1.5 !important;
                 outline: none !important;
-                transition: border-color .15s, box-shadow .15s;
+                transition: all 0.2s ease-in-out !important;
               }
-              .admin-surface textarea { padding: 10px 14px !important; }
+              .admin-surface textarea {
+                padding: 10px 12px !important;
+              }
               .admin-surface input:focus,
               .admin-surface select:focus,
               .admin-surface textarea:focus {
-                border-color: rgba(255, 255, 255, 0.35) !important;
-                box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08) !important;
+                border-color: #6366f1 !important;
+                box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15) !important;
+                background-color: #09090b !important;
               }
               .admin-surface input::placeholder,
-              .admin-surface textarea::placeholder { color: #71717a !important; }
-              .admin-surface table { width: 100%; border-collapse: collapse; }
+              .admin-surface textarea::placeholder {
+                color: #52525b !important;
+              }
+
+              /* Minimalist Tables Overhaul */
+              .admin-surface table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                font-size: 12.5px !important;
+              }
               .admin-surface th {
-                font-size: 11px; font-weight: 600; text-transform: uppercase;
-                letter-spacing: .05em; color: #a1a1aa; text-align: left;
+                font-size: 10px !important;
+                font-weight: 700 !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.05em !important;
+                color: #71717a !important;
+                text-align: left !important;
+                padding: 12px 14px !important;
+                border-bottom: 1px solid #18181b !important;
+                background-color: #09090b !important;
+              }
+              .admin-surface td {
+                padding: 12px 14px !important;
+                border-bottom: 1px solid #18181b !important;
+                color: #d4d4d8 !important;
+                vertical-align: middle !important;
+                transition: background-color 0.15s ease-in-out !important;
+              }
+              .admin-surface tr:hover td {
+                background-color: rgba(39, 39, 42, 0.15) !important;
+                color: #ffffff !important;
+              }
+              
+              /* Button Standardizations */
+              .admin-surface button.btn-primary,
+              .admin-surface button[class*="bg-indigo-600"],
+              .admin-surface button[class*="bg-indigo-500"] {
+                background-color: #ffffff !important;
+                color: #09090b !important;
+                font-weight: 600 !important;
+                border-radius: 10px !important;
+                padding: 8px 16px !important;
+                font-size: 12.5px !important;
+                border: 1px solid #ffffff !important;
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+              }
+              .admin-surface button.btn-primary:hover,
+              .admin-surface button[class*="bg-indigo-600"]:hover,
+              .admin-surface button[class*="bg-indigo-500"]:hover {
+                background-color: #e4e4e7 !important;
+                border-color: #e4e4e7 !important;
+                transform: translateY(-0.5px) !important;
+              }
+              .admin-surface button.btn-primary:active,
+              .admin-surface button[class*="bg-indigo-600"]:active,
+              .admin-surface button[class*="bg-indigo-500"]:active {
+                transform: scale(0.98) !important;
+              }
+
+              .admin-surface button.btn-secondary {
+                background-color: rgba(39, 39, 42, 0.3) !important;
+                color: #e4e4e7 !important;
+                font-weight: 500 !important;
+                border-radius: 10px !important;
+                padding: 8px 16px !important;
+                font-size: 12.5px !important;
+                border: 1px solid #27272a !important;
+                transition: all 0.2s !important;
+              }
+              .admin-surface button.btn-secondary:hover {
+                background-color: rgba(39, 39, 42, 0.7) !important;
+                color: #ffffff !important;
+                border-color: #3f3f46 !important;
               }
             `}</style>
 

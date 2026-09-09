@@ -12,6 +12,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { logAdminAction, AUDIT } from '../../lib/adminAudit';
 import { downloadJSON, downloadCSV, dateStamp } from '../../lib/adminExport';
 import BulkQuestionUploader from './BulkQuestionUploader';
+import { DEFAULT_ACADEMIC_SUBJECTS } from '../../utils/academicRoutes';
+import { optionsOf } from '../../lib/questionUtils';
 
 const BULK_TYPES = ['mcq', 'cq', 'knowledge', 'shortcut'];
 
@@ -174,19 +176,17 @@ function QuestionBankUpload() {
   const [url, setUrl] = useState('');
   const [content, setContent] = useState('');
 
-  const [dbSubjects, setDbSubjects] = useState([]);
+  const [dbSubjects, setDbSubjects] = useState(DEFAULT_ACADEMIC_SUBJECTS);
   
   useEffect(() => {
     getDoc(doc(db, 'admin_settings', 'subjects')).then(snap => {
-      if (snap.exists() && snap.data().list?.length > 0) {
-        setDbSubjects(snap.data().list);
-      } else {
-        setDbSubjects([
-          { id: 'hsc-ict', label: 'HSC ICT', level: 'HSC', emoji: '💻', chapters: [{id: '1', name: 'Chapter 1'}, {id: '2', name: 'Chapter 2'}] },
-          { id: 'hsc-chemistry', label: 'HSC Chemistry', level: 'HSC', emoji: '🧪', chapters: [] },
-          { id: 'hsc-physics', label: 'HSC Physics', level: 'HSC', emoji: '⚛️', chapters: [] }
-        ]);
-      }
+      const list = snap.exists() && snap.data().list?.length > 0 ? snap.data().list : DEFAULT_ACADEMIC_SUBJECTS;
+      setDbSubjects(list);
+      setSubject(prev => prev || list.find(s => s.level === 'HSC')?.id || 'hsc-ict');
+    }).catch(err => {
+      console.warn('Failed to fetch subjects in QuestionBankUpload:', err);
+      setDbSubjects(DEFAULT_ACADEMIC_SUBJECTS);
+      setSubject(prev => prev || 'hsc-ict');
     });
   }, []);
 
@@ -784,10 +784,19 @@ function QuestionBankList() {
     setDuplicatingId(null);
   };
 
-  // subject-scoped query builder — chapter & type are both optional so the
-  // admin can search a whole subject without pre-picking a chapter/type
+  // subject-scoped query builder
   const buildQueryConditions = () => {
-    const conditions = [where('subject', '==', subject)];
+    const subjectVariants = Array.from(new Set([
+      subject,
+      subject.replace(/-1$/, '')
+    ])).filter(Boolean);
+
+    const conditions = [];
+    if (subjectVariants.length === 1) {
+      conditions.push(where('subject', '==', subjectVariants[0]));
+    } else if (subjectVariants.length > 1) {
+      conditions.push(where('subject', 'in', subjectVariants));
+    }
     if (chapterId) conditions.push(where('chapterId', '==', chapterId));
     if (type) conditions.push(where('type', '==', type));
     return conditions;
@@ -1534,10 +1543,10 @@ function QuestionBankList() {
                           <MarkdownRenderer content={q.question || q.text || 'No question text provided'} />
                         </div>
                       )}
-                      {itemType === 'mcq' && q.options && (
+                      {itemType === 'mcq' && optionsOf(q).length > 0 && (
                         <div className="grid grid-cols-2 gap-2 mb-3">
-                          {q.options.map((opt, i) => (
-                            <div key={i} className={`px-3 py-1.5 rounded-lg text-xs border ${i === q.answer ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300 font-bold' : 'bg-slate-800/50 border-slate-700 text-slate-400'}`}>
+                          {optionsOf(q).map((opt, i) => (
+                            <div key={i} className={`px-3 py-1.5 rounded-lg text-xs border ${i === Number(q.answer) ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300 font-bold' : 'bg-slate-800/50 border-slate-700 text-slate-400'}`}>
                               {i+1}. {opt}
                             </div>
                           ))}

@@ -11,7 +11,21 @@ import { QK, STALE } from '../../../lib/queryConfig';
 import { SkeletonList } from '../../../components/UI/Skeleton';
 import { resolveSubjectFromRoute } from '../../../utils/academicRoutes';
 
-const normalizeYear = (value) => String(value || '').replace(/[০-৯]/g, (digit) => '০১২৩৪৫৬৭৮৯'.indexOf(digit));
+const BN_DIGITS = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+const enToBnNumber = (numStr) => {
+  if (numStr === null || numStr === undefined || numStr === '') return numStr;
+  return String(numStr).replace(/[0-9]/g, w => BN_DIGITS[w] || w);
+};
+
+const normalizeYear = (yearStr) => {
+  if (!yearStr) return yearStr;
+  const bnToEn = { '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9' };
+  let enYear = String(yearStr).replace(/[০-৯]/g, w => bnToEn[w] || w);
+  if (enYear.length === 2) {
+    enYear = "20" + enYear;
+  }
+  return enYear;
+};
 
 export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subject: propSub } = {}) {
   const { educationLevel: paramEdu, subject: paramSub } = useParams();
@@ -37,22 +51,47 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
   );
 
   const { data: allQuestions = [], isLoading } = useQuery({
-    queryKey: QK.knowledgeQuestions(subjectConfig?.id),
-    enabled: Boolean(subjectConfig?.id),
+    queryKey: QK.knowledgeQuestions(subjectConfig?.id || `${educationLevel}-${subjectSlug}`),
+    enabled: Boolean(subjectConfig?.id || subjectSlug),
     staleTime: STALE.CONTENT,
     queryFn: async () => {
-      const contentSnap = await getDocs(query(
-        collection(db, 'academic_content'),
-        where('subject', '==', subjectConfig.id),
-        where('type', '==', 'knowledge')
-      ));
+      const configId = subjectConfig?.id || `${educationLevel}-${subjectSlug}`;
+      const subjectVariants = Array.from(new Set([
+        configId,
+        `${educationLevel}-${subjectSlug}`.toLowerCase(),
+        String(subjectSlug).toLowerCase(),
+        configId.replace(/-1$/, '')
+      ])).filter(Boolean);
 
-      const chapters = subjectConfig.chapters || [];
-      return contentSnap.docs.map((docSnap) => {
+      let contentSnapDocs = [];
+      try {
+        const snap = await getDocs(query(
+          collection(db, 'academic_content'),
+          where('subject', 'in', subjectVariants),
+          where('type', '==', 'knowledge')
+        ));
+        contentSnapDocs = snap.docs;
+      } catch (err) {
+        const snap = await getDocs(query(
+          collection(db, 'academic_content'),
+          where('subject', '==', configId),
+          where('type', '==', 'knowledge')
+        ));
+        contentSnapDocs = snap.docs;
+      }
+
+      const chapters = subjectConfig?.chapters || [];
+      return contentSnapDocs.map((docSnap) => {
         const data = docSnap.data();
-        const chapter = chapters.find((item) => item.id === data.chapterId);
+        const chapter = chapters.find((item) => {
+          if (item.id === data.chapterId) return true;
+          const itemNum = String(item.id || '').replace(/\D/g, '');
+          const docNum = String(data.chapterId || '').replace(/\D/g, '');
+          return Boolean(itemNum && docNum && itemNum === docNum);
+        });
         return {
           firebaseId: docSnap.id,
+          id: docSnap.id,
           ...data,
           chapterName: chapter?.title || chapter?.name || data.chapterName || data.chapterId,
         };
@@ -60,7 +99,6 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
     },
   });
 
-  // বিষয়ের তালিকা এসে গেছে কিন্তু রুটের বিষয়টি মেলেনি — তবেই "পাওয়া যায়নি"
   const notFound = subjectList.length > 0 && !subjectConfig;
   const loading = isLoading || (subjectList.length === 0 && !notFound);
 
@@ -77,7 +115,11 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
         if (parts.length > 1) boards.add(parts.slice(0, -1).join(' '));
         else boards.add(board);
       });
-      if (kq.topic && (selectedChapter === 'all' || kq.chapterId === selectedChapter)) {
+      const matchesChapter = selectedChapter === 'all' || 
+        kq.chapterId === selectedChapter ||
+        (String(kq.chapterId || '').replace(/\D/g, '') === String(selectedChapter).replace(/\D/g, '') && String(selectedChapter).replace(/\D/g, '') !== '');
+
+      if (kq.topic && matchesChapter) {
         topics.add(kq.topic);
       }
     });
@@ -89,7 +131,7 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
         { value: 'kh', label: 'অনুধাবনমূলক (খ)' },
       ],
       boards: Array.from(boards).filter(Boolean).map((board) => ({ value: board, label: board })),
-      years: Array.from(years).filter(Boolean).sort((a, b) => Number(b) - Number(a)).map((year) => ({ value: year, label: year })),
+      years: Array.from(years).filter(Boolean).sort((a, b) => Number(b) - Number(a)).map((year) => ({ value: year, label: enToBnNumber(year) })),
       topics: Array.from(topics).map((topic) => ({ value: topic, label: topic })),
     };
   }, [allQuestions, subjectConfig, selectedChapter]);
@@ -102,7 +144,10 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
         kq.answer?.toLowerCase().includes(search) ||
         kq.topic?.toLowerCase().includes(search);
 
-      const matchesChapter = selectedChapter === 'all' || kq.chapterId === selectedChapter;
+      const matchesChapter = selectedChapter === 'all' || 
+        kq.chapterId === selectedChapter ||
+        (String(kq.chapterId || '').replace(/\D/g, '') === String(selectedChapter).replace(/\D/g, '') && String(selectedChapter).replace(/\D/g, '') !== '');
+
       const matchesType = selectedType === 'all' || kq.type === selectedType;
       const matchesBoard = selectedBoard === 'all' || kq.board?.some((board) => String(board).includes(selectedBoard));
       const matchesYear = selectedYear === 'all' || kq.board?.some((board) => normalizeYear(board).includes(selectedYear));
@@ -115,7 +160,7 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
   const renderFilters = () => (
     <>
       <FilterSelect value={selectedChapter} onChange={setSelectedChapter} options={[{ value: 'all', label: 'সব অধ্যায়' }, ...filterOptions.chapters]} />
-      <FilterSelect value={selectedType} onChange={setSelectedType} options={[{ value: 'all', label: 'সব ধরন' }, ...filterOptions.types]} />
+      <FilterSelect value={selectedType} onChange={setSelectedType} options={[{ value: 'all', label: 'সব টাইপ' }, ...filterOptions.types]} />
       <FilterSelect value={selectedBoard} onChange={setSelectedBoard} options={[{ value: 'all', label: 'সব বোর্ড' }, ...filterOptions.boards]} />
       <FilterSelect value={selectedYear} onChange={setSelectedYear} options={[{ value: 'all', label: 'সব সাল' }, ...filterOptions.years]} />
       <FilterSelect value={selectedTopic} onChange={setSelectedTopic} options={[{ value: 'all', label: 'সব টপিক' }, ...filterOptions.topics]} />
@@ -133,11 +178,11 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{subjectConfig?.label || 'লোডিং...'} জ্ঞান ও অনুধাবন</h1>
-            <p className="text-slate-400 text-xs sm:text-sm mt-1">Admin panel থেকে যোগ করা জ্ঞানমূলক ও অনুধাবনমূলক প্রশ্ন।</p>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{subjectConfig?.label || 'লোড হচ্ছে...'} জ্ঞান ও অনুধাবন</h1>
+            <p className="text-slate-400 text-xs sm:text-sm mt-1">বিগত সালের বোর্ড ও টেস্ট পেপারের গুরুত্বপূর্ণ জ্ঞান ও অনুধাবনমূলক প্রশ্নাবলী</p>
           </div>
           <div className="inline-flex text-xs sm:text-sm bg-purple-500/10 border border-purple-500/20 px-3.5 py-1.5 rounded-full text-purple-300 font-bold self-start md:self-center">
-            মোট প্রশ্ন: {filteredQuestions.length} টি
+            মোট প্রশ্ন: {enToBnNumber(filteredQuestions.length)} টি
           </div>
         </div>
       </div>
@@ -167,7 +212,7 @@ export default function KnowledgeQuestionViewer({ educationLevel: propEdu, subje
             {visibleCount < filteredQuestions.length && (
               <div className="flex justify-center mt-4 mb-8">
                 <button onClick={() => setVisibleCount((prev) => prev + 15)} className="px-6 py-2.5 bg-indigo-500/20 text-indigo-300 font-bold rounded-xl border border-indigo-500/30 hover:bg-indigo-500/30 transition-colors">
-                  আরও দেখুন
+                  আরো দেখুন
                 </button>
               </div>
             )}

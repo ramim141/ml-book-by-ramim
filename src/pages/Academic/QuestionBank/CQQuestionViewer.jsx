@@ -2,14 +2,28 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
-import { ArrowLeft, LayoutGrid, Loader2, Search, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Search, SlidersHorizontal } from 'lucide-react';
 import SharedCQItem from '../../../components/Academic/SharedCQItem';
 import { SkeletonList } from '../../../components/UI/Skeleton';
 import FilterSelect from '../../../components/UI/FilterSelect';
 import { db } from '../../../config/firebase';
-import { resolveSubjectFromRoute } from '../../../utils/academicRoutes';
+import { resolveSubjectFromRoute, DEFAULT_ACADEMIC_SUBJECTS } from '../../../utils/academicRoutes';
 
-const normalizeYear = (value) => String(value || '').replace(/[০-৯]/g, (digit) => '০১২৩৪৫৬৭৮৯'.indexOf(digit));
+const BN_DIGITS = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+const enToBnNumber = (numStr) => {
+  if (numStr === null || numStr === undefined || numStr === '') return numStr;
+  return String(numStr).replace(/[0-9]/g, w => BN_DIGITS[w] || w);
+};
+
+const normalizeYear = (yearStr) => {
+  if (!yearStr) return yearStr;
+  const bnToEn = { '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4', '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9' };
+  let enYear = String(yearStr).replace(/[০-৯]/g, w => bnToEn[w] || w);
+  if (enYear.length === 2) {
+    enYear = "20" + enYear;
+  }
+  return enYear;
+};
 
 export default function CQQuestionViewer({ educationLevel: propEdu, subject: propSub } = {}) {
   const { educationLevel: paramEdu, subject: paramSub } = useParams();
@@ -31,26 +45,58 @@ export default function CQQuestionViewer({ educationLevel: propEdu, subject: pro
   const { data = { config: null, questions: [] }, isLoading: loading, isError, error } = useQuery({
     queryKey: ['cqQuestions', educationLevel, subjectSlug],
     queryFn: async () => {
-      const subjectsSnap = await getDoc(doc(db, 'admin_settings', 'subjects'));
-      const subjects = subjectsSnap.exists() ? subjectsSnap.data().list || [] : [];
+      let subjects = DEFAULT_ACADEMIC_SUBJECTS;
+      try {
+        const subjectsSnap = await getDoc(doc(db, 'admin_settings', 'subjects'));
+        if (subjectsSnap.exists() && subjectsSnap.data().list?.length > 0) {
+          subjects = subjectsSnap.data().list;
+        }
+      } catch (e) {
+        console.warn('Using default subjects fallback for CQ:', e);
+      }
+
       const resolved = resolveSubjectFromRoute(subjects, educationLevel, subjectSlug);
 
       if (!resolved) {
         throw new Error('NotFound');
       }
 
-      const contentSnap = await getDocs(query(
-        collection(db, 'academic_content'),
-        where('subject', '==', resolved.id),
-        where('type', '==', 'cq')
-      ));
+      const subjectVariants = Array.from(new Set([
+        resolved.id,
+        `${educationLevel}-${subjectSlug}`.toLowerCase(),
+        String(subjectSlug).toLowerCase(),
+        resolved.id.replace(/-1$/, '')
+      ])).filter(Boolean);
+
+      let contentSnapDocs = [];
+      try {
+        const snap = await getDocs(query(
+          collection(db, 'academic_content'),
+          where('subject', 'in', subjectVariants),
+          where('type', '==', 'cq')
+        ));
+        contentSnapDocs = snap.docs;
+      } catch (err) {
+        const snap = await getDocs(query(
+          collection(db, 'academic_content'),
+          where('subject', '==', resolved.id),
+          where('type', '==', 'cq')
+        ));
+        contentSnapDocs = snap.docs;
+      }
 
       const chapters = resolved.chapters || [];
-      const questions = contentSnap.docs.map((docSnap) => {
+      const questions = contentSnapDocs.map((docSnap) => {
         const data = docSnap.data();
-        const chapter = chapters.find((item) => item.id === data.chapterId);
+        const chapter = chapters.find((item) => {
+          if (item.id === data.chapterId) return true;
+          const itemNum = String(item.id || '').replace(/\D/g, '');
+          const docNum = String(data.chapterId || '').replace(/\D/g, '');
+          return Boolean(itemNum && docNum && itemNum === docNum);
+        });
         return {
           firebaseId: docSnap.id,
+          id: docSnap.id,
           ...data,
           chapterName: chapter?.title || chapter?.name || data.chapterName || data.chapterId,
         };
@@ -80,7 +126,11 @@ export default function CQQuestionViewer({ educationLevel: propEdu, subject: pro
         if (board.name) boards.add(board.name);
         if (board.year) years.add(normalizeYear(board.year));
       });
-      if (cq.topic && (selectedChapter === 'all' || cq.chapterId === selectedChapter)) {
+      const matchesChapter = selectedChapter === 'all' || 
+        cq.chapterId === selectedChapter ||
+        (String(cq.chapterId || '').replace(/\D/g, '') === String(selectedChapter).replace(/\D/g, '') && String(selectedChapter).replace(/\D/g, '') !== '');
+
+      if (cq.topic && matchesChapter) {
         topics.add(cq.topic);
       }
     });
@@ -88,7 +138,7 @@ export default function CQQuestionViewer({ educationLevel: propEdu, subject: pro
     return {
       chapters: (subjectConfig?.chapters || []).map((chapter) => ({ value: chapter.id, label: chapter.title || chapter.name || chapter.id })),
       boards: Array.from(boards).map((board) => ({ value: board, label: board })),
-      years: Array.from(years).sort((a, b) => Number(b) - Number(a)).map((year) => ({ value: year, label: year })),
+      years: Array.from(years).sort((a, b) => Number(b) - Number(a)).map((year) => ({ value: year, label: enToBnNumber(year) })),
       topics: Array.from(topics).map((topic) => ({ value: topic, label: topic })),
     };
   }, [allQuestions, subjectConfig, selectedChapter]);
@@ -111,7 +161,10 @@ export default function CQQuestionViewer({ educationLevel: propEdu, subject: pro
         cq.topic?.toLowerCase().includes(search) ||
         Object.values(cq.questions || {}).some((item) => String(item).toLowerCase().includes(search));
 
-      const matchesChapter = selectedChapter === 'all' || cq.chapterId === selectedChapter;
+      const matchesChapter = selectedChapter === 'all' || 
+        cq.chapterId === selectedChapter ||
+        (String(cq.chapterId || '').replace(/\D/g, '') === String(selectedChapter).replace(/\D/g, '') && String(selectedChapter).replace(/\D/g, '') !== '');
+
       const matchesBoard = selectedBoard === 'all' || cq.boards?.some((board) => board.name === selectedBoard);
       const matchesYear = selectedYear === 'all' || cq.boards?.some((board) => normalizeYear(board.year) === selectedYear);
       const matchesTopic = selectedTopic === 'all' || cq.topic === selectedTopic;
@@ -131,11 +184,11 @@ export default function CQQuestionViewer({ educationLevel: propEdu, subject: pro
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{subjectConfig?.label || 'লোডিং...'} সৃজনশীল (CQ)</h1>
-            <p className="text-slate-400 text-xs sm:text-sm mt-1">Admin panel থেকে যোগ করা সকল CQ প্রশ্ন।</p>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{subjectConfig?.label || 'লোড হচ্ছে...'} সৃজনশীল (CQ)</h1>
+            <p className="text-slate-400 text-xs sm:text-sm mt-1">বিগত সালের বোর্ড ও টেস্ট পেপারের গুরুত্বপূর্ণ CQ প্রশ্নাবলী</p>
           </div>
           <div className="inline-flex text-xs sm:text-sm bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-1.5 rounded-full text-indigo-300 font-bold self-start md:self-center">
-            মোট প্রশ্ন: {filteredQuestions.length} টি
+            মোট সৃজনশীল: {enToBnNumber(filteredQuestions.length)} টি
           </div>
         </div>
       </div>
@@ -167,7 +220,7 @@ export default function CQQuestionViewer({ educationLevel: propEdu, subject: pro
             {visibleCount < filteredQuestions.length && (
               <div className="flex justify-center mt-4 mb-8">
                 <button onClick={() => setVisibleCount((prev) => prev + 15)} className="px-6 py-2.5 bg-indigo-500/20 text-indigo-300 font-bold rounded-xl border border-indigo-500/30 hover:bg-indigo-500/30 transition-colors">
-                  আরও দেখুন
+                  আরো দেখুন
                 </button>
               </div>
             )}
@@ -175,7 +228,7 @@ export default function CQQuestionViewer({ educationLevel: propEdu, subject: pro
         ) : (
           <div className="text-center py-20 border border-slate-700/30 rounded-3xl bg-slate-800/10">
             <LayoutGrid className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-            <p className="text-slate-400 font-semibold">কোনো প্রশ্ন পাওয়া যায়নি</p>
+            <p className="text-slate-400 font-semibold">কোনো সৃজনশীল প্রশ্ন পাওয়া যায়নি</p>
           </div>
         )}
       </div>
